@@ -34,12 +34,255 @@
             </ol>
         </div>
 
-        <!-- 這裡面已經包好你最新版的 JS 程式碼了 -->
-        <a class="bookmark-btn" href="javascript:(function(){const host=window.location.hostname;const path=window.location.pathname;if(host==='www.etalkingonline.com'&&!path.includes('request_develop')){alert('⚠️ 通道已失效！\n\n請依照以下步驟重新啟動：\n\n① 點確定返回後台首頁\n② 進入名單管理頁面\n③ 隨意點開一張單的「編輯」\n④ 等編輯視窗開啟後，再點一次書籤');window.location.href='https://admin.etalkingonline.com/etalking2.0/#/request_list';return;}if(host==='admin.etalkingonline.com'){if(confirm('🚀 需要切換至專屬通道\n\n點確定後跳轉，再點一次書籤即可載入！\n\n💡 如果跳轉失敗，請先在名單頁面點開任一張單的「編輯」再試。')){const f=document.createElement('iframe');f.style.display='none';f.src='https://www.etalkingonline.com/admin/request_develop?member_id=232821&hide_layout=true';document.body.appendChild(f);setTimeout(()=>{f.remove();window.location.href='https://www.etalkingonline.com/admin/request_develop?member_id=232821&hide_layout=true';},2000);}return;}['custom-crm-curtain','custom-crm-panel'].forEach(id=>{const el=document.getElementById(id);if(el)el.remove();});const curtain=document.createElement('div');curtain.id='custom-crm-curtain';curtain.style.cssText='position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(236,240,241,0.85);backdrop-filter:blur(8px);z-index:999998;display:flex;align-items:center;justify-content:center;pointer-events:all;user-select:none;';curtain.addEventListener('click',e=>e.stopPropagation());curtain.addEventListener('scroll',e=>e.preventDefault(),{passive:false});document.body.style.overflow='hidden';document.body.appendChild(curtain);const panel=document.createElement('div');panel.id='custom-crm-panel';panel.style.cssText='position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);width:980px;height:85vh;background:#fff;box-shadow:0 15px 50px rgba(0,0,0,0.2);border-radius:12px;z-index:999999;display:flex;flex-direction:column;overflow:hidden;font-family:sans-serif;';const header=document.createElement('div');header.style.cssText='padding:15px;background:#2c3e50;color:white;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;';header.innerHTML='<div style=\"display:flex;align-items:center;gap:10px;flex-wrap:wrap;\"><h3 style=\"margin:0;font-size:16px;\">📊 名單管理篩選面板</h3><select id=\"consultant-filter\" style=\"padding:4px;border-radius:4px;border:none;max-width:150px;\"><option value=\"-1\">載入中...</option></select><select id=\"t-type-filter\" style=\"padding:4px;border-radius:4px;border:none;\"><option value=\"-1\">所有種類(T)</option><option value=\"1\">新單</option><option value=\"2\">常態名單</option><option value=\"3\">Demo過名單</option><option value=\"4\">釋出名單</option></select><button id=\"refresh-btn\" style=\"padding:4px 10px;cursor:pointer;border-radius:4px;border:none;background:#3498db;color:white;\">全部重整</button><span id=\"loading-status\" style=\"font-size:12px;color:#f1c40f;font-weight:bold;\"></span></div><button id=\"close-btn\" style=\"background:transparent;border:none;color:white;font-size:20px;cursor:pointer;\" title=\"關閉並返回後台\">×</button>';const content=document.createElement('div');content.style.cssText='flex:1;overflow-y:auto;padding:15px;background:#f8f9fa;';const modal=document.createElement('div');modal.id='record-modal';modal.style.cssText='display:none;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:300px;background:white;padding:20px;border-radius:8px;box-shadow:0 4px 15px rgba(0,0,0,0.2);z-index:1000000;';modal.innerHTML='<h4 style=\"margin-top:0;\">新增聯絡紀錄</h4><input type=\"hidden\" id=\"modal-member-id\"><div id=\"modal-info-text\" style=\"font-size:11px;color:#e67e22;margin-bottom:10px;font-weight:bold;\"></div><div style=\"margin-bottom:10px;\"><label>聯絡類型:</label><select id=\"modal-status\" style=\"width:100%;padding:5px;margin-top:5px;\"><option value=\"3\">未接</option><option value=\"1\">已接聽</option><option value=\"2\">非本人</option><option value=\"4\">關機</option></select></div><div style=\"margin-bottom:10px;\"><label>聯絡內容:</label><input type=\"text\" id=\"modal-content\" value=\"未接 *1\" style=\"width:100%;padding:5px;margin-top:5px;\"></div><div style=\"margin-bottom:10px;\"><label>下次聯繫日期 (已自動建議):</label><input type=\"date\" id=\"modal-date\" style=\"width:100%;padding:5px;margin-top:5px;\"></div><div style=\"display:flex;justify-content:space-between;margin-top:15px;\"><button id=\"modal-cancel\" style=\"padding:5px 15px;cursor:pointer;\">取消</button><button id=\"modal-submit\" style=\"padding:5px 15px;background:#27ae60;color:white;border:none;cursor:pointer;border-radius:4px;\">送出紀錄</button></div>';panel.appendChild(header);panel.appendChild(content);panel.appendChild(modal);document.body.appendChild(panel);let allData=[],detailData={},currentItem=null;let myMemos=JSON.parse(localStorage.getItem('etalking_my_memos'))||{};function updateConsultantDropdown(){const select=document.getElementById('consultant-filter');const uniqueNames=[...new Set(allData.map(item=>item.user_name?item.user_name.trim():'未指派'))].sort();let html='<option value=\"-1\">所有業務</option>';uniqueNames.forEach(name=>{html+=`<option value=\"${name}\">${name}</option>`;});select.innerHTML=html;select.value='-1';}async function fetchData(){content.innerHTML='<div style=\"text-align:center;padding:20px;\">資料載入中...</div>';try{const res=await fetch('https://server.etalkingonline.com/name_list/new_list/-1');const data=await res.json();allData=data.list||[];updateConsultantDropdown();renderList();}catch(err){content.innerHTML=`<div style=\"color:red;text-align:center;\">載入失敗: ${err.message}</div>`;}}async function loadDetailsForConsultant(consultantName){if(!consultantName||consultantName==='-1')return;const targetNewOnes=allData.filter(m=>m.type==1&&(m.user_name||'').trim()===consultantName&&!detailData[m.member_id]);if(targetNewOnes.length===0)return;const statusLabel=document.getElementById('loading-status');statusLabel.innerText=`🔄 同步 ${consultantName} 的新單 (${targetNewOnes.length}筆)...`;let count=0;for(let i=0;i<targetNewOnes.length;i+=5){const batch=targetNewOnes.slice(i,i+5);await Promise.all(batch.map(async(m)=>{try{const res=await fetch(`/admin/request_develop?member_id=${m.member_id}&hide_layout=true`);const html=await res.text();const doc=new DOMParser().parseFromString(html,'text/html');const rows=doc.querySelectorAll('table tbody tr');let assignDate=null,contactCount=0;rows.forEach(r=>{const cells=r.querySelectorAll('td');if(cells.length<4)return;const type=cells[3].innerText.trim();if(type.includes('名單移動')&&cells[4]&&cells[4].innerText.includes('移動到新名單'))assignDate=cells[1].innerText.split(' ')[0];if(type.includes('聯絡'))contactCount++;});detailData[m.member_id]={assignDate,contactCount};}catch(e){}}));count+=batch.length;statusLabel.innerText=`🔄 同步 ${consultantName} 的新單 (${count}/${targetNewOnes.length})...`;renderList();}statusLabel.innerText=`✅ ${consultantName} 資料同步完成`;setTimeout(()=>{statusLabel.innerText='';},3000);}function getDropDaysLeft(item,detail){const today=new Date();today.setHours(0,0,0,0);if(item.type==1){if(!detail||!detail.assignDate)return null;const assign=new Date(detail.assignDate);assign.setHours(0,0,0,0);const dropDate=new Date(assign);dropDate.setDate(dropDate.getDate()+3);return Math.ceil((dropDate-today)/86400000);}else{if(!item.next_time||item.next_time.includes('0000-00-00')||item.next_time==='無紀錄')return null;const nextT=new Date(item.next_time.split(' ')[0]);nextT.setHours(0,0,0,0);const dropDate=new Date(nextT);dropDate.setDate(dropDate.getDate()+4);return Math.ceil((dropDate-today)/86400000);}}function renderList(){const selectedConsultant=document.getElementById('consultant-filter').value;const selectedTType=document.getElementById('t-type-filter').value;let filteredData=allData.filter(item=>{const cMatch=selectedConsultant=='-1'||(item.user_name?item.user_name.trim():'未指派')===selectedConsultant;const tMatch=selectedTType=='-1'||String(item.type)===selectedTType;return cMatch&&tMatch;});filteredData.sort((a,b)=>{const dA=getDropDaysLeft(a,detailData[a.member_id])??999;const dB=getDropDaysLeft(b,detailData[b.member_id])??999;return dA-dB;});if(filteredData.length===0){content.innerHTML='<div style=\"text-align:center;padding:20px;color:#666;\">找不到符合條件的名單。</div>';return;}const typeStyles={'1':{label:'新單',bg:'#1a6fc4',border:'#1a6fc4'},'2':{label:'常態',bg:'#27ae60',border:'#27ae60'},'3':{label:'Demo',bg:'#8e44ad',border:'#8e44ad'},'4':{label:'釋出',bg:'#e67e22',border:'#e67e22'}};let html='<table style=\"width:100%;border-collapse:collapse;font-size:12px;\">';html+='<tr style=\"background:#eee;text-align:left;\"><th style=\"padding:8px;width:15%;\">姓名/狀態</th><th style=\"padding:8px;width:10%;\">電話</th><th style=\"padding:8px;width:15%;\">個人備註</th><th style=\"padding:8px;width:20%;\">下次聯繫 & 預警</th><th style=\"padding:8px;width:10%;\">屬性</th><th style=\"padding:8px;width:10%;\">業務</th><th style=\"padding:8px;width:10%;\">操作</th></tr>';const displayData=filteredData.slice(0,100);displayData.forEach(item=>{const id=item.member_id||item.id||'';const d=detailData[id];const dropDays=getDropDaysLeft(item,d);const savedMemo=myMemos[id]||'';const ts=typeStyles[String(item.type)]||{label:'類型'+item.type,bg:'#95a5a6',border:'#95a5a6'};const rowBorderColor=dropDays!==null&&dropDays<=0?'#e74c3c':dropDays!==null&&dropDays<=2?'#e67e22':ts.border;let warningHtml='';if(dropDays!==null){if(dropDays<0)warningHtml=`<br><span style=\"color:#c0392b;font-weight:bold;\">🔥 已噴單(過期${Math.abs(dropDays)}天)</span>`;else if(dropDays===0)warningHtml=`<br><span style=\"color:#d35400;font-weight:bold;\">🔥 今日噴單</span>`;else if(dropDays<=2)warningHtml=`<br><span style=\"color:#e67e22;font-weight:bold;\">⚠️ 剩 ${dropDays} 天</span>`;else warningHtml=`<br><span style=\"color:#16a085;\">距噴單 ${dropDays} 天</span>`;}else if(item.type==1&&selectedConsultant==='-1'){warningHtml=`<br><span style=\"color:#7f8c8d;\">請選取業務載入</span>`;}let progressHtml='';if(item.type==1){const count=d?d.contactCount:0;const pct=Math.min(100,(count/6)*100);const assignStr=(d&&d.assignDate)?d.assignDate:'待載入';progressHtml=`<div style=\"margin-top:4px;font-size:10px;color:#1a6fc4;\">進單日: ${assignStr}<br>進度: ${count}/6</div><div style=\"width:100%;height:4px;background:#ddd;border-radius:2px;margin-top:2px;\"><div style=\"width:${pct}%;height:100%;background:${pct<100?'#3498db':'#27ae60'};border-radius:2px;\"></div></div>`;}const btnBg=dropDays!==null&&dropDays<=0?'#e74c3c':ts.bg;html+=`<tr style=\"border-bottom:1px solid #eee;border-left:4px solid ${rowBorderColor};\"> <td style=\"padding:8px;vertical-align:top;\"> <b>${item.member_name||'未知'}</b><br> <span style=\"background:${ts.bg};color:white;padding:1px 5px;border-radius:3px;font-size:10px;\">${ts.label}</span> ${progressHtml} </td> <td style=\"padding:8px;vertical-align:top;\">${item.mobile||'-'}</td> <td style=\"padding:8px;vertical-align:top;\"> <input type=\"text\" class=\"memo-input\" data-id=\"${id}\" value=\"${savedMemo}\" placeholder=\"例如:A級...\" style=\"width:90%;padding:4px;border:1px solid #bdc3c7;border-radius:4px;font-size:11px;\"> </td> <td style=\"padding:8px;vertical-align:top;\"> <span style=\"color:#d35400;\">${item.next_time||'無紀錄'}</span>${warningHtml} </td> <td style=\"padding:8px;color:#8e44ad;font-size:11px;vertical-align:top;\">S:${item.source||'-'}</td> <td style=\"padding:8px;color:#7f8c8d;vertical-align:top;\">${item.user_name||'未指派'}</td> <td style=\"padding:8px;vertical-align:top;\"> <button class=\"quick-record-btn\" data-id=\"${id}\" style=\"padding:4px 8px;background:${btnBg};color:white;border:none;border-radius:4px;cursor:pointer;font-weight:bold;\">壓紀錄</button> </td> </tr>`;});html+='</table>';if(filteredData.length>100)html+=`<div style=\"text-align:center;padding:10px;color:#888;\">(僅顯示前 100 筆，共 ${filteredData.length} 筆)</div>`;content.innerHTML=html;document.querySelectorAll('.memo-input').forEach(input=>{input.addEventListener('change',(e)=>{const mid=e.target.getAttribute('data-id');const val=e.target.value.trim();if(val){myMemos[mid]=val;}else{delete myMemos[mid];}localStorage.setItem('etalking_my_memos',JSON.stringify(myMemos));e.target.style.background='#e8f8f5';setTimeout(()=>{e.target.style.background='#fff';},500);});});document.querySelectorAll('.quick-record-btn').forEach(btn=>{btn.onclick=(e)=>{const memberId=e.target.getAttribute('data-id');const item=allData.find(m=>(m.member_id||m.id)==memberId);currentItem=item;document.getElementById('modal-member-id').value=memberId;const nextTarget=new Date();nextTarget.setDate(nextTarget.getDate()+(item.type==1?1:3));document.getElementById('modal-date').value=nextTarget.toISOString().split('T')[0];const d=detailData[memberId];if(item.type==1&&d){document.getElementById('modal-info-text').innerText=`【新單】目前已壓 ${d.contactCount} 次，目標 6 次，還需 ${Math.max(0,6-d.contactCount)} 次`;}else{document.getElementById('modal-info-text').innerText='';}document.getElementById('modal-status').value='3';document.getElementById('modal-content').value='未接 *1';modal.style.display='block';};});}document.getElementById('modal-submit').onclick=()=>{if(!currentItem)return;const memberId=document.getElementById('modal-member-id').value;const btn=document.getElementById('modal-submit');btn.innerText='送出中...';let iframe=document.getElementById('hidden-save-frame')||document.createElement('iframe');iframe.name='hidden-save-frame';iframe.id='hidden-save-frame';iframe.style.display='none';iframe.sandbox='allow-forms allow-same-origin';document.body.appendChild(iframe);const form=document.createElement('form');form.target='hidden-save-frame';form.method='POST';form.action='https://www.etalkingonline.com/admin/request_develop/save';const params={'current_member_id':memberId,'contact_status':document.getElementById('modal-status').value,'content':document.getElementById('modal-content').value,'sub_content':'','search_begin':document.getElementById('modal-date').value,'time':'12:00:00','consultant_type':'10','type':'20'};for(let k in params){let i=document.createElement('input');i.type='hidden';i.name=k;i.value=params[k];form.appendChild(i);}document.body.appendChild(form);form.submit();setTimeout(()=>{alert('✅ 紀錄已成功送出！');modal.style.display='none';btn.innerText='送出紀錄';if(currentItem.type==1&&detailData[memberId])detailData[memberId].contactCount++;currentItem.next_time=params['search_begin']+' 11:59:59';renderList();},1000);};document.getElementById('close-btn').onclick=()=>{panel.remove();curtain.remove();document.body.style.overflow='';setTimeout(()=>{window.location.href='https://admin.etalkingonline.com/etalking2.0/#/kpi';},300);};document.getElementById('refresh-btn').onclick=fetchData;document.getElementById('t-type-filter').onchange=renderList;document.getElementById('modal-cancel').onclick=()=>modal.style.display='none';document.getElementById('modal-status').onchange=function(){const textMap={'1':'已接聽','2':'非本人','3':'未接','4':'關機'};document.getElementById('modal-content').value=(textMap[this.value]||'聯絡')+' *1';};document.getElementById('consultant-filter').onchange=function(){renderList();const selectedConsultant=this.value;if(selectedConsultant!=='-1'){loadDetailsForConsultant(selectedConsultant);}};fetchData();})()">Etalking 面板 (拖曳我)</a>
+        <!-- 這個是使用者看得到、可以拖曳的按鈕 -->
+        <a id="drag-btn" class="bookmark-btn" href="#">Etalking 面板 (拖曳我)</a>
 
         <div class="footer-note">
             🔒 本工具僅供內部業務團隊使用，無須安裝額外軟體。
         </div>
     </div>
+
+    <!-- 把程式碼藏在隱藏的保險箱 (textarea) 裡面，這樣網頁就絕對不會壞掉了！ -->
+    <textarea id="raw-code" style="display:none;">
+javascript:(function(){
+    const host=window.location.hostname;
+    const path=window.location.pathname;
+    if(host==='www.etalkingonline.com'&&!path.includes('request_develop')){
+        alert('⚠️ 通道已失效！\n\n請依照以下步驟重新啟動：\n\n① 點確定返回後台首頁\n② 進入名單管理頁面\n③ 隨意點開一張單的「編輯」\n④ 等編輯視窗開啟後，再點一次書籤');
+        window.location.href='https://admin.etalkingonline.com/etalking2.0/#/request_list';
+        return;
+    }
+    if(host==='admin.etalkingonline.com'){
+        if(confirm('🚀 需要切換至專屬通道\n\n點確定後跳轉，再點一次書籤即可載入！\n\n💡 如果跳轉失敗，請先在名單頁面點開任一張單的「編輯」再試。')){
+            const f=document.createElement('iframe');
+            f.style.display='none';
+            f.src='https://www.etalkingonline.com/admin/request_develop?member_id=232821&hide_layout=true';
+            document.body.appendChild(f);
+            setTimeout(()=>{f.remove();window.location.href='https://www.etalkingonline.com/admin/request_develop?member_id=232821&hide_layout=true';},2000);
+        }
+        return;
+    }
+    ['custom-crm-curtain','custom-crm-panel'].forEach(id=>{const el=document.getElementById(id);if(el)el.remove();});
+    const curtain=document.createElement('div');
+    curtain.id='custom-crm-curtain';
+    curtain.style.cssText='position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(236,240,241,0.85);backdrop-filter:blur(8px);z-index:999998;display:flex;align-items:center;justify-content:center;pointer-events:all;user-select:none;';
+    curtain.addEventListener('click',e=>e.stopPropagation());
+    curtain.addEventListener('scroll',e=>e.preventDefault(),{passive:false});
+    document.body.style.overflow='hidden';
+    document.body.appendChild(curtain);
+    const panel=document.createElement('div');
+    panel.id='custom-crm-panel';
+    panel.style.cssText='position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);width:980px;height:85vh;background:#fff;box-shadow:0 15px 50px rgba(0,0,0,0.2);border-radius:12px;z-index:999999;display:flex;flex-direction:column;overflow:hidden;font-family:sans-serif;';
+    const header=document.createElement('div');
+    header.style.cssText='padding:15px;background:#2c3e50;color:white;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;';
+    header.innerHTML='<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;"><h3 style="margin:0;font-size:16px;">📊 名單管理篩選面板</h3><select id="consultant-filter" style="padding:4px;border-radius:4px;border:none;max-width:150px;"><option value="-1">載入中...</option></select><select id="t-type-filter" style="padding:4px;border-radius:4px;border:none;"><option value="-1">所有種類(T)</option><option value="1">新單</option><option value="2">常態名單</option><option value="3">Demo過名單</option><option value="4">釋出名單</option></select><button id="refresh-btn" style="padding:4px 10px;cursor:pointer;border-radius:4px;border:none;background:#3498db;color:white;">全部重整</button><span id="loading-status" style="font-size:12px;color:#f1c40f;font-weight:bold;"></span></div><button id="close-btn" style="background:transparent;border:none;color:white;font-size:20px;cursor:pointer;" title="關閉並返回後台">×</button>';
+    const content=document.createElement('div');
+    content.style.cssText='flex:1;overflow-y:auto;padding:15px;background:#f8f9fa;';
+    const modal=document.createElement('div');
+    modal.id='record-modal';
+    modal.style.cssText='display:none;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:300px;background:white;padding:20px;border-radius:8px;box-shadow:0 4px 15px rgba(0,0,0,0.2);z-index:1000000;';
+    modal.innerHTML='<h4 style="margin-top:0;">新增聯絡紀錄</h4><input type="hidden" id="modal-member-id"><div id="modal-info-text" style="font-size:11px;color:#e67e22;margin-bottom:10px;font-weight:bold;"></div><div style="margin-bottom:10px;"><label>聯絡類型:</label><select id="modal-status" style="width:100%;padding:5px;margin-top:5px;"><option value="3">未接</option><option value="1">已接聽</option><option value="2">非本人</option><option value="4">關機</option></select></div><div style="margin-bottom:10px;"><label>聯絡內容:</label><input type="text" id="modal-content" value="未接 *1" style="width:100%;padding:5px;margin-top:5px;"></div><div style="margin-bottom:10px;"><label>下次聯繫日期 (已自動建議):</label><input type="date" id="modal-date" style="width:100%;padding:5px;margin-top:5px;"></div><div style="display:flex;justify-content:space-between;margin-top:15px;"><button id="modal-cancel" style="padding:5px 15px;cursor:pointer;">取消</button><button id="modal-submit" style="padding:5px 15px;background:#27ae60;color:white;border:none;cursor:pointer;border-radius:4px;">送出紀錄</button></div>';
+    panel.appendChild(header);
+    panel.appendChild(content);
+    panel.appendChild(modal);
+    document.body.appendChild(panel);
+    let allData=[],detailData={},currentItem=null;
+    let myMemos=JSON.parse(localStorage.getItem('etalking_my_memos'))||{};
+    function updateConsultantDropdown(){
+        const select=document.getElementById('consultant-filter');
+        const uniqueNames=[...new Set(allData.map(item=>item.user_name?item.user_name.trim():'未指派'))].sort();
+        let html='<option value="-1">所有業務</option>';
+        uniqueNames.forEach(name=>{html+=`<option value="${name}">${name}</option>`;});
+        select.innerHTML=html;select.value='-1';
+    }
+    async function fetchData(){
+        content.innerHTML='<div style="text-align:center;padding:20px;">資料載入中...</div>';
+        try{
+            const res=await fetch('https://server.etalkingonline.com/name_list/new_list/-1');
+            const data=await res.json();
+            allData=data.list||[];
+            updateConsultantDropdown();
+            renderList();
+        }catch(err){
+            content.innerHTML=`<div style="color:red;text-align:center;">載入失敗: ${err.message}</div>`;
+        }
+    }
+    async function loadDetailsForConsultant(consultantName){
+        if(!consultantName||consultantName==='-1')return;
+        const targetNewOnes=allData.filter(m=>m.type==1&&(m.user_name||'').trim()===consultantName&&!detailData[m.member_id]);
+        if(targetNewOnes.length===0)return;
+        const statusLabel=document.getElementById('loading-status');
+        statusLabel.innerText=`🔄 同步 ${consultantName} 的新單 (${targetNewOnes.length}筆)...`;
+        let count=0;
+        for(let i=0;i<targetNewOnes.length;i+=5){
+            const batch=targetNewOnes.slice(i,i+5);
+            await Promise.all(batch.map(async(m)=>{
+                try{
+                    const res=await fetch(`/admin/request_develop?member_id=${m.member_id}&hide_layout=true`);
+                    const html=await res.text();
+                    const doc=new DOMParser().parseFromString(html,'text/html');
+                    const rows=doc.querySelectorAll('table tbody tr');
+                    let assignDate=null,contactCount=0;
+                    rows.forEach(r=>{
+                        const cells=r.querySelectorAll('td');
+                        if(cells.length<4)return;
+                        const type=cells[3].innerText.trim();
+                        if(type.includes('名單移動')&&cells[4]&&cells[4].innerText.includes('移動到新名單'))assignDate=cells[1].innerText.split(' ')[0];
+                        if(type.includes('聯絡'))contactCount++;
+                    });
+                    detailData[m.member_id]={assignDate,contactCount};
+                }catch(e){}
+            }));
+            count+=batch.length;
+            statusLabel.innerText=`🔄 同步 ${consultantName} 的新單 (${count}/${targetNewOnes.length})...`;
+            renderList();
+        }
+        statusLabel.innerText=`✅ ${consultantName} 資料同步完成`;
+        setTimeout(()=>{statusLabel.innerText='';},3000);
+    }
+    function getDropDaysLeft(item,detail){
+        const today=new Date();today.setHours(0,0,0,0);
+        if(item.type==1){
+            if(!detail||!detail.assignDate)return null;
+            const assign=new Date(detail.assignDate);assign.setHours(0,0,0,0);
+            const dropDate=new Date(assign);dropDate.setDate(dropDate.getDate()+3);
+            return Math.ceil((dropDate-today)/86400000);
+        }else{
+            if(!item.next_time||item.next_time.includes('0000-00-00')||item.next_time==='無紀錄')return null;
+            const nextT=new Date(item.next_time.split(' ')[0]);nextT.setHours(0,0,0,0);
+            const dropDate=new Date(nextT);dropDate.setDate(dropDate.getDate()+4);
+            return Math.ceil((dropDate-today)/86400000);
+        }
+    }
+    function renderList(){
+        const selectedConsultant=document.getElementById('consultant-filter').value;
+        const selectedTType=document.getElementById('t-type-filter').value;
+        let filteredData=allData.filter(item=>{
+            const cMatch=selectedConsultant=='-1'||(item.user_name?item.user_name.trim():'未指派')===selectedConsultant;
+            const tMatch=selectedTType=='-1'||String(item.type)===selectedTType;
+            return cMatch&&tMatch;
+        });
+        filteredData.sort((a,b)=>{
+            const dA=getDropDaysLeft(a,detailData[a.member_id])??999;
+            const dB=getDropDaysLeft(b,detailData[b.member_id])??999;
+            return dA-dB;
+        });
+        if(filteredData.length===0){content.innerHTML='<div style="text-align:center;padding:20px;color:#666;">找不到符合條件的名單。</div>';return;}
+        const typeStyles={ '1':{label:'新單',bg:'#1a6fc4',border:'#1a6fc4'}, '2':{label:'常態',bg:'#27ae60',border:'#27ae60'}, '3':{label:'Demo',bg:'#8e44ad',border:'#8e44ad'}, '4':{label:'釋出',bg:'#e67e22',border:'#e67e22'} };
+        let html='<table style="width:100%;border-collapse:collapse;font-size:12px;">';
+        html+='<tr style="background:#eee;text-align:left;"><th style="padding:8px;width:15%;">姓名/狀態</th><th style="padding:8px;width:10%;">電話</th><th style="padding:8px;width:15%;">個人備註</th><th style="padding:8px;width:20%;">下次聯繫 & 預警</th><th style="padding:8px;width:10%;">屬性</th><th style="padding:8px;width:10%;">業務</th><th style="padding:8px;width:10%;">操作</th></tr>';
+        const displayData=filteredData.slice(0,100);
+        displayData.forEach(item=>{
+            const id=item.member_id||item.id||'';
+            const d=detailData[id];
+            const dropDays=getDropDaysLeft(item,d);
+            const savedMemo=myMemos[id]||'';
+            const ts=typeStyles[String(item.type)]||{label:'類型'+item.type,bg:'#95a5a6',border:'#95a5a6'};
+            const rowBorderColor=dropDays!==null&&dropDays<=0?'#e74c3c':dropDays!==null&&dropDays<=2?'#e67e22':ts.border;
+            let warningHtml='';
+            if(dropDays!==null){
+                if(dropDays<0)warningHtml=`<br><span style="color:#c0392b;font-weight:bold;">🔥 已噴單(過期${Math.abs(dropDays)}天)</span>`;
+                else if(dropDays===0)warningHtml=`<br><span style="color:#d35400;font-weight:bold;">🔥 今日噴單</span>`;
+                else if(dropDays<=2)warningHtml=`<br><span style="color:#e67e22;font-weight:bold;">⚠️ 剩 ${dropDays} 天</span>`;
+                else warningHtml=`<br><span style="color:#16a085;">距噴單 ${dropDays} 天</span>`;
+            }else if(item.type==1&&selectedConsultant==='-1'){
+                warningHtml=`<br><span style="color:#7f8c8d;">請選取業務載入</span>`;
+            }
+            let progressHtml='';
+            if(item.type==1){
+                const count=d?d.contactCount:0;
+                const pct=Math.min(100,(count/6)*100);
+                const assignStr=(d&&d.assignDate)?d.assignDate:'待載入';
+                progressHtml=`<div style="margin-top:4px;font-size:10px;color:#1a6fc4;">進單日: ${assignStr}<br>進度: ${count}/6</div><div style="width:100%;height:4px;background:#ddd;border-radius:2px;margin-top:2px;"><div style="width:${pct}%;height:100%;background:${pct<100?'#3498db':'#27ae60'};border-radius:2px;"></div></div>`;
+            }
+            const btnBg=dropDays!==null&&dropDays<=0?'#e74c3c':ts.bg;
+            html+=`<tr style="border-bottom:1px solid #eee;border-left:4px solid ${rowBorderColor};"> <td style="padding:8px;vertical-align:top;"> <b>${item.member_name||'未知'}</b><br> <span style="background:${ts.bg};color:white;padding:1px 5px;border-radius:3px;font-size:10px;">${ts.label}</span> ${progressHtml} </td> <td style="padding:8px;vertical-align:top;">${item.mobile||'-'}</td> <td style="padding:8px;vertical-align:top;"> <input type="text" class="memo-input" data-id="${id}" value="${savedMemo}" placeholder="例如:A級..." style="width:90%;padding:4px;border:1px solid #bdc3c7;border-radius:4px;font-size:11px;"> </td> <td style="padding:8px;vertical-align:top;"> <span style="color:#d35400;">${item.next_time||'無紀錄'}</span>${warningHtml} </td> <td style="padding:8px;color:#8e44ad;font-size:11px;vertical-align:top;">S:${item.source||'-'}</td> <td style="padding:8px;color:#7f8c8d;vertical-align:top;">${item.user_name||'未指派'}</td> <td style="padding:8px;vertical-align:top;"> <button class="quick-record-btn" data-id="${id}" style="padding:4px 8px;background:${btnBg};color:white;border:none;border-radius:4px;cursor:pointer;font-weight:bold;">壓紀錄</button> </td> </tr>`;
+        });
+        html+='</table>';
+        if(filteredData.length>100)html+=`<div style="text-align:center;padding:10px;color:#888;">(僅顯示前 100 筆，共 ${filteredData.length} 筆)</div>`;
+        content.innerHTML=html;
+        document.querySelectorAll('.memo-input').forEach(input=>{
+            input.addEventListener('change',(e)=>{
+                const mid=e.target.getAttribute('data-id');
+                const val=e.target.value.trim();
+                if(val){myMemos[mid]=val;}else{delete myMemos[mid];}
+                localStorage.setItem('etalking_my_memos',JSON.stringify(myMemos));
+                e.target.style.background='#e8f8f5';
+                setTimeout(()=>{e.target.style.background='#fff';},500);
+            });
+        });
+        document.querySelectorAll('.quick-record-btn').forEach(btn=>{
+            btn.onclick=(e)=>{
+                const memberId=e.target.getAttribute('data-id');
+                const item=allData.find(m=>(m.member_id||m.id)==memberId);
+                currentItem=item;
+                document.getElementById('modal-member-id').value=memberId;
+                const nextTarget=new Date();
+                nextTarget.setDate(nextTarget.getDate()+(item.type==1?1:3));
+                document.getElementById('modal-date').value=nextTarget.toISOString().split('T')[0];
+                const d=detailData[memberId];
+                if(item.type==1&&d){
+                    document.getElementById('modal-info-text').innerText=`【新單】目前已壓 ${d.contactCount} 次，目標 6 次，還需 ${Math.max(0,6-d.contactCount)} 次`;
+                }else{
+                    document.getElementById('modal-info-text').innerText='';
+                }
+                document.getElementById('modal-status').value='3';
+                document.getElementById('modal-content').value='未接 *1';
+                modal.style.display='block';
+            };
+        });
+    }
+    document.getElementById('modal-submit').onclick=()=>{
+        if(!currentItem)return;
+        const memberId=document.getElementById('modal-member-id').value;
+        const btn=document.getElementById('modal-submit');
+        btn.innerText='送出中...';
+        let iframe=document.getElementById('hidden-save-frame')||document.createElement('iframe');
+        iframe.name='hidden-save-frame';iframe.id='hidden-save-frame';
+        iframe.style.display='none';iframe.sandbox='allow-forms allow-same-origin';
+        document.body.appendChild(iframe);
+        const form=document.createElement('form');
+        form.target='hidden-save-frame';form.method='POST';
+        form.action='https://www.etalkingonline.com/admin/request_develop/save';
+        const params={'current_member_id':memberId,'contact_status':document.getElementById('modal-status').value,'content':document.getElementById('modal-content').value,'sub_content':'','search_begin':document.getElementById('modal-date').value,'time':'12:00:00','consultant_type':'10','type':'20'};
+        for(let k in params){let i=document.createElement('input');i.type='hidden';i.name=k;i.value=params[k];form.appendChild(i);}
+        document.body.appendChild(form);form.submit();
+        setTimeout(()=>{
+            alert('✅ 紀錄已成功送出！');
+            modal.style.display='none';btn.innerText='送出紀錄';
+            if(currentItem.type==1&&detailData[memberId])detailData[memberId].contactCount++;
+            currentItem.next_time=params['search_begin']+' 11:59:59';
+            renderList();
+        },1000);
+    };
+    document.getElementById('close-btn').onclick=()=>{
+        panel.remove();
+        curtain.remove();
+        document.body.style.overflow='';
+        setTimeout(()=>{
+            window.location.href='https://admin.etalkingonline.com/etalking2.0/#/kpi';
+        },300);
+    };
+    document.getElementById('refresh-btn').onclick=fetchData;
+    document.getElementById('t-type-filter').onchange=renderList;
+    document.getElementById('modal-cancel').onclick=()=>modal.style.display='none';
+    document.getElementById('modal-status').onchange=function(){
+        const textMap={'1':'已接聽','2':'非本人','3':'未接','4':'關機'};
+        document.getElementById('modal-content').value=(textMap[this.value]||'聯絡')+' *1';
+    };
+    document.getElementById('consultant-filter').onchange=function(){
+        renderList();
+        const selectedConsultant=this.value;
+        if(selectedConsultant!=='-1'){loadDetailsForConsultant(selectedConsultant);}
+    };
+    fetchData();
+})();
+    </textarea>
+
+    <script>
+        // 用這段小腳本把保險箱裡面的代碼，無損地掛到綠色的按鈕上
+        const code = document.getElementById('raw-code').value.trim();
+        document.getElementById('drag-btn').href = code;
+    </script>
 </body>
 </html>
