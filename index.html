@@ -24,244 +24,65 @@
             --danger-border: #fecaca;
             --danger-text: #991b1b;
         }
-
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-        }
-
+        * { box-sizing: border-box; margin: 0; padding: 0; }
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
             background-color: var(--bg-color);
             color: var(--text-main);
             line-height: 1.6;
-            /* 明亮版柔和網格背景 */
             background-image: 
                 linear-gradient(to right, rgba(0,0,0,0.02) 1px, transparent 1px),
                 linear-gradient(to bottom, rgba(0,0,0,0.02) 1px, transparent 1px);
             background-size: 40px 40px;
             padding: 60px 20px;
         }
-
-        .container {
-            max-width: 900px;
-            margin: 0 auto;
-        }
-
-        /* --- Header 區域 --- */
-        .header {
-            text-align: center;
-            margin-bottom: 50px;
-        }
-
+        .container { max-width: 900px; margin: 0 auto; }
+        .header { text-align: center; margin-bottom: 50px; }
         .badge {
-            display: inline-flex;
-            align-items: center;
-            background: rgba(26, 111, 196, 0.1);
-            color: var(--accent-blue);
-            padding: 6px 16px;
-            border-radius: 50px;
+            display: inline-flex; align-items: center;
+            background: rgba(26, 111, 196, 0.1); color: var(--accent-blue);
+            padding: 6px 16px; border-radius: 50px;
             border: 1px solid rgba(26, 111, 196, 0.2);
-            font-size: 12px;
-            font-weight: bold;
-            letter-spacing: 1px;
-            margin-bottom: 24px;
+            font-size: 12px; font-weight: bold; letter-spacing: 1px; margin-bottom: 24px;
         }
-
-        .badge .dot {
-            width: 6px;
-            height: 6px;
-            background-color: var(--accent-green);
-            border-radius: 50%;
-            margin-right: 8px;
-            box-shadow: 0 0 6px var(--accent-green);
-        }
-
-        h1 {
-            font-size: 48px;
-            line-height: 1.2;
-            margin-bottom: 20px;
-            letter-spacing: 2px;
-            font-weight: 800;
-            color: var(--accent-blue);
-        }
-
-        .subtitle {
-            color: var(--text-muted);
-            font-size: 16px;
-        }
-
-        /* --- 共用卡片樣式 --- */
-        .section-label {
-            color: var(--accent-blue);
-            font-size: 14px;
-            margin-bottom: 15px;
-            font-family: monospace;
-            letter-spacing: 1px;
-            font-weight: bold;
-        }
-
-        .card {
-            background: var(--card-bg);
-            border: 1px solid var(--border-color);
-            border-radius: 16px;
-            padding: 30px;
-            margin-bottom: 30px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.05);
-        }
-
-        /* --- 安裝書籤區 --- */
-        .install-box {
-            display: flex;
-            align-items: center;
-            gap: 30px;
-        }
-
+        .badge .dot { width: 6px; height: 6px; background-color: var(--accent-green); border-radius: 50%; margin-right: 8px; box-shadow: 0 0 6px var(--accent-green); }
+        h1 { font-size: 48px; line-height: 1.2; margin-bottom: 20px; letter-spacing: 2px; font-weight: 800; color: var(--accent-blue); }
+        .subtitle { color: var(--text-muted); font-size: 16px; }
+        .section-label { color: var(--accent-blue); font-size: 14px; margin-bottom: 15px; font-family: monospace; letter-spacing: 1px; font-weight: bold; }
+        .card { background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 16px; padding: 30px; margin-bottom: 30px; box-shadow: 0 10px 30px rgba(0,0,0,0.05); }
+        .install-box { display: flex; align-items: center; gap: 30px; }
         .bookmark-btn {
-            display: inline-block;
-            background: var(--accent-green);
-            color: white;
-            text-decoration: none;
-            font-size: 18px;
-            font-weight: bold;
-            padding: 16px 32px;
-            border-radius: 50px;
+            display: inline-block; background: var(--accent-green); color: white;
+            text-decoration: none; font-size: 18px; font-weight: bold;
+            padding: 16px 32px; border-radius: 50px;
             box-shadow: 0 8px 24px var(--accent-glow);
-            cursor: grab;
-            transition: transform 0.2s, box-shadow 0.2s, background 0.2s;
-            flex-shrink: 0;
+            cursor: grab; transition: transform 0.2s, box-shadow 0.2s, background 0.2s; flex-shrink: 0;
         }
-
-        .bookmark-btn:hover {
-            background: #219653;
-            transform: translateY(-2px);
-            box-shadow: 0 12px 32px var(--accent-glow);
-        }
-
-        .bookmark-btn:active {
-            cursor: grabbing;
-            transform: translateY(0);
-        }
-
-        .install-text h3 {
-            font-size: 16px;
-            margin-bottom: 5px;
-            color: var(--text-main);
-        }
-        .install-text p {
-            color: var(--text-muted);
-            font-size: 14px;
-        }
-
-        /* --- 網格排版 (步驟 & 狀態) --- */
-        .grid-2 {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 20px;
-            margin-bottom: 30px;
-        }
-
-        .grid-3 {
-            display: grid;
-            grid-template-columns: 1fr 1fr 1fr;
-            gap: 20px;
-            margin-bottom: 30px;
-        }
-
-        .step-card {
-            background: var(--card-bg);
-            border: 1px solid var(--border-color);
-            border-radius: 12px;
-            padding: 24px;
-            display: flex;
-            gap: 15px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.02);
-        }
-
-        .step-num {
-            background: #e6f0fa;
-            color: var(--accent-blue);
-            font-weight: bold;
-            font-size: 14px;
-            width: 32px;
-            height: 32px;
-            border-radius: 8px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            flex-shrink: 0;
-        }
-
-        .step-content h4 {
-            font-size: 15px;
-            margin-bottom: 8px;
-            margin-top: 5px;
-            color: var(--text-main);
-        }
-
-        .step-content p {
-            color: var(--text-muted);
-            font-size: 13px;
-        }
-
-        code {
-            background: #f1f3f5;
-            padding: 2px 6px;
-            border-radius: 4px;
-            font-family: monospace;
-            color: #d35400;
-        }
-
-        /* --- 狀態說明卡片 --- */
-        .status-card {
-            background: var(--card-bg);
-            border: 1px solid var(--border-color);
-            border-radius: 12px;
-            padding: 24px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.02);
-        }
-        
+        .bookmark-btn:hover { background: #219653; transform: translateY(-2px); box-shadow: 0 12px 32px var(--accent-glow); }
+        .bookmark-btn:active { cursor: grabbing; transform: translateY(0); }
+        .install-text h3 { font-size: 16px; margin-bottom: 5px; color: var(--text-main); }
+        .install-text p { color: var(--text-muted); font-size: 14px; }
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 30px; }
+        .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; margin-bottom: 30px; }
+        .step-card { background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 12px; padding: 24px; display: flex; gap: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.02); }
+        .step-num { background: #e6f0fa; color: var(--accent-blue); font-weight: bold; font-size: 14px; width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        .step-content h4 { font-size: 15px; margin-bottom: 8px; margin-top: 5px; color: var(--text-main); }
+        .step-content p { color: var(--text-muted); font-size: 13px; }
+        code { background: #f1f3f5; padding: 2px 6px; border-radius: 4px; font-family: monospace; color: #d35400; }
+        .status-card { background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 12px; padding: 24px; box-shadow: 0 4px 15px rgba(0,0,0,0.02); }
         .status-card.success { border-color: var(--success-border); background: var(--success-bg); }
         .status-card.warning { border-color: var(--warning-border); background: var(--warning-bg); }
         .status-card.danger { border-color: var(--danger-border); background: var(--danger-bg); }
-
         .status-icon { font-size: 24px; margin-bottom: 12px; }
         .status-title { font-weight: bold; margin-bottom: 8px; font-size: 15px; }
         .success .status-title { color: var(--success-text); }
         .warning .status-title { color: var(--warning-text); }
         .danger .status-title { color: var(--danger-text); }
         .status-card p { color: var(--text-muted); font-size: 13px; }
-
-        /* --- 功能一覽 --- */
-        .features-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 15px 30px;
-        }
-        .feature-item {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            font-size: 14px;
-            color: var(--text-main);
-        }
-        .feature-item::before {
-            content: "✓";
-            color: var(--accent-green);
-            font-weight: bold;
-        }
-
-        /* --- Footer --- */
-        .footer {
-            text-align: center;
-            color: #95a5a6;
-            font-size: 12px;
-            margin-top: 50px;
-            letter-spacing: 0.5px;
-        }
-
-        /* 響應式設定 */
+        .features-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px 30px; }
+        .feature-item { display: flex; align-items: center; gap: 10px; font-size: 14px; color: var(--text-main); }
+        .feature-item::before { content: "✓"; color: var(--accent-green); font-weight: bold; }
+        .footer { text-align: center; color: #95a5a6; font-size: 12px; margin-top: 50px; letter-spacing: 0.5px; }
         @media (max-width: 768px) {
             .install-box { flex-direction: column; text-align: center; }
             .grid-2, .grid-3, .features-grid { grid-template-columns: 1fr; }
@@ -270,385 +91,390 @@
     </style>
 </head>
 <body>
-    <div class="container">
-        
-        <div class="header">
-            <div class="badge"><span class="dot"></span> ETALKING CRM TOOL</div>
-            <h1>名單快速管理工具</h1>
-            <p class="subtitle">一鍵壓紀錄、倒數噴單警示、新單進度追蹤。讓名單管理更有效率。</p>
-        </div>
-
-        <div class="section-label">// 安裝書籤</div>
-        <div class="card install-box">
-            <a id="drag-btn" class="bookmark-btn" href="#">📋 名單管理工具</a>
-            <div class="install-text">
-                <h3>將左側按鈕拖曳到瀏覽器書籤列</h3>
-                <p>拖曳放開後即完成安裝，之後點一下就能啟動。</p>
-            </div>
-        </div>
-
-        <div class="section-label">// 使用步驟</div>
-        <div class="grid-2">
-            <div class="step-card">
-                <div class="step-num">01</div>
-                <div class="step-content">
-                    <h4>顯示書籤列</h4>
-                    <p>按 <code>Ctrl+Shift+B</code> 確認書籤列已顯示於瀏覽器上方。</p>
-                </div>
-            </div>
-            <div class="step-card">
-                <div class="step-num">02</div>
-                <div class="step-content">
-                    <h4>拖曳安裝</h4>
-                    <p>將綠色「📋名單管理工具」按鈕直接拖曳到書籤列放開即安裝完成。</p>
-                </div>
-            </div>
-            <div class="step-card">
-                <div class="step-num">03</div>
-                <div class="step-content">
-                    <h4>登入後台點擊書籤</h4>
-                    <p>登入 etalking 後台後，在任意頁面點一下書籤，按確定進行跳轉。</p>
-                </div>
-            </div>
-            <div class="step-card">
-                <div class="step-num">04</div>
-                <div class="step-content">
-                    <h4>再點一次書籤</h4>
-                    <p>跳轉完成後，再點一次書籤，名單管理面板即會自動載入。</p>
-                </div>
-            </div>
-        </div>
-
-        <div class="section-label">// 跳轉狀態說明</div>
-        <div class="grid-3">
-            <div class="status-card success">
-                <div class="status-icon">✅</div>
-                <div class="status-title">正常啟動</div>
-                <p>已在正確頁面，面板直接載入，無需任何額外操作。</p>
-            </div>
-            <div class="status-card warning">
-                <div class="status-icon">🔄</div>
-                <div class="status-title">需要跳轉</div>
-                <p>點確定後自動跳轉，跳轉完成再點一次書籤即可。</p>
-            </div>
-            <div class="status-card danger">
-                <div class="status-icon">⚠️</div>
-                <div class="status-title">通道失效</div>
-                <p>請先在名單頁面點開任一張單的「編輯」，再重新點書籤。</p>
-            </div>
-        </div>
-
-        <div class="section-label">// 功能一覽</div>
-        <div class="card">
-            <div class="features-grid">
-                <div class="feature-item">新單第幾天 / 已壓幾次 / 進度條</div>
-                <div class="feature-item">噴單倒數計時警示</div>
-                <div class="feature-item">🔵新單 🟢常態 🟠釋出 顏色區分</div>
-                <div class="feature-item">快速壓聯絡紀錄</div>
-                <div class="feature-item">業務篩選 / 關鍵字搜尋</div>
-                <div class="feature-item">個人備註（本機儲存）</div>
-                <div class="feature-item">安全遮罩防止誤操作</div>
-                <div class="feature-item">關閉自動返回 KPI 頁面</div>
-            </div>
-        </div>
-
-        <div class="footer">
-            僅限已登入 etalking 後台的使用者操作 • 資料存取需帳號密碼驗證
-        </div>
-
+<div class="container">
+    <div class="header">
+        <div class="badge"><span class="dot"></span> ETALKING CRM TOOL</div>
+        <h1>名單快速管理工具</h1>
+        <p class="subtitle">一鍵壓紀錄、倒數噴單警示、新單進度追蹤。讓名單管理更有效率。</p>
     </div>
 
-    <!-- 隱藏的 JS 程式碼保險箱 (包含經理權限防護) -->
-    <textarea id="raw-code" style="display:none;">
+    <div class="section-label">// 安裝書籤</div>
+    <div class="card install-box">
+        <a id="drag-btn" class="bookmark-btn" href="#">📋 名單管理工具</a>
+        <div class="install-text">
+            <h3>將左側按鈕拖曳到瀏覽器書籤列</h3>
+            <p>拖曳放開後即完成安裝，之後點一下就能啟動。</p>
+        </div>
+    </div>
+
+    <div class="section-label">// 使用步驟</div>
+    <div class="grid-2">
+        <div class="step-card">
+            <div class="step-num">01</div>
+            <div class="step-content">
+                <h4>顯示書籤列</h4>
+                <p>按 <code>Ctrl+Shift+B</code> 確認書籤列已顯示於瀏覽器上方。</p>
+            </div>
+        </div>
+        <div class="step-card">
+            <div class="step-num">02</div>
+            <div class="step-content">
+                <h4>拖曳安裝</h4>
+                <p>將綠色「📋名單管理工具」按鈕直接拖曳到書籤列放開即安裝完成。</p>
+            </div>
+        </div>
+        <div class="step-card">
+            <div class="step-num">03</div>
+            <div class="step-content">
+                <h4>登入後台點擊書籤</h4>
+                <p>登入 etalking 後台後，在任意頁面點一下書籤，按確定進行跳轉。</p>
+            </div>
+        </div>
+        <div class="step-card">
+            <div class="step-num">04</div>
+            <div class="step-content">
+                <h4>再點一次書籤</h4>
+                <p>跳轉完成後，再點一次書籤，名單管理面板即會自動載入。</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="section-label">// 跳轉狀態說明</div>
+    <div class="grid-3">
+        <div class="status-card success">
+            <div class="status-icon">✅</div>
+            <div class="status-title">正常啟動</div>
+            <p>已在正確頁面，面板直接載入，無需任何額外操作。</p>
+        </div>
+        <div class="status-card warning">
+            <div class="status-icon">🔄</div>
+            <div class="status-title">需要跳轉</div>
+            <p>點確定後自動跳轉，跳轉完成再點一次書籤即可。</p>
+        </div>
+        <div class="status-card danger">
+            <div class="status-icon">⚠️</div>
+            <div class="status-title">通道失效</div>
+            <p>請先在名單頁面點開任一張單的「編輯」，再重新點書籤。</p>
+        </div>
+    </div>
+
+    <div class="section-label">// 功能一覽</div>
+    <div class="card">
+        <div class="features-grid">
+            <div class="feature-item">新單第幾天 / 已壓幾次 / 進度條</div>
+            <div class="feature-item">噴單倒數計時警示</div>
+            <div class="feature-item">🔵新單 🟢常態 🟠釋出 顏色區分</div>
+            <div class="feature-item">快速壓聯絡紀錄</div>
+            <div class="feature-item">業務篩選 / 關鍵字搜尋</div>
+            <div class="feature-item">個人備註（本機儲存）</div>
+            <div class="feature-item">安全遮罩防止誤操作</div>
+            <div class="feature-item">關閉自動返回 KPI 頁面</div>
+        </div>
+    </div>
+
+    <div class="footer">
+        僅限已登入 etalking 後台的使用者操作 • 資料存取需帳號密碼驗證
+    </div>
+</div>
+
+<textarea id="raw-code" style="display:none;">
 javascript:(function(){
-    const host=window.location.hostname;
-    const path=window.location.pathname;
-    if(host==='www.etalkingonline.com'&&!path.includes('request_develop')){
-        alert('⚠️ 通道已失效！\n\n請依照以下步驟重新啟動：\n\n① 點確定返回後台首頁\n② 進入名單管理頁面\n③ 隨意點開一張單的「編輯」\n④ 等編輯視窗開啟後，再點一次書籤');
-        window.location.href='https://admin.etalkingonline.com/etalking2.0/#/request_list';
-        return;
+
+/* ══════════════════════════════════════════
+   安全防線：強制檢查必須在 etalking 網域才能執行
+   ══════════════════════════════════════════ */
+const host=window.location.hostname;
+const allowedHosts=['www.etalkingonline.com','admin.etalkingonline.com'];
+if(!allowedHosts.includes(host)){
+    alert('❌ 此工具僅限在 etalking 後台使用\n\n請先登入後台再點擊書籤！');
+    return;
+}
+
+const path=window.location.pathname;
+
+/* 情況C：www/admin/ = Session 失效 */
+if(host==='www.etalkingonline.com'&&!path.includes('request_develop')){
+    alert('⚠️ 通道已失效！\n\n請依照以下步驟重新啟動：\n\n① 點確定返回後台首頁\n② 進入名單管理頁面\n③ 隨意點開一張單的「編輯」\n④ 等編輯視窗開啟後，再點一次書籤');
+    window.location.href='https://admin.etalkingonline.com/etalking2.0/#/request_list';
+    return;
+}
+
+/* 情況B：在後台，自動帶 uid 跳轉 */
+if(host==='admin.etalkingonline.com'){
+    if(confirm('🚀 需要切換至專屬通道\n\n點確定後跳轉，再點一次書籤即可載入！\n\n💡 如果跳轉失敗，請先在名單頁面點開任一張單的「編輯」再試。')){
+        const uid=localStorage.getItem('uid')||'';
+        const tUrl='https://www.etalkingonline.com/admin/request_develop?member_id=232821&hide_layout=true'+(uid?'&crm_uid='+uid:'');
+        const f=document.createElement('iframe');
+        f.style.display='none';
+        f.src=tUrl;
+        document.body.appendChild(f);
+        setTimeout(()=>{f.remove();window.location.href=tUrl;},2000);
     }
-    if(host==='admin.etalkingonline.com'){
-        if(confirm('🚀 需要切換至專屬通道\n\n點確定後跳轉，再點一次書籤即可載入！\n\n💡 如果跳轉失敗，請先在名單頁面點開任一張單的「編輯」再試。')){
-            const uid=localStorage.getItem('uid')||'';
-            const tUrl='https://www.etalkingonline.com/admin/request_develop?member_id=232821&hide_layout=true&crm_uid='+uid;
-            const f=document.createElement('iframe');
-            f.style.display='none';
-            f.src=tUrl;
-            document.body.appendChild(f);
-            setTimeout(()=>{f.remove();window.location.href=tUrl;},2000);
-        }
-        return;
+    return;
+}
+
+/* 情況A：已在正確頁面，讀取 uid 並判斷是否為主管 */
+const urlParams=new URLSearchParams(window.location.search);
+const crmUid=urlParams.get('crm_uid')||'';
+
+/* 安全防線：沒有 uid 代表不是從後台跳轉過來的，直接擋掉 */
+if(!crmUid){
+    alert('❌ 無法識別身份！\n\n請從 etalking 後台點擊書籤來啟動工具。');
+    return;
+}
+
+/* 主管 uid 列表（只有你：424） */
+const managerUids=['424'];
+const isManager=managerUids.includes(crmUid);
+const fetchUrl='https://server.etalkingonline.com/name_list/new_list/'+(isManager?'-1':crmUid);
+
+/* ══ 清除舊元素 ══ */
+['custom-crm-curtain','custom-crm-panel'].forEach(id=>{const el=document.getElementById(id);if(el)el.remove();});
+
+/* ══ 安全遮罩 ══ */
+const curtain=document.createElement('div');
+curtain.id='custom-crm-curtain';
+curtain.style.cssText='position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(236,240,241,0.85);backdrop-filter:blur(8px);z-index:999998;display:flex;align-items:center;justify-content:center;pointer-events:all;user-select:none;';
+curtain.addEventListener('click',e=>e.stopPropagation());
+document.body.style.overflow='hidden';
+document.body.appendChild(curtain);
+
+/* ══ 面板 ══ */
+const panel=document.createElement('div');
+panel.id='custom-crm-panel';
+panel.style.cssText='position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);width:980px;height:85vh;background:#fff;box-shadow:0 15px 50px rgba(0,0,0,0.2);border-radius:12px;z-index:999999;display:flex;flex-direction:column;overflow:hidden;font-family:sans-serif;';
+
+const header=document.createElement('div');
+header.style.cssText='padding:15px;background:#2c3e50;color:white;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;';
+header.innerHTML='<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;"><h3 style="margin:0;font-size:16px;">📊 名單管理面板</h3><select id="consultant-filter" style="padding:4px;border-radius:4px;border:none;max-width:150px;"><option value="-1">載入中...</option></select><select id="t-type-filter" style="padding:4px;border-radius:4px;border:none;"><option value="-1">所有種類</option><option value="1">新單</option><option value="2">常態名單</option><option value="3">Demo過名單</option><option value="4">釋出名單</option></select><button id="refresh-btn" style="padding:4px 10px;cursor:pointer;border-radius:4px;border:none;background:#3498db;color:white;">重新整理</button><span id="loading-status" style="font-size:12px;color:#f1c40f;font-weight:bold;"></span></div><button id="close-btn" style="background:transparent;border:none;color:white;font-size:20px;cursor:pointer;" title="關閉並返回後台">×</button>';
+
+const content=document.createElement('div');
+content.style.cssText='flex:1;overflow-y:auto;padding:15px;background:#f8f9fa;';
+
+const modal=document.createElement('div');
+modal.id='record-modal';
+modal.style.cssText='display:none;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:300px;background:white;padding:20px;border-radius:8px;box-shadow:0 4px 15px rgba(0,0,0,0.2);z-index:1000000;';
+modal.innerHTML='<h4 style="margin-top:0;">新增聯絡紀錄</h4><input type="hidden" id="modal-member-id"><div id="modal-info-text" style="font-size:11px;color:#e67e22;margin-bottom:10px;font-weight:bold;"></div><div style="margin-bottom:10px;"><label>聯絡類型:</label><select id="modal-status" style="width:100%;padding:5px;margin-top:5px;"><option value="3">未接</option><option value="1">已接聽</option><option value="2">非本人</option><option value="4">關機</option></select></div><div style="margin-bottom:10px;"><label>聯絡內容:</label><input type="text" id="modal-content" value="未接 *1" style="width:100%;padding:5px;margin-top:5px;"></div><div style="margin-bottom:10px;"><label>下次聯繫日期:</label><input type="date" id="modal-date" style="width:100%;padding:5px;margin-top:5px;"></div><div style="display:flex;justify-content:space-between;margin-top:15px;"><button id="modal-cancel" style="padding:5px 15px;cursor:pointer;">取消</button><button id="modal-submit" style="padding:5px 15px;background:#27ae60;color:white;border:none;cursor:pointer;border-radius:4px;">送出紀錄</button></div>';
+
+panel.appendChild(header);
+panel.appendChild(content);
+panel.appendChild(modal);
+document.body.appendChild(panel);
+
+let allData=[],detailData={},currentItem=null;
+let myMemos=JSON.parse(localStorage.getItem('etalking_my_memos'))||{};
+
+function updateConsultantDropdown(){
+    const select=document.getElementById('consultant-filter');
+    if(isManager){
+        const uniqueNames=[...new Set(allData.map(item=>item.user_name?item.user_name.trim():'未指派'))].sort();
+        let html='<option value="-1">所有業務</option>';
+        uniqueNames.forEach(name=>{html+=`<option value="${name}">${name}</option>`;});
+        select.innerHTML=html;select.value='-1';
+    }else{
+        select.innerHTML='<option value="-1">我的名單</option>';
+        select.disabled=true;
+        select.style.background='#e9ecef';
     }
-    ['custom-crm-curtain','custom-crm-panel'].forEach(id=>{const el=document.getElementById(id);if(el)el.remove();});
-    const curtain=document.createElement('div');
-    curtain.id='custom-crm-curtain';
-    curtain.style.cssText='position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(236,240,241,0.85);backdrop-filter:blur(8px);z-index:999998;display:flex;align-items:center;justify-content:center;pointer-events:all;user-select:none;';
-    curtain.addEventListener('click',e=>e.stopPropagation());
-    curtain.addEventListener('scroll',e=>e.preventDefault(),{passive:false});
-    document.body.style.overflow='hidden';
-    document.body.appendChild(curtain);
-    const panel=document.createElement('div');
-    panel.id='custom-crm-panel';
-    panel.style.cssText='position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);width:980px;height:85vh;background:#fff;box-shadow:0 15px 50px rgba(0,0,0,0.2);border-radius:12px;z-index:999999;display:flex;flex-direction:column;overflow:hidden;font-family:sans-serif;';
-    const header=document.createElement('div');
-    header.style.cssText='padding:15px;background:#2c3e50;color:white;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;';
-    header.innerHTML='<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;"><h3 style="margin:0;font-size:16px;">📊 名單管理篩選面板</h3><select id="consultant-filter" style="padding:4px;border-radius:4px;border:none;max-width:150px;"><option value="-1">載入中...</option></select><select id="t-type-filter" style="padding:4px;border-radius:4px;border:none;"><option value="-1">所有種類(T)</option><option value="1">新單</option><option value="2">常態名單</option><option value="3">Demo過名單</option><option value="4">釋出名單</option></select><button id="refresh-btn" style="padding:4px 10px;cursor:pointer;border-radius:4px;border:none;background:#3498db;color:white;">全部重整</button><span id="loading-status" style="font-size:12px;color:#f1c40f;font-weight:bold;"></span></div><button id="close-btn" style="background:transparent;border:none;color:white;font-size:20px;cursor:pointer;" title="關閉並返回後台">×</button>';
-    const content=document.createElement('div');
-    content.style.cssText='flex:1;overflow-y:auto;padding:15px;background:#f8f9fa;';
-    const modal=document.createElement('div');
-    modal.id='record-modal';
-    modal.style.cssText='display:none;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:300px;background:white;padding:20px;border-radius:8px;box-shadow:0 4px 15px rgba(0,0,0,0.2);z-index:1000000;';
-    modal.innerHTML='<h4 style="margin-top:0;">新增聯絡紀錄</h4><input type="hidden" id="modal-member-id"><div id="modal-info-text" style="font-size:11px;color:#e67e22;margin-bottom:10px;font-weight:bold;"></div><div style="margin-bottom:10px;"><label>聯絡類型:</label><select id="modal-status" style="width:100%;padding:5px;margin-top:5px;"><option value="3">未接</option><option value="1">已接聽</option><option value="2">非本人</option><option value="4">關機</option></select></div><div style="margin-bottom:10px;"><label>聯絡內容:</label><input type="text" id="modal-content" value="未接 *1" style="width:100%;padding:5px;margin-top:5px;"></div><div style="margin-bottom:10px;"><label>下次聯繫日期 (已自動建議):</label><input type="date" id="modal-date" style="width:100%;padding:5px;margin-top:5px;"></div><div style="display:flex;justify-content:space-between;margin-top:15px;"><button id="modal-cancel" style="padding:5px 15px;cursor:pointer;">取消</button><button id="modal-submit" style="padding:5px 15px;background:#27ae60;color:white;border:none;cursor:pointer;border-radius:4px;">送出紀錄</button></div>';
-    panel.appendChild(header);
-    panel.appendChild(content);
-    panel.appendChild(modal);
-    document.body.appendChild(panel);
+}
 
-    const urlParams=new URLSearchParams(window.location.search);
-    const crmUid=urlParams.get('crm_uid');
-    
-    /* 這裡就是經理 VIP 名單！目前的 424 是你的 ID */
-    const managerUids=['424'];
-    
-    const isManager=(!crmUid || managerUids.includes(crmUid));
-    const fetchUrl=isManager ? 'https://server.etalkingonline.com/name_list/new_list/-1' : 'https://server.etalkingonline.com/name_list/new_list/'+crmUid;
-
-    let allData=[],detailData={},currentItem=null;
-    let myMemos=JSON.parse(localStorage.getItem('etalking_my_memos'))||{};
-
-    function updateConsultantDropdown(){
-        const select=document.getElementById('consultant-filter');
-        if(isManager){
-            const uniqueNames=[...new Set(allData.map(item=>item.user_name?item.user_name.trim():'未指派'))].sort();
-            let html='<option value="-1">所有業務</option>';
-            uniqueNames.forEach(name=>{html+=`<option value="${name}">${name}</option>`;});
-            select.innerHTML=html;select.value='-1';
-        } else {
-            select.innerHTML='<option value="-1">我的專屬名單</option>';
-            select.disabled=true;
-            select.style.background='#e9ecef';
-        }
-    }
-
-    async function fetchData(){
-        content.innerHTML='<div style="text-align:center;padding:20px;">資料載入中...</div>';
-        try{
-            const res=await fetch(fetchUrl);
-            const data=await res.json();
-            allData=data.list||[];
-            if(!isManager){
-                allData.forEach(item=>{
-                    item.user_name='我';
-                    if(!item.source)item.source='-';
-                });
-            }
-            updateConsultantDropdown();
-            renderList();
-            if(!isManager){
-                loadDetailsForConsultant('我');
-            }
-        }catch(err){
-            content.innerHTML=`<div style="color:red;text-align:center;">載入失敗: ${err.message}</div>`;
-        }
-    }
-
-    async function loadDetailsForConsultant(consultantName){
-        let targetNewOnes=[];
-        if(isManager){
-            if(!consultantName||consultantName==='-1')return;
-            targetNewOnes=allData.filter(m=>m.type==1&&(m.user_name||'').trim()===consultantName&&!detailData[m.member_id]);
-        }else{
-            targetNewOnes=allData.filter(m=>m.type==1&&!detailData[m.member_id]);
-        }
-        if(targetNewOnes.length===0)return;
-        const statusLabel=document.getElementById('loading-status');
-        statusLabel.innerText=`🔄 同步新單細節 (${targetNewOnes.length}筆)...`;
-        let count=0;
-        for(let i=0;i<targetNewOnes.length;i+=5){
-            const batch=targetNewOnes.slice(i,i+5);
-            await Promise.all(batch.map(async(m)=>{
-                try{
-                    const res=await fetch(`/admin/request_develop?member_id=${m.member_id}&hide_layout=true`);
-                    const html=await res.text();
-                    const doc=new DOMParser().parseFromString(html,'text/html');
-                    const rows=doc.querySelectorAll('table tbody tr');
-                    let assignDate=null,contactCount=0;
-                    rows.forEach(r=>{
-                        const cells=r.querySelectorAll('td');
-                        if(cells.length<4)return;
-                        const type=cells[3].innerText.trim();
-                        if(type.includes('名單移動')&&cells[4]&&cells[4].innerText.includes('移動到新名單'))assignDate=cells[1].innerText.split(' ')[0];
-                        if(type.includes('聯絡'))contactCount++;
-                    });
-                    detailData[m.member_id]={assignDate,contactCount};
-                }catch(e){}
-            }));
-            count+=batch.length;
-            statusLabel.innerText=`🔄 同步新單細節 (${count}/${targetNewOnes.length})...`;
-            renderList();
-        }
-        statusLabel.innerText=`✅ 資料同步完成`;
-        setTimeout(()=>{statusLabel.innerText='';},3000);
-    }
-
-    function getDropDaysLeft(item,detail){
-        const today=new Date();today.setHours(0,0,0,0);
-        if(item.type==1){
-            if(!detail||!detail.assignDate)return null;
-            const assign=new Date(detail.assignDate);assign.setHours(0,0,0,0);
-            const dropDate=new Date(assign);dropDate.setDate(dropDate.getDate()+3);
-            return Math.ceil((dropDate-today)/86400000);
-        }else{
-            if(!item.next_time||item.next_time.includes('0000-00-00')||item.next_time==='無紀錄')return null;
-            const nextT=new Date(item.next_time.split(' ')[0]);nextT.setHours(0,0,0,0);
-            const dropDate=new Date(nextT);dropDate.setDate(dropDate.getDate()+4);
-            return Math.ceil((dropDate-today)/86400000);
-        }
-    }
-
-    function renderList(){
-        const selectedConsultant=document.getElementById('consultant-filter').value;
-        const selectedTType=document.getElementById('t-type-filter').value;
-        let filteredData=allData.filter(item=>{
-            const cMatch=isManager ? (selectedConsultant=='-1'||(item.user_name?item.user_name.trim():'未指派')===selectedConsultant) : true;
-            const tMatch=selectedTType=='-1'||String(item.type)===selectedTType;
-            return cMatch&&tMatch;
-        });
-        filteredData.sort((a,b)=>{
-            const dA=getDropDaysLeft(a,detailData[a.member_id])??999;
-            const dB=getDropDaysLeft(b,detailData[b.member_id])??999;
-            return dA-dB;
-        });
-        if(filteredData.length===0){content.innerHTML='<div style="text-align:center;padding:20px;color:#666;">找不到符合條件的名單。</div>';return;}
-        const typeStyles={ '1':{label:'新單',bg:'#1a6fc4',border:'#1a6fc4'}, '2':{label:'常態',bg:'#27ae60',border:'#27ae60'}, '3':{label:'Demo',bg:'#8e44ad',border:'#8e44ad'}, '4':{label:'釋出',bg:'#e67e22',border:'#e67e22'} };
-        
-        /* 判斷是不是經理，是的話才產出「屬性」的表頭 */
-        const sourceHeader = isManager ? '<th style="padding:8px;width:10%;">屬性</th>' : '';
-        
-        let html='<table style="width:100%;border-collapse:collapse;font-size:12px;">';
-        html+=`<tr style="background:#eee;text-align:left;"><th style="padding:8px;width:15%;">姓名/狀態</th><th style="padding:8px;width:10%;">電話</th><th style="padding:8px;width:15%;">個人備註</th><th style="padding:8px;width:20%;">下次聯繫 & 預警</th>${sourceHeader}<th style="padding:8px;width:10%;">業務</th><th style="padding:8px;width:10%;">操作</th></tr>`;
-        
-        const displayData=filteredData.slice(0,100);
-        displayData.forEach(item=>{
-            const id=item.member_id||item.id||'';
-            const d=detailData[id];
-            const dropDays=getDropDaysLeft(item,d);
-            const savedMemo=myMemos[id]||'';
-            const ts=typeStyles[String(item.type)]||{label:'類型'+item.type,bg:'#95a5a6',border:'#95a5a6'};
-            const rowBorderColor=dropDays!==null&&dropDays<=0?'#e74c3c':dropDays!==null&&dropDays<=2?'#e67e22':ts.border;
-            let warningHtml='';
-            if(dropDays!==null){
-                if(dropDays<0)warningHtml=`<br><span style="color:#c0392b;font-weight:bold;">🔥 已噴單(過期${Math.abs(dropDays)}天)</span>`;
-                else if(dropDays===0)warningHtml=`<br><span style="color:#d35400;font-weight:bold;">🔥 今日噴單</span>`;
-                else if(dropDays<=2)warningHtml=`<br><span style="color:#e67e22;font-weight:bold;">⚠️ 剩 ${dropDays} 天</span>`;
-                else warningHtml=`<br><span style="color:#16a085;">距噴單 ${dropDays} 天</span>`;
-            }else if(item.type==1&&isManager&&selectedConsultant=='-1'){
-                warningHtml=`<br><span style="color:#7f8c8d;">請選取業務載入</span>`;
-            }else if(item.type==1&&!isManager&&!d){
-                warningHtml=`<br><span style="color:#7f8c8d;">載入進度中...</span>`;
-            }
-            let progressHtml='';
-            if(item.type==1){
-                const count=d?d.contactCount:0;
-                const pct=Math.min(100,(count/6)*100);
-                const assignStr=(d&&d.assignDate)?d.assignDate:'待載入';
-                progressHtml=`<div style="margin-top:4px;font-size:10px;color:#1a6fc4;">進單日: ${assignStr}<br>進度: ${count}/6</div><div style="width:100%;height:4px;background:#ddd;border-radius:2px;margin-top:2px;"><div style="width:${pct}%;height:100%;background:${pct<100?'#3498db':'#27ae60'};border-radius:2px;"></div></div>`;
-            }
-            const btnBg=dropDays!==null&&dropDays<=0?'#e74c3c':ts.bg;
-            
-            /* 判斷是不是經理，是的話才塞入來源資料的那一格 */
-            const sourceCell = isManager ? `<td style="padding:8px;color:#8e44ad;font-size:11px;vertical-align:top;">S:${item.source||'-'}</td>` : '';
-            
-            html+=`<tr style="border-bottom:1px solid #eee;border-left:4px solid ${rowBorderColor};"> <td style="padding:8px;vertical-align:top;"> <b>${item.member_name||'未知'}</b><br> <span style="background:${ts.bg};color:white;padding:1px 5px;border-radius:3px;font-size:10px;">${ts.label}</span> ${progressHtml} </td> <td style="padding:8px;vertical-align:top;">${item.mobile||'-'}</td> <td style="padding:8px;vertical-align:top;"> <input type="text" class="memo-input" data-id="${id}" value="${savedMemo}" placeholder="例如:A級..." style="width:90%;padding:4px;border:1px solid #bdc3c7;border-radius:4px;font-size:11px;"> </td> <td style="padding:8px;vertical-align:top;"> <span style="color:#d35400;">${item.next_time||'無紀錄'}</span>${warningHtml} </td> ${sourceCell} <td style="padding:8px;color:#7f8c8d;vertical-align:top;">${item.user_name||'未指派'}</td> <td style="padding:8px;vertical-align:top;"> <button class="quick-record-btn" data-id="${id}" style="padding:4px 8px;background:${btnBg};color:white;border:none;border-radius:4px;cursor:pointer;font-weight:bold;">壓紀錄</button> </td> </tr>`;
-        });
-        html+='</table>';
-        if(filteredData.length>100)html+=`<div style="text-align:center;padding:10px;color:#888;">(僅顯示前 100 筆，共 ${filteredData.length} 筆)</div>`;
-        content.innerHTML=html;
-        document.querySelectorAll('.memo-input').forEach(input=>{
-            input.addEventListener('change',(e)=>{
-                const mid=e.target.getAttribute('data-id');
-                const val=e.target.value.trim();
-                if(val){myMemos[mid]=val;}else{delete myMemos[mid];}
-                localStorage.setItem('etalking_my_memos',JSON.stringify(myMemos));
-                e.target.style.background='#e8f8f5';
-                setTimeout(()=>{e.target.style.background='#fff';},500);
-            });
-        });
-        document.querySelectorAll('.quick-record-btn').forEach(btn=>{
-            btn.onclick=(e)=>{
-                const memberId=e.target.getAttribute('data-id');
-                const item=allData.find(m=>(m.member_id||m.id)==memberId);
-                currentItem=item;
-                document.getElementById('modal-member-id').value=memberId;
-                const nextTarget=new Date();
-                nextTarget.setDate(nextTarget.getDate()+(item.type==1?1:3));
-                document.getElementById('modal-date').value=nextTarget.toISOString().split('T')[0];
-                const d=detailData[memberId];
-                if(item.type==1&&d){
-                    document.getElementById('modal-info-text').innerText=`【新單】目前已壓 ${d.contactCount} 次，目標 6 次，還需 ${Math.max(0,6-d.contactCount)} 次`;
-                }else{
-                    document.getElementById('modal-info-text').innerText='';
-                }
-                document.getElementById('modal-status').value='3';
-                document.getElementById('modal-content').value='未接 *1';
-                modal.style.display='block';
-            };
-        });
-    }
-
-    document.getElementById('modal-submit').onclick=()=>{
-        if(!currentItem)return;
-        const memberId=document.getElementById('modal-member-id').value;
-        const btn=document.getElementById('modal-submit');
-        btn.innerText='送出中...';
-        let iframe=document.getElementById('hidden-save-frame')||document.createElement('iframe');
-        iframe.name='hidden-save-frame';iframe.id='hidden-save-frame';
-        iframe.style.display='none';iframe.sandbox='allow-forms allow-same-origin';
-        document.body.appendChild(iframe);
-        const form=document.createElement('form');
-        form.target='hidden-save-frame';form.method='POST';
-        form.action='https://www.etalkingonline.com/admin/request_develop/save';
-        const params={'current_member_id':memberId,'contact_status':document.getElementById('modal-status').value,'content':document.getElementById('modal-content').value,'sub_content':'','search_begin':document.getElementById('modal-date').value,'time':'12:00:00','consultant_type':'10','type':'20'};
-        for(let k in params){let i=document.createElement('input');i.type='hidden';i.name=k;i.value=params[k];form.appendChild(i);}
-        document.body.appendChild(form);form.submit();
-        setTimeout(()=>{
-            alert('✅ 紀錄已成功送出！');
-            modal.style.display='none';btn.innerText='送出紀錄';
-            if(currentItem.type==1&&detailData[memberId])detailData[memberId].contactCount++;
-            currentItem.next_time=params['search_begin']+' 11:59:59';
-            renderList();
-        },1000);
-    };
-    document.getElementById('close-btn').onclick=()=>{
-        panel.remove();
-        curtain.remove();
-        document.body.style.overflow='';
-        setTimeout(()=>{
-            window.location.href='https://admin.etalkingonline.com/etalking2.0/#/kpi';
-        },300);
-    };
-    document.getElementById('refresh-btn').onclick=fetchData;
-    document.getElementById('t-type-filter').onchange=renderList;
-    document.getElementById('modal-cancel').onclick=()=>modal.style.display='none';
-    document.getElementById('modal-status').onchange=function(){
-        const textMap={'1':'已接聽','2':'非本人','3':'未接','4':'關機'};
-        document.getElementById('modal-content').value=(textMap[this.value]||'聯絡')+' *1';
-    };
-    document.getElementById('consultant-filter').onchange=function(){
+async function fetchData(){
+    content.innerHTML='<div style="text-align:center;padding:20px;">資料載入中...</div>';
+    try{
+        const res=await fetch(fetchUrl);
+        const data=await res.json();
+        allData=data.list||[];
+        updateConsultantDropdown();
         renderList();
-        const selectedConsultant=this.value;
-        if(isManager && selectedConsultant!=='-1'){loadDetailsForConsultant(selectedConsultant);}
-    };
-    fetchData();
-})();
-    </textarea>
+        if(!isManager){
+            loadDetailsForConsultant('_self');
+        }
+    }catch(err){
+        content.innerHTML=`<div style="color:red;text-align:center;">載入失敗: ${err.message}</div>`;
+    }
+}
 
-    <script>
-        // 用這段小腳本把保險箱裡面的代碼，無損地掛到綠色的按鈕上
-        const code = document.getElementById('raw-code').value.trim();
-        document.getElementById('drag-btn').href = code;
-    </script>
+async function loadDetailsForConsultant(consultantName){
+    let targetNewOnes=[];
+    if(isManager){
+        if(!consultantName||consultantName==='-1')return;
+        targetNewOnes=allData.filter(m=>m.type==1&&(m.user_name||'').trim()===consultantName&&!detailData[m.member_id]);
+    }else{
+        targetNewOnes=allData.filter(m=>m.type==1&&!detailData[m.member_id]);
+    }
+    if(targetNewOnes.length===0)return;
+    const statusLabel=document.getElementById('loading-status');
+    statusLabel.innerText=`🔄 同步新單細節 (${targetNewOnes.length}筆)...`;
+    let count=0;
+    for(let i=0;i<targetNewOnes.length;i+=5){
+        const batch=targetNewOnes.slice(i,i+5);
+        await Promise.all(batch.map(async(m)=>{
+            try{
+                const res=await fetch(`/admin/request_develop?member_id=${m.member_id}&hide_layout=true`);
+                const html=await res.text();
+                const doc=new DOMParser().parseFromString(html,'text/html');
+                const rows=doc.querySelectorAll('table tbody tr');
+                let assignDate=null,contactCount=0;
+                rows.forEach(r=>{
+                    const cells=r.querySelectorAll('td');
+                    if(cells.length<4)return;
+                    const type=cells[3].innerText.trim();
+                    if(type.includes('名單移動')&&cells[4]&&cells[4].innerText.includes('移動到新名單'))assignDate=cells[1].innerText.split(' ')[0];
+                    if(type.includes('聯絡'))contactCount++;
+                });
+                detailData[m.member_id]={assignDate,contactCount};
+            }catch(e){}
+        }));
+        count+=batch.length;
+        statusLabel.innerText=`🔄 同步新單細節 (${count}/${targetNewOnes.length})...`;
+        renderList();
+    }
+    statusLabel.innerText=`✅ 資料同步完成`;
+    setTimeout(()=>{statusLabel.innerText='';},3000);
+}
+
+function getDropDaysLeft(item,detail){
+    const today=new Date();today.setHours(0,0,0,0);
+    if(item.type==1){
+        if(!detail||!detail.assignDate)return null;
+        const assign=new Date(detail.assignDate);assign.setHours(0,0,0,0);
+        const dropDate=new Date(assign);dropDate.setDate(dropDate.getDate()+3);
+        return Math.ceil((dropDate-today)/86400000);
+    }else{
+        if(!item.next_time||item.next_time.includes('0000-00-00')||item.next_time==='無紀錄')return null;
+        const nextT=new Date(item.next_time.split(' ')[0]);nextT.setHours(0,0,0,0);
+        const dropDate=new Date(nextT);dropDate.setDate(dropDate.getDate()+4);
+        return Math.ceil((dropDate-today)/86400000);
+    }
+}
+
+function renderList(){
+    const selectedConsultant=document.getElementById('consultant-filter').value;
+    const selectedTType=document.getElementById('t-type-filter').value;
+    let filteredData=allData.filter(item=>{
+        const cMatch=isManager?(selectedConsultant=='-1'||(item.user_name?item.user_name.trim():'未指派')===selectedConsultant):true;
+        const tMatch=selectedTType=='-1'||String(item.type)===selectedTType;
+        return cMatch&&tMatch;
+    });
+    filteredData.sort((a,b)=>{
+        const dA=getDropDaysLeft(a,detailData[a.member_id])??999;
+        const dB=getDropDaysLeft(b,detailData[b.member_id])??999;
+        return dA-dB;
+    });
+    if(filteredData.length===0){content.innerHTML='<div style="text-align:center;padding:20px;color:#666;">找不到符合條件的名單。</div>';return;}
+    const typeStyles={'1':{label:'新單',bg:'#1a6fc4'},'2':{label:'常態',bg:'#27ae60'},'3':{label:'Demo',bg:'#8e44ad'},'4':{label:'釋出',bg:'#e67e22'}};
+    const sourceHeader=isManager?'<th style="padding:8px;width:10%;">屬性</th>':'';
+    let html='<table style="width:100%;border-collapse:collapse;font-size:12px;">';
+    html+=`<tr style="background:#eee;text-align:left;"><th style="padding:8px;">姓名/狀態</th><th style="padding:8px;">電話</th><th style="padding:8px;">個人備註</th><th style="padding:8px;">下次聯繫 & 預警</th>${sourceHeader}<th style="padding:8px;">業務</th><th style="padding:8px;">操作</th></tr>`;
+    filteredData.slice(0,100).forEach(item=>{
+        const id=item.member_id||item.id||'';
+        const d=detailData[id];
+        const dropDays=getDropDaysLeft(item,d);
+        const savedMemo=myMemos[id]||'';
+        const ts=typeStyles[String(item.type)]||{label:'其他',bg:'#95a5a6'};
+        const rowBorderColor=dropDays!==null&&dropDays<=0?'#e74c3c':dropDays!==null&&dropDays<=2?'#e67e22':ts.bg;
+        let warningHtml='';
+        if(dropDays!==null){
+            if(dropDays<0)warningHtml=`<br><span style="color:#c0392b;font-weight:bold;">🔥 已噴單(過期${Math.abs(dropDays)}天)</span>`;
+            else if(dropDays===0)warningHtml=`<br><span style="color:#d35400;font-weight:bold;">🔥 今日噴單</span>`;
+            else if(dropDays<=2)warningHtml=`<br><span style="color:#e67e22;font-weight:bold;">⚠️ 剩 ${dropDays} 天</span>`;
+            else warningHtml=`<br><span style="color:#16a085;">距噴單 ${dropDays} 天</span>`;
+        }else if(item.type==1&&!d){
+            warningHtml=isManager&&selectedConsultant=='-1'?`<br><span style="color:#7f8c8d;">請選取業務載入</span>`:`<br><span style="color:#7f8c8d;">載入中...</span>`;
+        }
+        let progressHtml='';
+        if(item.type==1){
+            const count=d?d.contactCount:0;
+            const pct=Math.min(100,(count/6)*100);
+            const assignStr=(d&&d.assignDate)?d.assignDate:'待載入';
+            progressHtml=`<div style="margin-top:4px;font-size:10px;color:#1a6fc4;">進單日:${assignStr} 進度:${count}/6</div><div style="width:100%;height:4px;background:#ddd;border-radius:2px;margin-top:2px;"><div style="width:${pct}%;height:100%;background:${pct<100?'#3498db':'#27ae60'};border-radius:2px;"></div></div>`;
+        }
+        const btnBg=dropDays!==null&&dropDays<=0?'#e74c3c':ts.bg;
+        const sourceCell=isManager?`<td style="padding:8px;color:#8e44ad;font-size:11px;vertical-align:top;">S:${item.source||'-'}</td>`:'';
+        html+=`<tr style="border-bottom:1px solid #eee;border-left:4px solid ${rowBorderColor};"><td style="padding:8px;vertical-align:top;"><b>${item.member_name||'未知'}</b><br><span style="background:${ts.bg};color:white;padding:1px 5px;border-radius:3px;font-size:10px;">${ts.label}</span>${progressHtml}</td><td style="padding:8px;vertical-align:top;">${item.mobile||'-'}</td><td style="padding:8px;vertical-align:top;"><input type="text" class="memo-input" data-id="${id}" value="${savedMemo}" placeholder="備註..." style="width:90%;padding:4px;border:1px solid #bdc3c7;border-radius:4px;font-size:11px;"></td><td style="padding:8px;vertical-align:top;"><span style="color:#d35400;">${item.next_time||'無紀錄'}</span>${warningHtml}</td>${sourceCell}<td style="padding:8px;color:#7f8c8d;vertical-align:top;">${item.user_name||'-'}</td><td style="padding:8px;vertical-align:top;"><button class="quick-record-btn" data-id="${id}" style="padding:4px 8px;background:${btnBg};color:white;border:none;border-radius:4px;cursor:pointer;font-weight:bold;">壓紀錄</button></td></tr>`;
+    });
+    html+='</table>';
+    if(filteredData.length>100)html+=`<div style="text-align:center;padding:10px;color:#888;">(共 ${filteredData.length} 筆，顯示前 100 筆)</div>`;
+    content.innerHTML=html;
+    document.querySelectorAll('.memo-input').forEach(input=>{
+        input.addEventListener('change',(e)=>{
+            const mid=e.target.getAttribute('data-id');
+            const val=e.target.value.trim();
+            if(val){myMemos[mid]=val;}else{delete myMemos[mid];}
+            localStorage.setItem('etalking_my_memos',JSON.stringify(myMemos));
+            e.target.style.background='#e8f8f5';
+            setTimeout(()=>{e.target.style.background='#fff';},500);
+        });
+    });
+    document.querySelectorAll('.quick-record-btn').forEach(btn=>{
+        btn.onclick=(e)=>{
+            const memberId=e.target.getAttribute('data-id');
+            const item=allData.find(m=>(m.member_id||m.id)==memberId);
+            currentItem=item;
+            document.getElementById('modal-member-id').value=memberId;
+            const nextTarget=new Date();
+            nextTarget.setDate(nextTarget.getDate()+(item.type==1?1:3));
+            document.getElementById('modal-date').value=nextTarget.toISOString().split('T')[0];
+            const d=detailData[memberId];
+            if(item.type==1&&d){
+                document.getElementById('modal-info-text').innerText=`【新單】已壓 ${d.contactCount} 次，目標 6 次，還需 ${Math.max(0,6-d.contactCount)} 次`;
+            }else{
+                document.getElementById('modal-info-text').innerText='';
+            }
+            document.getElementById('modal-status').value='3';
+            document.getElementById('modal-content').value='未接 *1';
+            modal.style.display='block';
+        };
+    });
+}
+
+document.getElementById('modal-submit').onclick=()=>{
+    if(!currentItem)return;
+    const memberId=document.getElementById('modal-member-id').value;
+    const btn=document.getElementById('modal-submit');
+    btn.innerText='送出中...';
+    let iframe=document.getElementById('hidden-save-frame')||document.createElement('iframe');
+    iframe.name='hidden-save-frame';iframe.id='hidden-save-frame';
+    iframe.style.display='none';iframe.sandbox='allow-forms allow-same-origin';
+    document.body.appendChild(iframe);
+    const form=document.createElement('form');
+    form.target='hidden-save-frame';form.method='POST';
+    form.action='https://www.etalkingonline.com/admin/request_develop/save';
+    const params={'current_member_id':memberId,'contact_status':document.getElementById('modal-status').value,'content':document.getElementById('modal-content').value,'sub_content':'','search_begin':document.getElementById('modal-date').value,'time':'12:00:00','consultant_type':'10','type':'20'};
+    for(let k in params){let i=document.createElement('input');i.type='hidden';i.name=k;i.value=params[k];form.appendChild(i);}
+    document.body.appendChild(form);form.submit();
+    setTimeout(()=>{
+        alert('✅ 紀錄已成功送出！');
+        modal.style.display='none';btn.innerText='送出紀錄';
+        if(currentItem.type==1&&detailData[memberId])detailData[memberId].contactCount++;
+        currentItem.next_time=params['search_begin']+' 11:59:59';
+        renderList();
+    },1000);
+};
+
+document.getElementById('close-btn').onclick=()=>{
+    panel.remove();curtain.remove();
+    document.body.style.overflow='';
+    setTimeout(()=>{window.location.href='https://admin.etalkingonline.com/etalking2.0/#/kpi';},300);
+};
+document.getElementById('refresh-btn').onclick=fetchData;
+document.getElementById('t-type-filter').onchange=renderList;
+document.getElementById('modal-cancel').onclick=()=>modal.style.display='none';
+document.getElementById('modal-status').onchange=function(){
+    const textMap={'1':'已接聽','2':'非本人','3':'未接','4':'關機'};
+    document.getElementById('modal-content').value=(textMap[this.value]||'聯絡')+' *1';
+};
+document.getElementById('consultant-filter').onchange=function(){
+    renderList();
+    if(isManager&&this.value!=='-1'){loadDetailsForConsultant(this.value);}
+};
+fetchData();
+})();
+</textarea>
+
+<script>
+    const code = document.getElementById('raw-code').value.trim();
+    document.getElementById('drag-btn').href = code;
+</script>
 </body>
 </html>
-
