@@ -1,49 +1,3 @@
-<!DOCTYPE html>
-<html lang="zh-TW">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Etalking 業務顧問專屬工具</title>
-    <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f0f2f5; color: #2c3e50; text-align: center; padding: 50px 20px; }
-        .container { max-width: 600px; background: white; padding: 40px; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); margin: 0 auto; }
-        h1 { color: #1a6fc4; font-size: 24px; margin-bottom: 10px; }
-        p.subtitle { color: #7f8c8d; margin-bottom: 30px; font-size: 15px; }
-        .steps { text-align: left; background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 30px; border-left: 4px solid #1a6fc4; }
-        .steps h3 { margin-top: 0; color: #2c3e50; font-size: 18px; }
-        .steps ol { padding-left: 20px; line-height: 1.8; color: #34495e; font-size: 15px; }
-        .bookmark-btn { display: inline-block; padding: 15px 30px; background: #27ae60; color: white; text-decoration: none; font-size: 18px; font-weight: bold; border-radius: 50px; box-shadow: 0 4px 15px rgba(39, 174, 96, 0.3); cursor: grab; transition: transform 0.2s, background 0.2s; }
-        .bookmark-btn:hover { background: #219653; transform: translateY(-2px); }
-        .bookmark-btn:active { cursor: grabbing; transform: translateY(0); }
-        .footer-note { margin-top: 30px; font-size: 12px; color: #95a5a6; }
-        code { background: #e0e0e0; padding: 2px 6px; border-radius: 4px; font-size: 13px; }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <h1>📊 名單篩選面板 (安裝中心)</h1>
-        <p class="subtitle">專為業務顧問團隊打造的進階名單面板，幫助提升作業與聯繫效率。</p>
-
-        <div class="steps">
-            <h3>🛠️ 安裝與使用步驟</h3>
-            <ol>
-                <li>請先確認您的瀏覽器已顯示<strong>書籤列</strong><br>（快捷鍵：<code>Ctrl+Shift+B</code> 或 Mac 的 <code>Cmd+Shift+B</code>）。</li>
-                <li>將下方綠色的按鈕，直接<strong>「按住並拖曳」</strong>到您的書籤列上放開。</li>
-                <li>登入 Etalking 系統，並進入<strong>「名單總表」</strong>。</li>
-                <li>點擊書籤列上的工具，即可一鍵啟動專屬面板！</li>
-            </ol>
-        </div>
-
-        <!-- 這個是使用者看得到、可以拖曳的按鈕 -->
-        <a id="drag-btn" class="bookmark-btn" href="#">Etalking 面板 (拖曳我)</a>
-
-        <div class="footer-note">
-            🔒 本工具僅供內部業務團隊使用，無須安裝額外軟體。
-        </div>
-    </div>
-
-    <!-- 把程式碼藏在隱藏的保險箱 (textarea) 裡面，這樣網頁就絕對不會壞掉了！ -->
-    <textarea id="raw-code" style="display:none;">
 javascript:(function(){
     const host=window.location.hostname;
     const path=window.location.pathname;
@@ -54,11 +8,13 @@ javascript:(function(){
     }
     if(host==='admin.etalkingonline.com'){
         if(confirm('🚀 需要切換至專屬通道\n\n點確定後跳轉，再點一次書籤即可載入！\n\n💡 如果跳轉失敗，請先在名單頁面點開任一張單的「編輯」再試。')){
+            const uid=localStorage.getItem('uid')||'';
+            const tUrl='https://www.etalkingonline.com/admin/request_develop?member_id=232821&hide_layout=true&crm_uid='+uid;
             const f=document.createElement('iframe');
             f.style.display='none';
-            f.src='https://www.etalkingonline.com/admin/request_develop?member_id=232821&hide_layout=true';
+            f.src=tUrl;
             document.body.appendChild(f);
-            setTimeout(()=>{f.remove();window.location.href='https://www.etalkingonline.com/admin/request_develop?member_id=232821&hide_layout=true';},2000);
+            setTimeout(()=>{f.remove();window.location.href=tUrl;},2000);
         }
         return;
     }
@@ -86,33 +42,66 @@ javascript:(function(){
     panel.appendChild(content);
     panel.appendChild(modal);
     document.body.appendChild(panel);
+
+    const urlParams=new URLSearchParams(window.location.search);
+    const crmUid=urlParams.get('crm_uid');
+    
+    /* 這裡就是經理 VIP 名單！目前的 424 是你的 ID */
+    const managerUids=['424'];
+    
+    const isManager=(!crmUid || managerUids.includes(crmUid));
+    const fetchUrl=isManager ? 'https://server.etalkingonline.com/name_list/new_list/-1' : 'https://server.etalkingonline.com/name_list/new_list/'+crmUid;
+
     let allData=[],detailData={},currentItem=null;
     let myMemos=JSON.parse(localStorage.getItem('etalking_my_memos'))||{};
+
     function updateConsultantDropdown(){
         const select=document.getElementById('consultant-filter');
-        const uniqueNames=[...new Set(allData.map(item=>item.user_name?item.user_name.trim():'未指派'))].sort();
-        let html='<option value="-1">所有業務</option>';
-        uniqueNames.forEach(name=>{html+=`<option value="${name}">${name}</option>`;});
-        select.innerHTML=html;select.value='-1';
+        if(isManager){
+            const uniqueNames=[...new Set(allData.map(item=>item.user_name?item.user_name.trim():'未指派'))].sort();
+            let html='<option value="-1">所有業務</option>';
+            uniqueNames.forEach(name=>{html+=`<option value="${name}">${name}</option>`;});
+            select.innerHTML=html;select.value='-1';
+        } else {
+            select.innerHTML='<option value="-1">我的專屬名單</option>';
+            select.disabled=true;
+            select.style.background='#e9ecef';
+        }
     }
+
     async function fetchData(){
         content.innerHTML='<div style="text-align:center;padding:20px;">資料載入中...</div>';
         try{
-            const res=await fetch('https://server.etalkingonline.com/name_list/new_list/-1');
+            const res=await fetch(fetchUrl);
             const data=await res.json();
             allData=data.list||[];
+            if(!isManager){
+                allData.forEach(item=>{
+                    item.user_name='我';
+                    if(!item.source)item.source='-';
+                });
+            }
             updateConsultantDropdown();
             renderList();
+            if(!isManager){
+                loadDetailsForConsultant('我');
+            }
         }catch(err){
             content.innerHTML=`<div style="color:red;text-align:center;">載入失敗: ${err.message}</div>`;
         }
     }
+
     async function loadDetailsForConsultant(consultantName){
-        if(!consultantName||consultantName==='-1')return;
-        const targetNewOnes=allData.filter(m=>m.type==1&&(m.user_name||'').trim()===consultantName&&!detailData[m.member_id]);
+        let targetNewOnes=[];
+        if(isManager){
+            if(!consultantName||consultantName==='-1')return;
+            targetNewOnes=allData.filter(m=>m.type==1&&(m.user_name||'').trim()===consultantName&&!detailData[m.member_id]);
+        }else{
+            targetNewOnes=allData.filter(m=>m.type==1&&!detailData[m.member_id]);
+        }
         if(targetNewOnes.length===0)return;
         const statusLabel=document.getElementById('loading-status');
-        statusLabel.innerText=`🔄 同步 ${consultantName} 的新單 (${targetNewOnes.length}筆)...`;
+        statusLabel.innerText=`🔄 同步新單細節 (${targetNewOnes.length}筆)...`;
         let count=0;
         for(let i=0;i<targetNewOnes.length;i+=5){
             const batch=targetNewOnes.slice(i,i+5);
@@ -134,12 +123,13 @@ javascript:(function(){
                 }catch(e){}
             }));
             count+=batch.length;
-            statusLabel.innerText=`🔄 同步 ${consultantName} 的新單 (${count}/${targetNewOnes.length})...`;
+            statusLabel.innerText=`🔄 同步新單細節 (${count}/${targetNewOnes.length})...`;
             renderList();
         }
-        statusLabel.innerText=`✅ ${consultantName} 資料同步完成`;
+        statusLabel.innerText=`✅ 資料同步完成`;
         setTimeout(()=>{statusLabel.innerText='';},3000);
     }
+
     function getDropDaysLeft(item,detail){
         const today=new Date();today.setHours(0,0,0,0);
         if(item.type==1){
@@ -154,11 +144,12 @@ javascript:(function(){
             return Math.ceil((dropDate-today)/86400000);
         }
     }
+
     function renderList(){
         const selectedConsultant=document.getElementById('consultant-filter').value;
         const selectedTType=document.getElementById('t-type-filter').value;
         let filteredData=allData.filter(item=>{
-            const cMatch=selectedConsultant=='-1'||(item.user_name?item.user_name.trim():'未指派')===selectedConsultant;
+            const cMatch=isManager ? (selectedConsultant=='-1'||(item.user_name?item.user_name.trim():'未指派')===selectedConsultant) : true;
             const tMatch=selectedTType=='-1'||String(item.type)===selectedTType;
             return cMatch&&tMatch;
         });
@@ -169,8 +160,13 @@ javascript:(function(){
         });
         if(filteredData.length===0){content.innerHTML='<div style="text-align:center;padding:20px;color:#666;">找不到符合條件的名單。</div>';return;}
         const typeStyles={ '1':{label:'新單',bg:'#1a6fc4',border:'#1a6fc4'}, '2':{label:'常態',bg:'#27ae60',border:'#27ae60'}, '3':{label:'Demo',bg:'#8e44ad',border:'#8e44ad'}, '4':{label:'釋出',bg:'#e67e22',border:'#e67e22'} };
+        
+        /* 判斷是不是經理，是的話才產出「屬性」的表頭 */
+        const sourceHeader = isManager ? '<th style="padding:8px;width:10%;">屬性</th>' : '';
+        
         let html='<table style="width:100%;border-collapse:collapse;font-size:12px;">';
-        html+='<tr style="background:#eee;text-align:left;"><th style="padding:8px;width:15%;">姓名/狀態</th><th style="padding:8px;width:10%;">電話</th><th style="padding:8px;width:15%;">個人備註</th><th style="padding:8px;width:20%;">下次聯繫 & 預警</th><th style="padding:8px;width:10%;">屬性</th><th style="padding:8px;width:10%;">業務</th><th style="padding:8px;width:10%;">操作</th></tr>';
+        html+=`<tr style="background:#eee;text-align:left;"><th style="padding:8px;width:15%;">姓名/狀態</th><th style="padding:8px;width:10%;">電話</th><th style="padding:8px;width:15%;">個人備註</th><th style="padding:8px;width:20%;">下次聯繫 & 預警</th>${sourceHeader}<th style="padding:8px;width:10%;">業務</th><th style="padding:8px;width:10%;">操作</th></tr>`;
+        
         const displayData=filteredData.slice(0,100);
         displayData.forEach(item=>{
             const id=item.member_id||item.id||'';
@@ -185,8 +181,10 @@ javascript:(function(){
                 else if(dropDays===0)warningHtml=`<br><span style="color:#d35400;font-weight:bold;">🔥 今日噴單</span>`;
                 else if(dropDays<=2)warningHtml=`<br><span style="color:#e67e22;font-weight:bold;">⚠️ 剩 ${dropDays} 天</span>`;
                 else warningHtml=`<br><span style="color:#16a085;">距噴單 ${dropDays} 天</span>`;
-            }else if(item.type==1&&selectedConsultant==='-1'){
+            }else if(item.type==1&&isManager&&selectedConsultant=='-1'){
                 warningHtml=`<br><span style="color:#7f8c8d;">請選取業務載入</span>`;
+            }else if(item.type==1&&!isManager&&!d){
+                warningHtml=`<br><span style="color:#7f8c8d;">載入進度中...</span>`;
             }
             let progressHtml='';
             if(item.type==1){
@@ -196,7 +194,11 @@ javascript:(function(){
                 progressHtml=`<div style="margin-top:4px;font-size:10px;color:#1a6fc4;">進單日: ${assignStr}<br>進度: ${count}/6</div><div style="width:100%;height:4px;background:#ddd;border-radius:2px;margin-top:2px;"><div style="width:${pct}%;height:100%;background:${pct<100?'#3498db':'#27ae60'};border-radius:2px;"></div></div>`;
             }
             const btnBg=dropDays!==null&&dropDays<=0?'#e74c3c':ts.bg;
-            html+=`<tr style="border-bottom:1px solid #eee;border-left:4px solid ${rowBorderColor};"> <td style="padding:8px;vertical-align:top;"> <b>${item.member_name||'未知'}</b><br> <span style="background:${ts.bg};color:white;padding:1px 5px;border-radius:3px;font-size:10px;">${ts.label}</span> ${progressHtml} </td> <td style="padding:8px;vertical-align:top;">${item.mobile||'-'}</td> <td style="padding:8px;vertical-align:top;"> <input type="text" class="memo-input" data-id="${id}" value="${savedMemo}" placeholder="例如:A級..." style="width:90%;padding:4px;border:1px solid #bdc3c7;border-radius:4px;font-size:11px;"> </td> <td style="padding:8px;vertical-align:top;"> <span style="color:#d35400;">${item.next_time||'無紀錄'}</span>${warningHtml} </td> <td style="padding:8px;color:#8e44ad;font-size:11px;vertical-align:top;">S:${item.source||'-'}</td> <td style="padding:8px;color:#7f8c8d;vertical-align:top;">${item.user_name||'未指派'}</td> <td style="padding:8px;vertical-align:top;"> <button class="quick-record-btn" data-id="${id}" style="padding:4px 8px;background:${btnBg};color:white;border:none;border-radius:4px;cursor:pointer;font-weight:bold;">壓紀錄</button> </td> </tr>`;
+            
+            /* 判斷是不是經理，是的話才塞入來源資料的那一格 */
+            const sourceCell = isManager ? `<td style="padding:8px;color:#8e44ad;font-size:11px;vertical-align:top;">S:${item.source||'-'}</td>` : '';
+            
+            html+=`<tr style="border-bottom:1px solid #eee;border-left:4px solid ${rowBorderColor};"> <td style="padding:8px;vertical-align:top;"> <b>${item.member_name||'未知'}</b><br> <span style="background:${ts.bg};color:white;padding:1px 5px;border-radius:3px;font-size:10px;">${ts.label}</span> ${progressHtml} </td> <td style="padding:8px;vertical-align:top;">${item.mobile||'-'}</td> <td style="padding:8px;vertical-align:top;"> <input type="text" class="memo-input" data-id="${id}" value="${savedMemo}" placeholder="例如:A級..." style="width:90%;padding:4px;border:1px solid #bdc3c7;border-radius:4px;font-size:11px;"> </td> <td style="padding:8px;vertical-align:top;"> <span style="color:#d35400;">${item.next_time||'無紀錄'}</span>${warningHtml} </td> ${sourceCell} <td style="padding:8px;color:#7f8c8d;vertical-align:top;">${item.user_name||'未指派'}</td> <td style="padding:8px;vertical-align:top;"> <button class="quick-record-btn" data-id="${id}" style="padding:4px 8px;background:${btnBg};color:white;border:none;border-radius:4px;cursor:pointer;font-weight:bold;">壓紀錄</button> </td> </tr>`;
         });
         html+='</table>';
         if(filteredData.length>100)html+=`<div style="text-align:center;padding:10px;color:#888;">(僅顯示前 100 筆，共 ${filteredData.length} 筆)</div>`;
@@ -232,6 +234,7 @@ javascript:(function(){
             };
         });
     }
+
     document.getElementById('modal-submit').onclick=()=>{
         if(!currentItem)return;
         const memberId=document.getElementById('modal-member-id').value;
@@ -273,16 +276,7 @@ javascript:(function(){
     document.getElementById('consultant-filter').onchange=function(){
         renderList();
         const selectedConsultant=this.value;
-        if(selectedConsultant!=='-1'){loadDetailsForConsultant(selectedConsultant);}
+        if(isManager && selectedConsultant!=='-1'){loadDetailsForConsultant(selectedConsultant);}
     };
     fetchData();
 })();
-    </textarea>
-
-    <script>
-        // 用這段小腳本把保險箱裡面的代碼，無損地掛到綠色的按鈕上
-        const code = document.getElementById('raw-code').value.trim();
-        document.getElementById('drag-btn').href = code;
-    </script>
-</body>
-</html>
