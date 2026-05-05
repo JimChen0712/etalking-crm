@@ -1,3 +1,49 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Etalking 業務顧問專屬工具</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f0f2f5; color: #2c3e50; text-align: center; padding: 50px 20px; }
+        .container { max-width: 600px; background: white; padding: 40px; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); margin: 0 auto; }
+        h1 { color: #1a6fc4; font-size: 24px; margin-bottom: 10px; }
+        p.subtitle { color: #7f8c8d; margin-bottom: 30px; font-size: 15px; }
+        .steps { text-align: left; background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 30px; border-left: 4px solid #1a6fc4; }
+        .steps h3 { margin-top: 0; color: #2c3e50; font-size: 18px; }
+        .steps ol { padding-left: 20px; line-height: 1.8; color: #34495e; font-size: 15px; }
+        .bookmark-btn { display: inline-block; padding: 15px 30px; background: #27ae60; color: white; text-decoration: none; font-size: 18px; font-weight: bold; border-radius: 50px; box-shadow: 0 4px 15px rgba(39, 174, 96, 0.3); cursor: grab; transition: transform 0.2s, background 0.2s; }
+        .bookmark-btn:hover { background: #219653; transform: translateY(-2px); }
+        .bookmark-btn:active { cursor: grabbing; transform: translateY(0); }
+        .footer-note { margin-top: 30px; font-size: 12px; color: #95a5a6; }
+        code { background: #e0e0e0; padding: 2px 6px; border-radius: 4px; font-size: 13px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📊 名單篩選面板 (安裝中心)</h1>
+        <p class="subtitle">專為業務顧問團隊打造的進階名單面板，幫助提升作業與聯繫效率。</p>
+
+        <div class="steps">
+            <h3>🛠️ 安裝與使用步驟</h3>
+            <ol>
+                <li>請先確認您的瀏覽器已顯示<strong>書籤列</strong><br>（快捷鍵：<code>Ctrl+Shift+B</code> 或 Mac 的 <code>Cmd+Shift+B</code>）。</li>
+                <li>將下方綠色的按鈕，直接<strong>「按住並拖曳」</strong>到您的書籤列上放開。</li>
+                <li>登入 Etalking 系統，並進入<strong>「名單總表」</strong>。</li>
+                <li>點擊書籤列上的工具，即可一鍵啟動專屬面板！</li>
+            </ol>
+        </div>
+
+        <!-- 這個是使用者看得到、可以拖曳的按鈕 -->
+        <a id="drag-btn" class="bookmark-btn" href="#">Etalking 面板 (拖曳我)</a>
+
+        <div class="footer-note">
+            🔒 本工具僅供內部業務團隊使用，無須安裝額外軟體。
+        </div>
+    </div>
+
+    <!-- 把程式碼藏在隱藏的保險箱 (textarea) 裡面 -->
+    <textarea id="raw-code" style="display:none;">
 javascript:(function(){
     const host=window.location.hostname;
     const path=window.location.pathname;
@@ -280,3 +326,12 @@ javascript:(function(){
     };
     fetchData();
 })();
+    </textarea>
+
+    <script>
+        // 用這段小腳本把保險箱裡面的代碼，無損地掛到綠色的按鈕上
+        const code = document.getElementById('raw-code').value.trim();
+        document.getElementById('drag-btn').href = code;
+    </script>
+</body>
+</html>
