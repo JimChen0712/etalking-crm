@@ -73,20 +73,18 @@ async function sheetsAppend(token,range,values){
 /* 🔥 物理刪除整列 API */
 async function sheetsDeleteRow(token, rowNum) {
     try {
-        // 1. 取得 工作表1 的 sheetId
         const metaRes = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}?fields=sheets(properties(sheetId,title))`, {headers:{Authorization:'Bearer '+token}});
         const metaData = await metaRes.json();
         const sheet = metaData.sheets.find(s => s.properties.title === '工作表1');
         const sheetId = sheet ? sheet.properties.sheetId : 0;
 
-        // 2. 送出刪除維度 (Rows) 的請求
         const req = {
             requests: [{
                 deleteDimension: {
                     range: {
                         sheetId: sheetId,
                         dimension: 'ROWS',
-                        startIndex: rowNum - 1, // API 是從 0 開始算
+                        startIndex: rowNum - 1,
                         endIndex: rowNum
                     }
                 }
@@ -154,13 +152,11 @@ async function updateSheetMemo(memberId, status, grade, memo, item){
     const timeStr = now.toLocaleString('zh-TW');
 
     if(!rowNum){
-        // 不存在於 Sheet 中：寫入新增
         const month=`${now.getFullYear()}/${String(now.getMonth()+1).padStart(2,'0')}`;
         const dateStr=now.toISOString().split('T')[0]; 
         await sheetsAppend(sheetToken,'工作表1!A:K',[[String(memberId), item.member_name||'', item.mobile||'', item.user_name||crmUid, crmUid, dateStr, month, status, grade, memo, timeStr]]);
         sheetRowMap[String(memberId)] = Object.keys(sheetRowMap).length + 2; 
     } else {
-        // 更新現有列
         await sheetsUpdate(sheetToken,`工作表1!H${rowNum}:K${rowNum}`,[[status, grade, memo, timeStr]]);
     }
     sheetData[String(memberId)]={status, grade, memo};
@@ -198,10 +194,10 @@ memoModal.innerHTML=`
     <div id="memo-member-name" style="font-size:12px;color:#7f8c8d;margin-bottom:14px;"></div>
     <input type="hidden" id="memo-member-id">
     
-    <!-- 再次留單勾選區塊 (預設隱藏) -->
+    <!-- 再次留單勾選區塊 -->
     <div id="re-inquire-container" style="display:none; margin-bottom:12px; align-items:center; gap:6px; background:#fff3cd; padding:8px 10px; border-radius:6px; border:1px solid #ffe69c;">
         <input type="checkbox" id="memo-re-inquire" style="width:16px; height:16px; cursor:pointer;">
-        <label for="memo-re-inquire" style="font-size:13px; font-weight:bold; color:#d35400; cursor:pointer; user-select:none;">🔥 標記為「再次留單」並寫入 Sheet</label>
+        <label for="memo-re-inquire" style="font-size:13px; font-weight:bold; color:#d35400; cursor:pointer; user-select:none;">標記為「再次留單」並寫入 Sheet</label>
     </div>
 
     <div style="margin-bottom:12px;">
@@ -262,21 +258,17 @@ document.getElementById('memo-save').onclick=async()=>{
     btn.textContent='處理中...';btn.disabled=true;
 
     if (currentMemoItem.type != 1 && !isReInquire && rowNum) {
-        // 情境 4：舊單，取消勾選，且存在於 Sheet -> 執行整列刪除
         await sheetsDeleteRow(sheetToken, rowNum);
         delete sheetData[String(memberId)];
-        // 刪除後必須強制重撈資料庫，以免順序錯亂
         await loadSheetData(); 
     } 
     else if (currentMemoItem.type == 1 || isReInquire) {
-        // 情境 1 & 2：新單，或是有勾選的舊單 -> 寫入或更新
         let statusToSave = sd.status || '';
         if (currentMemoItem.type == 1) statusToSave = '新單';
         else if (isReInquire) statusToSave = '再次留單';
         
         await updateSheetMemo(memberId, statusToSave, selectedGrade, memo, currentMemoItem);
     }
-    // 情境 3：舊單，沒勾選，且本來就不在 Sheet 裡 -> 什麼都不做，純關閉視窗即可
 
     btn.textContent='儲存';btn.disabled=false;
     memoModal.style.display='none';
@@ -433,7 +425,7 @@ function renderList(){
             progressHtml=`<div style="font-size:10px;color:#1a6fc4;margin-top:3px;">進單:${assignStr} 進度:${count}/6</div><div style="width:100%;height:3px;background:#ddd;border-radius:2px;margin-top:2px;"><div style="width:${pct}%;height:100%;background:${pct<100?'#3498db':'#27ae60'};border-radius:2px;"></div></div>`;
         }
         
-        let reInquireHtml = sd.status === '再次留單' ? `<span style="background:#c0392b;color:white;padding:1px 5px;border-radius:3px;font-size:10px;margin-left:5px;display:inline-block;margin-top:3px;">🔥 再次留單</span>` : '';
+        let reInquireHtml = sd.status === '再次留單' ? `<span style="background:#c0392b;color:white;padding:1px 5px;border-radius:3px;font-size:10px;margin-left:5px;display:inline-block;margin-top:3px;">再次留單</span>` : '';
 
         const btnBg=dropDays!==null&&dropDays<=0?'#e74c3c':ts.bg;
         const sourceCell=isManager?`<td style="padding:6px;color:#8e44ad;font-size:11px;vertical-align:top;">S:${item.source||'-'}</td>`:'';
