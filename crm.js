@@ -1,5 +1,4 @@
 (function(){
-
 /* ══ 安全防線：只允許在 etalking 網域執行 ══ */
 const host=window.location.hostname;
 if(!['www.etalkingonline.com','admin.etalkingonline.com'].includes(host)){
@@ -71,6 +70,38 @@ async function sheetsAppend(token,range,values){
     await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${encodeURIComponent(range)}:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`,{method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify({values})});
 }
 
+/* 🔥 物理刪除整列 API */
+async function sheetsDeleteRow(token, rowNum) {
+    try {
+        // 1. 取得 工作表1 的 sheetId
+        const metaRes = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}?fields=sheets(properties(sheetId,title))`, {headers:{Authorization:'Bearer '+token}});
+        const metaData = await metaRes.json();
+        const sheet = metaData.sheets.find(s => s.properties.title === '工作表1');
+        const sheetId = sheet ? sheet.properties.sheetId : 0;
+
+        // 2. 送出刪除維度 (Rows) 的請求
+        const req = {
+            requests: [{
+                deleteDimension: {
+                    range: {
+                        sheetId: sheetId,
+                        dimension: 'ROWS',
+                        startIndex: rowNum - 1, // API 是從 0 開始算
+                        endIndex: rowNum
+                    }
+                }
+            }]
+        };
+        await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}:batchUpdate`, {
+            method: 'POST',
+            headers: {Authorization:'Bearer '+token, 'Content-Type': 'application/json'},
+            body: JSON.stringify(req)
+        });
+    } catch(e) {
+        console.error('刪除名單列失敗:', e);
+    }
+}
+
 /* ══ Sheet 初始化（建立表頭）══ */
 async function initSheet(token){
     const data=await sheetsGet(token,'工作表1!A1:K1');
@@ -95,7 +126,7 @@ async function loadSheetData(){
                 if(idx===0)return;
                 const memberId=row[0];
                 if(memberId){
-                    sheetData[memberId]={grade:row[8]||'',memo:row[9]||''};
+                    sheetData[memberId]={status:row[7]||'', grade:row[8]||'', memo:row[9]||''};
                     sheetRowMap[memberId]=idx+1;
                 }
             });
@@ -107,7 +138,7 @@ async function loadSheetData(){
 async function syncNewMemberToSheet(item,assignDate){
     if(!sheetToken)return;
     const memberId=String(item.member_id);
-    if(sheetRowMap[memberId])return; // 已存在不重複新增
+    if(sheetRowMap[memberId])return; 
     const now=new Date();
     const month=`${now.getFullYear()}/${String(now.getMonth()+1).padStart(2,'0')}`;
     const dateStr=assignDate||now.toISOString().split('T')[0];
@@ -116,16 +147,23 @@ async function syncNewMemberToSheet(item,assignDate){
 }
 
 /* ══ 更新備註到 Sheet ══ */
-async function updateSheetMemo(memberId,grade,memo){
+async function updateSheetMemo(memberId, status, grade, memo, item){
     if(!sheetToken)return;
     const rowNum=sheetRowMap[String(memberId)];
+    const now=new Date();
+    const timeStr = now.toLocaleString('zh-TW');
+
     if(!rowNum){
-        alert('⚠️ 此名單尚未同步到 Sheet，請重新整理後再試。');
-        return;
+        // 不存在於 Sheet 中：寫入新增
+        const month=`${now.getFullYear()}/${String(now.getMonth()+1).padStart(2,'0')}`;
+        const dateStr=now.toISOString().split('T')[0]; 
+        await sheetsAppend(sheetToken,'工作表1!A:K',[[String(memberId), item.member_name||'', item.mobile||'', item.user_name||crmUid, crmUid, dateStr, month, status, grade, memo, timeStr]]);
+        sheetRowMap[String(memberId)] = Object.keys(sheetRowMap).length + 2; 
+    } else {
+        // 更新現有列
+        await sheetsUpdate(sheetToken,`工作表1!H${rowNum}:K${rowNum}`,[[status, grade, memo, timeStr]]);
     }
-    const now=new Date().toLocaleString('zh-TW');
-    await sheetsUpdate(sheetToken,`工作表1!I${rowNum}:K${rowNum}`,[[grade,memo,now]]);
-    sheetData[String(memberId)]={grade,memo};
+    sheetData[String(memberId)]={status, grade, memo};
 }
 
 /* ══ 清除舊元素 ══ */
@@ -155,7 +193,34 @@ content.style.cssText='flex:1;overflow-y:auto;padding:12px;background:#f8f9fa;';
 const memoModal=document.createElement('div');
 memoModal.id='memo-modal';
 memoModal.style.cssText='display:none;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:340px;background:white;padding:20px;border-radius:10px;box-shadow:0 4px 20px rgba(0,0,0,0.25);z-index:1000001;';
-memoModal.innerHTML=`<h4 style="margin:0 0 4px;">編輯備註</h4><div id="memo-member-name" style="font-size:12px;color:#7f8c8d;margin-bottom:14px;"></div><input type="hidden" id="memo-member-id"><div style="margin-bottom:12px;"><label style="font-size:13px;font-weight:bold;">等級</label><div style="display:flex;gap:8px;margin-top:6px;"><button class="grade-btn" data-val="A" style="flex:1;padding:8px;border:2px solid #ddd;border-radius:6px;cursor:pointer;font-weight:bold;font-size:14px;background:#fff;">A 級</button><button class="grade-btn" data-val="C" style="flex:1;padding:8px;border:2px solid #ddd;border-radius:6px;cursor:pointer;font-weight:bold;font-size:14px;background:#fff;">C 級</button><button class="grade-btn" data-val="" style="flex:1;padding:8px;border:2px solid #ddd;border-radius:6px;cursor:pointer;font-size:13px;background:#fff;">清除</button></div></div><div style="margin-bottom:14px;"><label style="font-size:13px;font-weight:bold;">備註</label><textarea id="memo-text" style="width:100%;margin-top:6px;padding:8px;border:1px solid #ddd;border-radius:6px;font-family:sans-serif;font-size:13px;resize:vertical;min-height:70px;" placeholder="輸入備註..."></textarea></div><div style="display:flex;gap:8px;justify-content:flex-end;"><button id="memo-cancel" style="padding:6px 16px;cursor:pointer;border:1px solid #ddd;border-radius:6px;background:#fff;">取消</button><button id="memo-save" style="padding:6px 16px;cursor:pointer;border:none;border-radius:6px;background:#27ae60;color:white;font-weight:bold;">儲存到 Sheet</button></div>`;
+memoModal.innerHTML=`
+    <h4 style="margin:0 0 4px;">編輯備註</h4>
+    <div id="memo-member-name" style="font-size:12px;color:#7f8c8d;margin-bottom:14px;"></div>
+    <input type="hidden" id="memo-member-id">
+    
+    <!-- 再次留單勾選區塊 (預設隱藏) -->
+    <div id="re-inquire-container" style="display:none; margin-bottom:12px; align-items:center; gap:6px; background:#fff3cd; padding:8px 10px; border-radius:6px; border:1px solid #ffe69c;">
+        <input type="checkbox" id="memo-re-inquire" style="width:16px; height:16px; cursor:pointer;">
+        <label for="memo-re-inquire" style="font-size:13px; font-weight:bold; color:#d35400; cursor:pointer; user-select:none;">🔥 標記為「再次留單」並寫入 Sheet</label>
+    </div>
+
+    <div style="margin-bottom:12px;">
+        <label style="font-size:13px;font-weight:bold;">等級</label>
+        <div style="display:flex;gap:8px;margin-top:6px;">
+            <button class="grade-btn" data-val="A" style="flex:1;padding:8px;border:2px solid #ddd;border-radius:6px;cursor:pointer;font-weight:bold;font-size:14px;background:#fff;">A 級</button>
+            <button class="grade-btn" data-val="C" style="flex:1;padding:8px;border:2px solid #ddd;border-radius:6px;cursor:pointer;font-weight:bold;font-size:14px;background:#fff;">C 級</button>
+            <button class="grade-btn" data-val="" style="flex:1;padding:8px;border:2px solid #ddd;border-radius:6px;cursor:pointer;font-size:13px;background:#fff;">清除</button>
+        </div>
+    </div>
+    <div style="margin-bottom:14px;">
+        <label style="font-size:13px;font-weight:bold;">備註</label>
+        <textarea id="memo-text" style="width:100%;margin-top:6px;padding:8px;border:1px solid #ddd;border-radius:6px;font-family:sans-serif;font-size:13px;resize:vertical;min-height:70px;" placeholder="輸入備註..."></textarea>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;">
+        <button id="memo-cancel" style="padding:6px 16px;cursor:pointer;border:1px solid #ddd;border-radius:6px;background:#fff;">取消</button>
+        <button id="memo-save" style="padding:6px 16px;cursor:pointer;border:none;border-radius:6px;background:#27ae60;color:white;font-weight:bold;">儲存</button>
+    </div>
+`;
 
 /* 壓紀錄 Modal */
 const recordModal=document.createElement('div');
@@ -185,13 +250,35 @@ memoModal.querySelectorAll('.grade-btn').forEach(btn=>{
     };
 });
 
+/* 🔥 儲存備註邏輯 (包含刪除判斷) */
 document.getElementById('memo-save').onclick=async()=>{
     const memberId=document.getElementById('memo-member-id').value;
     const memo=document.getElementById('memo-text').value.trim();
+    const isReInquire = document.getElementById('memo-re-inquire').checked;
+    const rowNum = sheetRowMap[String(memberId)];
+    const sd = sheetData[String(memberId)] || {};
+
     const btn=document.getElementById('memo-save');
-    btn.textContent='儲存中...';btn.disabled=true;
-    await updateSheetMemo(memberId,selectedGrade,memo);
-    btn.textContent='儲存到 Sheet';btn.disabled=false;
+    btn.textContent='處理中...';btn.disabled=true;
+
+    if (currentMemoItem.type != 1 && !isReInquire && rowNum) {
+        // 情境 4：舊單，取消勾選，且存在於 Sheet -> 執行整列刪除
+        await sheetsDeleteRow(sheetToken, rowNum);
+        delete sheetData[String(memberId)];
+        // 刪除後必須強制重撈資料庫，以免順序錯亂
+        await loadSheetData(); 
+    } 
+    else if (currentMemoItem.type == 1 || isReInquire) {
+        // 情境 1 & 2：新單，或是有勾選的舊單 -> 寫入或更新
+        let statusToSave = sd.status || '';
+        if (currentMemoItem.type == 1) statusToSave = '新單';
+        else if (isReInquire) statusToSave = '再次留單';
+        
+        await updateSheetMemo(memberId, statusToSave, selectedGrade, memo, currentMemoItem);
+    }
+    // 情境 3：舊單，沒勾選，且本來就不在 Sheet 裡 -> 什麼都不做，純關閉視窗即可
+
+    btn.textContent='儲存';btn.disabled=false;
     memoModal.style.display='none';
     renderList();
 };
@@ -345,11 +432,14 @@ function renderList(){
             const assignStr=(d&&d.assignDate)?d.assignDate:'待載入';
             progressHtml=`<div style="font-size:10px;color:#1a6fc4;margin-top:3px;">進單:${assignStr} 進度:${count}/6</div><div style="width:100%;height:3px;background:#ddd;border-radius:2px;margin-top:2px;"><div style="width:${pct}%;height:100%;background:${pct<100?'#3498db':'#27ae60'};border-radius:2px;"></div></div>`;
         }
+        
+        let reInquireHtml = sd.status === '再次留單' ? `<span style="background:#c0392b;color:white;padding:1px 5px;border-radius:3px;font-size:10px;margin-left:5px;display:inline-block;margin-top:3px;">🔥 再次留單</span>` : '';
+
         const btnBg=dropDays!==null&&dropDays<=0?'#e74c3c':ts.bg;
         const sourceCell=isManager?`<td style="padding:6px;color:#8e44ad;font-size:11px;vertical-align:top;">S:${item.source||'-'}</td>`:'';
         const gradeHtml=sd.grade?`<span style="background:${sd.grade==='A'?'#1a6fc4':'#e67e22'};color:white;padding:2px 8px;border-radius:4px;font-weight:bold;font-size:12px;">${sd.grade}</span>`:'<span style="color:#bdc3c7;font-size:11px;">未設定</span>';
         const memoHtml=sd.memo?`<span style="font-size:11px;color:#555;">${sd.memo.slice(0,20)}${sd.memo.length>20?'...':''}</span>`:'<span style="color:#bdc3c7;font-size:11px;">-</span>';
-        html+=`<tr style="border-bottom:1px solid #dee2e6;border-left:4px solid ${rowBorderColor};"><td style="padding:6px;vertical-align:top;"><b>${item.member_name||'未知'}</b><br><span style="background:${ts.bg};color:white;padding:1px 5px;border-radius:3px;font-size:10px;">${ts.label}</span>${progressHtml}</td><td style="padding:6px;vertical-align:top;">${item.mobile||'-'}</td><td style="padding:6px;vertical-align:middle;">${gradeHtml}</td><td style="padding:6px;vertical-align:middle;">${memoHtml}</td><td style="padding:6px;vertical-align:top;"><span style="color:#d35400;">${item.next_time&&!item.next_time.includes('0000')?item.next_time.split(' ')[0]:'無紀錄'}</span>${warningHtml}</td>${sourceCell}<td style="padding:6px;color:#7f8c8d;vertical-align:top;font-size:11px;">${item.user_name||'-'}</td><td style="padding:6px;vertical-align:top;"><div style="display:flex;flex-direction:column;gap:4px;"><button class="quick-record-btn" data-id="${id}" style="padding:3px 7px;background:${btnBg};color:white;border:none;border-radius:4px;cursor:pointer;font-size:11px;font-weight:bold;">壓紀錄</button><button class="memo-btn" data-id="${id}" style="padding:3px 7px;background:#8e44ad;color:white;border:none;border-radius:4px;cursor:pointer;font-size:11px;">備註</button></div></td></tr>`;
+        html+=`<tr style="border-bottom:1px solid #dee2e6;border-left:4px solid ${rowBorderColor};"><td style="padding:6px;vertical-align:top;"><b>${item.member_name||'未知'}</b><br><span style="background:${ts.bg};color:white;padding:1px 5px;border-radius:3px;font-size:10px;">${ts.label}</span>${reInquireHtml}${progressHtml}</td><td style="padding:6px;vertical-align:top;">${item.mobile||'-'}</td><td style="padding:6px;vertical-align:middle;">${gradeHtml}</td><td style="padding:6px;vertical-align:middle;">${memoHtml}</td><td style="padding:6px;vertical-align:top;"><span style="color:#d35400;">${item.next_time&&!item.next_time.includes('0000')?item.next_time.split(' ')[0]:'無紀錄'}</span>${warningHtml}</td>${sourceCell}<td style="padding:6px;color:#7f8c8d;vertical-align:top;font-size:11px;">${item.user_name||'-'}</td><td style="padding:6px;vertical-align:top;"><div style="display:flex;flex-direction:column;gap:4px;"><button class="quick-record-btn" data-id="${id}" style="padding:3px 7px;background:${btnBg};color:white;border:none;border-radius:4px;cursor:pointer;font-size:11px;font-weight:bold;">壓紀錄</button><button class="memo-btn" data-id="${id}" style="padding:3px 7px;background:#8e44ad;color:white;border:none;border-radius:4px;cursor:pointer;font-size:11px;">備註</button></div></td></tr>`;
     });
     html+='</table>';
     if(filteredData.length>150)html+=`<div style="text-align:center;padding:10px;color:#888;">(共 ${filteredData.length} 筆，顯示前 150 筆)</div>`;
@@ -379,9 +469,20 @@ function renderList(){
             const item=allData.find(m=>(m.member_id||m.id)==memberId);
             const sd=sheetData[String(memberId)]||{};
             currentMemoItem=item;
+            
             document.getElementById('memo-member-id').value=memberId;
             document.getElementById('memo-member-name').textContent=`${item.member_name||''}　${item.mobile||''}`;
             document.getElementById('memo-text').value=sd.memo||'';
+            
+            // 🔥 防呆控制：只有不是新單(type!=1)的時候，才顯示再次留單的選項
+            const reInquireContainer = document.getElementById('re-inquire-container');
+            if (item.type == 1) {
+                reInquireContainer.style.display = 'none';
+            } else {
+                reInquireContainer.style.display = 'flex';
+                document.getElementById('memo-re-inquire').checked = (sd.status === '再次留單');
+            }
+
             selectedGrade=sd.grade||'';
             memoModal.querySelectorAll('.grade-btn').forEach(b=>{
                 b.style.background='#fff';b.style.borderColor='#ddd';b.style.color='#333';
