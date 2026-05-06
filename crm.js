@@ -36,6 +36,12 @@ if(!crmUid){alert('❌ 無法識別身份！\n\n請從 etalking 後台點擊書�
 const MANAGER_UID='424';
 const SHEET_ID='1HXo-O7CbwftLDjBe0csbyYPalPckmqYfhMeVqU-FJWk';
 const SERVICE_ACCOUNT_EMAIL='etalking-crm@etalking-crm.iam.gserviceaccount.com';
+
+/* 🔥 專屬 VIP 對照表：確保名字 100% 正確 */
+const USER_DICT = {
+    '424': '陳昕謨 (Jim)',
+};
+
 const PRIVATE_KEY='-----BEGIN PRIVATE KEY-----\nMIIEvwIBADANBgkqhkiG9w0BAQEFAASCBKkwggSlAgEAAoIBAQDHdUqOnFfehSoL\nyDlD2rOeNlS5+Aaj01qWJG7BRshHyGPlWmGidriye3tpUfVox82faNM4Rruh1d7M\nK4rygJphAwUB/Q9fCnNS0tmeLxevRT6QtqlFvpiGZyIrrBWWJ5sXkNbZx/5PDd+D\n82233tZeWv2Ep88fcVjspkE/q93j1pieswPkkVSrwMvXZ0bvHdG9oIf2S+O/Tqxy\nglsUU6aiW7VvMXuXo1axyiSXRJf/R9q++51mA0r43GKrP/o8VJtYuazb82wuZ1NZ\n/mwTwrBPx7rNOlT7hPjiCvpc9WebfVuHitEtI/D8zXvNSH8+ekQXLGDzQEVTRJmq\nowHBMQ03AgMBAAECggEAXWWu49iRzMDOT3YSWpOuSAdo5Swe79eoM2Yb9qUOY46S\nOHN6BHlTQ0BPKaIXKFlnD54mSdPVSJK9IR3CkotlvseLMMMuz3I1TjMtc8TZclka\nUuk1mlMFWOoyNgD+mrExDnfkI1Zi3uHAKCl01wShnM0+qT9q3W5WFXpEU2xHGsgt\n+2L3nndOnuhiWvcoyxamgxrvm23Qw/36SEOfxyr+6kMJFT+W/v1gxEeZjTn2sKyj\nLq6LIuAVh2YBauluboNvVSMimUq8gaMOCPh3vhG6UVigkkODclOk52DcpnBAhHlP\nm/eynpHvZ4s0dr21AMEOnRMXkeqK0HzWSAmoIXnAAQKBgQDu6PSa/ZNQGK67yHeA\n/csg2AfXxEeH1bf/diP0OZXkLP8g1JGKTl5x0WWY8Fcssn7JEwiw+qea6o/A9t1A\nJzwYtsJQ/bHW1jsVbwGMtm2rKL9D3NePjDhoOBa3w5PoHvCuXGJ+ryp+GadWa8F8\nxbLphV5+YpKcsJcDdZRG46eUNwKBgQDVud+ei9bvTPBqyqciBRThRBUyAsoQN/KE\n5Fx3UKQVCLLowYa/YR/Kb2fEVmoMtnfAjzzrNM7N5CjJmu92WHvU6eMj1u/7v3vt\nd50IjZHycNGXalhyO5YMTQJf5vRCc0IIBOxnqXLKxDp3lW4V+LppiLbBbBbcuyxU\nOzKh8lfPAQKBgQCYJiHJJx6PDvkQvC1nJ7oaU5pDDkxjtHb2qT1iht3vr7xXIykB\nBMHfCHUEfmN2IsLduVJ6q1bcMO+V+2GSPqpmLtX3kGmWoV6FWumIvJGBRHTyeg2J\n7MnrjXTiWRqz5ChxUoKjnViZcCsCvaM+nAVB9N7l7E7knQ2/dT0WHFuX5wKBgQCh\nbiSun1c4JrgNIYZ91rK/t2n+/UZcW7XNlKMW6A0XahugXNSHZzfY8q7BCLhPY98t\nzcMosRlnQGdiZ6lpjUnzNrn+zxEy6J4VblxpIm1TXs2gfY3SspkSL3SUtWBXdLEy\nV22smrt+1hqHSpH8/ILoxX+stxTJooLIGHKVCfQzAQKBgQDF8xf71MUEOHY8Ae36\nit/fL4uWgK2q3zo/qiVGoxSCJ7bMeYZv7uwku/gMNx/WJTaxqln/oZ3qBem963BP\nRHTy8rycz/inwJu+O45jUYLx1IGHfTNO4BPljU/9/Pkwg/ES2AQJpDi28lACtBc/\nQin4ZveqmqVobS7Z8JdGML5d/Q==\n-----END PRIVATE KEY-----\n';
 const isManager=crmUid===MANAGER_UID;
 const fetchUrl='https://server.etalkingonline.com/name_list/new_list/'+(isManager?'-1':crmUid);
@@ -108,10 +114,13 @@ async function initSheet(token){
     }
 }
 
-/* ══ 從 Sheet 讀取備註 ══ */
+/* ══ 核心變數宣告 ══ */
 let sheetToken=null;
 let sheetData={};
 let sheetRowMap={};
+let allData=[],detailData={},currentItem=null,currentMemoItem=null;
+let selectedGrade='';
+let currentUserName = ''; // 用來存儲業務名字
 
 async function loadSheetData(){
     try{
@@ -140,7 +149,11 @@ async function syncNewMemberToSheet(item,assignDate){
     const now=new Date();
     const month=`${now.getFullYear()}/${String(now.getMonth()+1).padStart(2,'0')}`;
     const dateStr=assignDate||now.toISOString().split('T')[0];
-    await sheetsAppend(sheetToken,'工作表1!A:K',[[memberId,item.member_name||'',item.mobile||'',item.user_name||crmUid,crmUid,dateStr,month,'新單','','',now.toLocaleString('zh-TW')]]);
+    
+    // 🔥 使用 VIP 名單，如果沒有才用自動抓取或 UID
+    const writerName = item.user_name || currentUserName || crmUid;
+
+    await sheetsAppend(sheetToken,'工作表1!A:K',[[memberId,item.member_name||'',item.mobile||'',writerName,crmUid,dateStr,month,'新單','','',now.toLocaleString('zh-TW')]]);
     sheetRowMap[memberId]=Object.keys(sheetRowMap).length+2;
 }
 
@@ -154,7 +167,11 @@ async function updateSheetMemo(memberId, status, grade, memo, item){
     if(!rowNum){
         const month=`${now.getFullYear()}/${String(now.getMonth()+1).padStart(2,'0')}`;
         const dateStr=now.toISOString().split('T')[0]; 
-        await sheetsAppend(sheetToken,'工作表1!A:K',[[String(memberId), item.member_name||'', item.mobile||'', item.user_name||crmUid, crmUid, dateStr, month, status, grade, memo, timeStr]]);
+        
+        // 🔥 使用 VIP 名單，如果沒有才用自動抓取或 UID
+        const writerName = item.user_name || currentUserName || crmUid;
+
+        await sheetsAppend(sheetToken,'工作表1!A:K',[[String(memberId), item.member_name||'', item.mobile||'', writerName, crmUid, dateStr, month, status, grade, memo, timeStr]]);
         sheetRowMap[String(memberId)] = Object.keys(sheetRowMap).length + 2; 
     } else {
         await sheetsUpdate(sheetToken,`工作表1!H${rowNum}:K${rowNum}`,[[status, grade, memo, timeStr]]);
@@ -230,9 +247,6 @@ panel.appendChild(memoModal);
 panel.appendChild(recordModal);
 document.body.appendChild(panel);
 
-let allData=[],detailData={},currentItem=null,currentMemoItem=null;
-let selectedGrade='';
-
 /* ══ 等級按鈕互動 ══ */
 memoModal.querySelectorAll('.grade-btn').forEach(btn=>{
     btn.onclick=()=>{
@@ -297,6 +311,16 @@ async function fetchData(){
         const res=await fetch(fetchUrl);
         const data=await res.json();
         allData=data.list||[];
+        
+        // 🔥 自動解析目前登入的業務名稱，加上 VIP 字典雙重防呆
+        currentUserName = USER_DICT[crmUid] || crmUid; 
+        if (!USER_DICT[crmUid]) {
+            const leadWithName = allData.find(m => m.user_name && m.user_name.trim() !== '');
+            if (leadWithName) {
+                currentUserName = leadWithName.user_name.trim();
+            }
+        }
+
         updateConsultantDropdown();
         renderList();
         if(!isManager){
@@ -466,7 +490,6 @@ function renderList(){
             document.getElementById('memo-member-name').textContent=`${item.member_name||''}　${item.mobile||''}`;
             document.getElementById('memo-text').value=sd.memo||'';
             
-            // 🔥 防呆控制：只有不是新單(type!=1)的時候，才顯示再次留單的選項
             const reInquireContainer = document.getElementById('re-inquire-container');
             if (item.type == 1) {
                 reInquireContainer.style.display = 'none';
