@@ -620,8 +620,10 @@ fetchData();
 </textarea>
 
 <script>
-    const code = document.getElementById('raw-code').value.trim();
-    document.getElementById('drag-btn').href = code;
+    const rawCode = document.getElementById('raw-code').value.trim();
+    // 移除 javascript: 前綴再編碼，然後加回去
+    const jsCode = rawCode.startsWith('javascript:') ? rawCode.slice(11) : rawCode;
+    document.getElementById('drag-btn').href = 'javascript:' + encodeURIComponent(jsCode);
 </script>
 </body>
 </html>
