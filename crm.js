@@ -8,14 +8,12 @@ if(!['www.etalkingonline.com','admin.etalkingonline.com'].includes(host)){
 
 const path=window.location.pathname;
 
-/* 情況C：Session 失效 */
 if(host==='www.etalkingonline.com'&&!path.includes('request_develop')){
     alert('⚠️ 通道已失效！\n\n① 點確定返回後台\n② 進入名單管理頁面\n③ 點開任一張單的「編輯」\n④ 再點一次書籤');
     window.location.href='https://admin.etalkingonline.com/etalking2.0/#/request_list';
     return;
 }
 
-/* 情況B：在後台，跳轉 */
 if(host==='admin.etalkingonline.com'){
     if(confirm('🚀 需要切換至專屬通道\n\n點確定後跳轉，再點一次書籤即可載入！\n\n💡 若跳轉失敗，請先點開任一張單的「編輯」再試。')){
         const uid=localStorage.getItem('uid')||'';
@@ -27,7 +25,6 @@ if(host==='admin.etalkingonline.com'){
     return;
 }
 
-/* 情況A：正確頁面，執行主程式 */
 const urlParams=new URLSearchParams(window.location.search);
 const crmUid=urlParams.get('crm_uid')||'';
 if(!crmUid){alert('❌ 無法識別身份！\n\n請從 etalking 後台點擊書籤來啟動工具。');return;}
@@ -88,67 +85,34 @@ const PRIVATE_KEY='-----BEGIN PRIVATE KEY-----\nMIIEvwIBADANBgkqhkiG9w0BAQEFAASC
 const isManager=crmUid===MANAGER_UID;
 const fetchUrl='https://server.etalkingonline.com/name_list/new_list/'+(isManager?'-1':crmUid);
 
-/* ══ Google Sheets JWT Auth ══ */
+/* ══ Google Sheets Auth ══ */
 async function getAccessToken(){
     const header=btoa(JSON.stringify({alg:'RS256',typ:'JWT'})).replace(/=/g,'').replace(/\+/g,'-').replace(/\//g,'_');
     const now=Math.floor(Date.now()/1000);
     const claim=btoa(JSON.stringify({iss:SERVICE_ACCOUNT_EMAIL,scope:'https://www.googleapis.com/auth/spreadsheets',aud:'https://oauth2.googleapis.com/token',exp:now+3600,iat:now})).replace(/=/g,'').replace(/\+/g,'-').replace(/\//g,'_');
-    const signInput=header+'.'+claim;
+    const sigInput=header+'.'+claim;
     const keyData=PRIVATE_KEY.replace('-----BEGIN PRIVATE KEY-----','').replace('-----END PRIVATE KEY-----','').replace(/\n/g,'');
-    const binaryKey=Uint8Array.from(atob(keyData),c=>c.charCodeAt(0));
-    const cryptoKey=await crypto.subtle.importKey('pkcs8',binaryKey,{name:'RSASSA-PKCS1-v1_5',hash:'SHA-256'},false,['sign']);
-    const signature=await crypto.subtle.sign('RSASSA-PKCS1-v1_5',cryptoKey,new TextEncoder().encode(signInput));
-    const sig=btoa(String.fromCharCode(...new Uint8Array(signature))).replace(/=/g,'').replace(/\+/g,'-').replace(/\//g,'_');
-    const jwt=signInput+'.'+sig;
-    const res=await fetch('https://oauth2.googleapis.com/token',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:`grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer&assertion=${jwt}`});
-    const data=await res.json();
-    return data.access_token;
+    const cryptoKey=await crypto.subtle.importKey('pkcs8',Uint8Array.from(atob(keyData),c=>c.charCodeAt(0)),{name:'RSASSA-PKCS1-v1_5',hash:'SHA-256'},false,['sign']);
+    const sig=btoa(String.fromCharCode(...new Uint8Array(await crypto.subtle.sign('RSASSA-PKCS1-v1_5',cryptoKey,new TextEncoder().encode(sigInput))))).replace(/=/g,'').replace(/\+/g,'-').replace(/\//g,'_');
+    const res=await fetch('https://oauth2.googleapis.com/token',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:`grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer&assertion=${sigInput+'.'+sig}`});
+    const d=await res.json(); return d.access_token;
 }
 
-async function sheetsGet(token,range){
-    const res=await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${encodeURIComponent(range)}`,{headers:{Authorization:'Bearer '+token}});
-    return res.json();
-}
+async function sheetsGet(token,range){ return (await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${encodeURIComponent(range)}`,{headers:{Authorization:'Bearer '+token}})).json(); }
+async function sheetsUpdate(token,range,values){ await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${encodeURIComponent(range)}?valueInputOption=USER_ENTERED`,{method:'PUT',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify({values})}); }
+async function sheetsAppend(token,range,values){ await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${encodeURIComponent(range)}:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`,{method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify({values})}); }
 
-async function sheetsUpdate(token,range,values){
-    await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${encodeURIComponent(range)}?valueInputOption=USER_ENTERED`,{method:'PUT',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify({values})});
-}
-
-async function sheetsAppend(token,range,values){
-    await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${encodeURIComponent(range)}:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`,{method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify({values})});
-}
-
-/* 🔥 物理刪除整列 API */
 async function sheetsDeleteRow(token, rowNum) {
     try {
         const metaRes = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}?fields=sheets(properties(sheetId,title))`, {headers:{Authorization:'Bearer '+token}});
         const metaData = await metaRes.json();
         const sheet = metaData.sheets.find(s => s.properties.title === '工作表1');
         const sheetId = sheet ? sheet.properties.sheetId : 0;
-
-        const req = {
-            requests: [{
-                deleteDimension: {
-                    range: {
-                        sheetId: sheetId,
-                        dimension: 'ROWS',
-                        startIndex: rowNum - 1,
-                        endIndex: rowNum
-                    }
-                }
-            }]
-        };
-        await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}:batchUpdate`, {
-            method: 'POST',
-            headers: {Authorization:'Bearer '+token, 'Content-Type': 'application/json'},
-            body: JSON.stringify(req)
-        });
-    } catch(e) {
-        console.error('刪除名單列失敗:', e);
-    }
+        const req = { requests: [{ deleteDimension: { range: { sheetId: sheetId, dimension: 'ROWS', startIndex: rowNum - 1, endIndex: rowNum } } }] };
+        await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}:batchUpdate`, { method: 'POST', headers: {Authorization:'Bearer '+token, 'Content-Type': 'application/json'}, body: JSON.stringify(req) });
+    } catch(e) { console.error('刪除名單列失敗:', e); }
 }
 
-/* ══ Sheet 初始化（建立表頭）══ */
 async function initSheet(token){
     const data=await sheetsGet(token,'工作表1!A1:K1');
     if(!data.values||!data.values[0]||data.values[0][0]!=='member_id'){
@@ -156,13 +120,8 @@ async function initSheet(token){
     }
 }
 
-/* ══ 核心變數宣告 ══ */
-let sheetToken=null;
-let sheetData={};
-let sheetRowMap={};
-let allData=[],detailData={},currentItem=null,currentMemoItem=null;
-let selectedGrade='';
-let currentUserName = ''; // 用來存儲業務名字
+let sheetToken=null, sheetData={}, sheetRowMap={};
+let allData=[], detailData={}, currentItem=null, currentMemoItem=null, selectedGrade='';
 
 async function loadSheetData(){
     try{
@@ -183,7 +142,12 @@ async function loadSheetData(){
     }catch(e){console.log('Sheet載入失敗:',e);}
 }
 
-/* ══ 新單同步到 Sheet ══ */
+// 🌟 核心命名邏輯：強勢控管，只認字典！(如果忘記加字典，就寫入數字 UID 提醒主管)
+function getWriterName(item) {
+    if (USER_DICT[crmUid]) return USER_DICT[crmUid];
+    return crmUid; 
+}
+
 async function syncNewMemberToSheet(item,assignDate){
     if(!sheetToken)return;
     const memberId=String(item.member_id);
@@ -192,14 +156,10 @@ async function syncNewMemberToSheet(item,assignDate){
     const month=`${now.getFullYear()}/${String(now.getMonth()+1).padStart(2,'0')}`;
     const dateStr=assignDate||now.toISOString().split('T')[0];
     
-    // 🔥 使用 VIP 名單，如果沒有才用自動抓取或 UID
-    const writerName = item.user_name || currentUserName || crmUid;
-
-    await sheetsAppend(sheetToken,'工作表1!A:K',[[memberId,item.member_name||'',item.mobile||'',writerName,crmUid,dateStr,month,'新單','','',now.toLocaleString('zh-TW')]]);
+    await sheetsAppend(sheetToken,'工作表1!A:K',[[memberId,item.member_name||'',item.mobile||'',getWriterName(item),crmUid,dateStr,month,'新單','','',now.toLocaleString('zh-TW')]]);
     sheetRowMap[memberId]=Object.keys(sheetRowMap).length+2;
 }
 
-/* ══ 更新備註到 Sheet ══ */
 async function updateSheetMemo(memberId, status, grade, memo, item){
     if(!sheetToken)return;
     const rowNum=sheetRowMap[String(memberId)];
@@ -209,11 +169,7 @@ async function updateSheetMemo(memberId, status, grade, memo, item){
     if(!rowNum){
         const month=`${now.getFullYear()}/${String(now.getMonth()+1).padStart(2,'0')}`;
         const dateStr=now.toISOString().split('T')[0]; 
-        
-        // 🔥 使用 VIP 名單，如果沒有才用自動抓取或 UID
-        const writerName = item.user_name || currentUserName || crmUid;
-
-        await sheetsAppend(sheetToken,'工作表1!A:K',[[String(memberId), item.member_name||'', item.mobile||'', writerName, crmUid, dateStr, month, status, grade, memo, timeStr]]);
+        await sheetsAppend(sheetToken,'工作表1!A:K',[[String(memberId), item.member_name||'', item.mobile||'', getWriterName(item), crmUid, dateStr, month, status, grade, memo, timeStr]]);
         sheetRowMap[String(memberId)] = Object.keys(sheetRowMap).length + 2; 
     } else {
         await sheetsUpdate(sheetToken,`工作表1!H${rowNum}:K${rowNum}`,[[status, grade, memo, timeStr]]);
@@ -221,10 +177,8 @@ async function updateSheetMemo(memberId, status, grade, memo, item){
     sheetData[String(memberId)]={status, grade, memo};
 }
 
-/* ══ 清除舊元素 ══ */
+/* ══ DOM UI 初始化 ══ */
 ['custom-crm-curtain','custom-crm-panel'].forEach(id=>{const el=document.getElementById(id);if(el)el.remove();});
-
-/* ══ 安全遮罩 ══ */
 const curtain=document.createElement('div');
 curtain.id='custom-crm-curtain';
 curtain.style.cssText='position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(236,240,241,0.85);backdrop-filter:blur(8px);z-index:999998;pointer-events:all;user-select:none;';
@@ -232,7 +186,6 @@ curtain.addEventListener('click',e=>e.stopPropagation());
 document.body.style.overflow='hidden';
 document.body.appendChild(curtain);
 
-/* ══ 面板 ══ */
 const panel=document.createElement('div');
 panel.id='custom-crm-panel';
 panel.style.cssText='position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);width:1020px;height:88vh;background:#fff;box-shadow:0 15px 50px rgba(0,0,0,0.2);border-radius:12px;z-index:999999;display:flex;flex-direction:column;overflow:hidden;font-family:sans-serif;';
@@ -244,40 +197,11 @@ header.innerHTML=`<div style="display:flex;align-items:center;gap:8px;flex-wrap:
 const content=document.createElement('div');
 content.style.cssText='flex:1;overflow-y:auto;padding:12px;background:#f8f9fa;';
 
-/* 備註 Modal */
 const memoModal=document.createElement('div');
 memoModal.id='memo-modal';
 memoModal.style.cssText='display:none;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:340px;background:white;padding:20px;border-radius:10px;box-shadow:0 4px 20px rgba(0,0,0,0.25);z-index:1000001;';
-memoModal.innerHTML=`
-    <h4 style="margin:0 0 4px;">編輯備註</h4>
-    <div id="memo-member-name" style="font-size:12px;color:#7f8c8d;margin-bottom:14px;"></div>
-    <input type="hidden" id="memo-member-id">
-    
-    <!-- 再次留單勾選區塊 -->
-    <div id="re-inquire-container" style="display:none; margin-bottom:12px; align-items:center; gap:6px; background:#fff3cd; padding:8px 10px; border-radius:6px; border:1px solid #ffe69c;">
-        <input type="checkbox" id="memo-re-inquire" style="width:16px; height:16px; cursor:pointer;">
-        <label for="memo-re-inquire" style="font-size:13px; font-weight:bold; color:#d35400; cursor:pointer; user-select:none;">標記為「再次留單」並寫入 Sheet</label>
-    </div>
+memoModal.innerHTML=`<h4 style="margin:0 0 4px;">編輯備註</h4><div id="memo-member-name" style="font-size:12px;color:#7f8c8d;margin-bottom:14px;"></div><input type="hidden" id="memo-member-id"><div id="re-inquire-container" style="display:none; margin-bottom:12px;"><button id="memo-re-inquire-btn" data-active="false" style="width:100%; padding:8px; border:2px solid #ddd; border-radius:6px; cursor:pointer; font-weight:bold; font-size:13px; background:#fff; color:#555; transition:all 0.2s;">🚩 標記為「再次留單」</button></div><div style="margin-bottom:12px;"><label style="font-size:13px;font-weight:bold;">等級</label><div style="display:flex;gap:8px;margin-top:6px;"><button class="grade-btn" data-val="A" style="flex:1;padding:8px;border:2px solid #ddd;border-radius:6px;cursor:pointer;font-weight:bold;font-size:14px;background:#fff;">A 級</button><button class="grade-btn" data-val="C" style="flex:1;padding:8px;border:2px solid #ddd;border-radius:6px;cursor:pointer;font-weight:bold;font-size:14px;background:#fff;">C 級</button><button class="grade-btn" data-val="" style="flex:1;padding:8px;border:2px solid #ddd;border-radius:6px;cursor:pointer;font-size:13px;background:#fff;">清除</button></div></div><div style="margin-bottom:14px;"><label style="font-size:13px;font-weight:bold;">備註</label><textarea id="memo-text" style="width:100%;margin-top:6px;padding:8px;border:1px solid #ddd;border-radius:6px;font-family:sans-serif;font-size:13px;resize:vertical;min-height:70px;" placeholder="輸入備註..."></textarea></div><div style="display:flex;gap:8px;justify-content:flex-end;"><button id="memo-cancel" style="padding:6px 16px;cursor:pointer;border:1px solid #ddd;border-radius:6px;background:#fff;">取消</button><button id="memo-save" style="padding:6px 16px;cursor:pointer;border:none;border-radius:6px;background:#27ae60;color:white;font-weight:bold;">儲存</button></div>`;
 
-    <div style="margin-bottom:12px;">
-        <label style="font-size:13px;font-weight:bold;">等級</label>
-        <div style="display:flex;gap:8px;margin-top:6px;">
-            <button class="grade-btn" data-val="A" style="flex:1;padding:8px;border:2px solid #ddd;border-radius:6px;cursor:pointer;font-weight:bold;font-size:14px;background:#fff;">A 級</button>
-            <button class="grade-btn" data-val="C" style="flex:1;padding:8px;border:2px solid #ddd;border-radius:6px;cursor:pointer;font-weight:bold;font-size:14px;background:#fff;">C 級</button>
-            <button class="grade-btn" data-val="" style="flex:1;padding:8px;border:2px solid #ddd;border-radius:6px;cursor:pointer;font-size:13px;background:#fff;">清除</button>
-        </div>
-    </div>
-    <div style="margin-bottom:14px;">
-        <label style="font-size:13px;font-weight:bold;">備註</label>
-        <textarea id="memo-text" style="width:100%;margin-top:6px;padding:8px;border:1px solid #ddd;border-radius:6px;font-family:sans-serif;font-size:13px;resize:vertical;min-height:70px;" placeholder="輸入備註..."></textarea>
-    </div>
-    <div style="display:flex;gap:8px;justify-content:flex-end;">
-        <button id="memo-cancel" style="padding:6px 16px;cursor:pointer;border:1px solid #ddd;border-radius:6px;background:#fff;">取消</button>
-        <button id="memo-save" style="padding:6px 16px;cursor:pointer;border:none;border-radius:6px;background:#27ae60;color:white;font-weight:bold;">儲存</button>
-    </div>
-`;
-
-/* 壓紀錄 Modal */
 const recordModal=document.createElement('div');
 recordModal.id='record-modal';
 recordModal.style.cssText='display:none;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:300px;background:white;padding:20px;border-radius:8px;box-shadow:0 4px 15px rgba(0,0,0,0.2);z-index:1000000;';
@@ -289,24 +213,39 @@ panel.appendChild(memoModal);
 panel.appendChild(recordModal);
 document.body.appendChild(panel);
 
-/* ══ 等級按鈕互動 ══ */
+// 🚩 再次留單按鈕的切換邏輯
+document.getElementById('memo-re-inquire-btn').onclick = (e) => {
+    const btn = e.target;
+    const isActive = btn.getAttribute('data-active') === 'true';
+    if (isActive) {
+        btn.setAttribute('data-active', 'false');
+        btn.style.background = '#fff';
+        btn.style.borderColor = '#ddd';
+        btn.style.color = '#555';
+        btn.innerText = '🚩 標記為「再次留單」';
+    } else {
+        btn.setAttribute('data-active', 'true');
+        btn.style.background = '#c0392b';
+        btn.style.borderColor = '#c0392b';
+        btn.style.color = '#fff';
+        btn.innerText = '✅ 已標記 (請點擊下方儲存)';
+    }
+};
+
 memoModal.querySelectorAll('.grade-btn').forEach(btn=>{
     btn.onclick=()=>{
         selectedGrade=btn.dataset.val;
-        memoModal.querySelectorAll('.grade-btn').forEach(b=>{
-            b.style.background='#fff';b.style.borderColor='#ddd';b.style.color='#333';
-        });
+        memoModal.querySelectorAll('.grade-btn').forEach(b=>{ b.style.background='#fff';b.style.borderColor='#ddd';b.style.color='#333'; });
         if(selectedGrade==='A'){btn.style.background='#1a6fc4';btn.style.borderColor='#1a6fc4';btn.style.color='white';}
         else if(selectedGrade==='C'){btn.style.background='#e67e22';btn.style.borderColor='#e67e22';btn.style.color='white';}
         else{btn.style.background='#95a5a6';btn.style.borderColor='#95a5a6';btn.style.color='white';}
     };
 });
 
-/* 🔥 儲存備註邏輯 (包含刪除判斷) */
 document.getElementById('memo-save').onclick=async()=>{
     const memberId=document.getElementById('memo-member-id').value;
     const memo=document.getElementById('memo-text').value.trim();
-    const isReInquire = document.getElementById('memo-re-inquire').checked;
+    const isReInquire = document.getElementById('memo-re-inquire-btn').getAttribute('data-active') === 'true';
     const rowNum = sheetRowMap[String(memberId)];
     const sd = sheetData[String(memberId)] || {};
 
@@ -317,22 +256,18 @@ document.getElementById('memo-save').onclick=async()=>{
         await sheetsDeleteRow(sheetToken, rowNum);
         delete sheetData[String(memberId)];
         await loadSheetData(); 
-    } 
-    else if (currentMemoItem.type == 1 || isReInquire) {
+    } else if (currentMemoItem.type == 1 || isReInquire) {
         let statusToSave = sd.status || '';
         if (currentMemoItem.type == 1) statusToSave = '新單';
         else if (isReInquire) statusToSave = '再次留單';
-        
         await updateSheetMemo(memberId, statusToSave, selectedGrade, memo, currentMemoItem);
     }
-
     btn.textContent='儲存';btn.disabled=false;
     memoModal.style.display='none';
     renderList();
 };
 document.getElementById('memo-cancel').onclick=()=>memoModal.style.display='none';
 
-/* ══ 業務下拉 ══ */
 function updateConsultantDropdown(){
     if(!isManager)return;
     const select=document.getElementById('consultant-filter');
@@ -342,7 +277,6 @@ function updateConsultantDropdown(){
     select.innerHTML=html;select.value='-1';
 }
 
-/* ══ 載入資料 ══ */
 async function fetchData(){
     const statusLabel=document.getElementById('loading-status');
     content.innerHTML='<div style="text-align:center;padding:20px;">資料載入中...</div>';
@@ -354,21 +288,9 @@ async function fetchData(){
         const data=await res.json();
         allData=data.list||[];
         
-        // 🔥 自動解析目前登入的業務名稱，加上 VIP 字典雙重防呆
-        currentUserName = USER_DICT[crmUid] || crmUid; 
-        if (!USER_DICT[crmUid]) {
-            const leadWithName = allData.find(m => m.user_name && m.user_name.trim() !== '');
-            if (leadWithName) {
-                currentUserName = leadWithName.user_name.trim();
-            }
-        }
-
         updateConsultantDropdown();
         renderList();
-        if(!isManager){
-            statusLabel.innerText='🔄 載入新單細節...';
-            await loadDetailsForAll();
-        }
+        if(!isManager){ statusLabel.innerText='🔄 載入新單細節...'; await loadDetailsForAll(); }
         statusLabel.innerText='✅ 載入完成';
         setTimeout(()=>statusLabel.innerText='',2000);
     }catch(err){
@@ -503,7 +425,6 @@ function renderList(){
     if(filteredData.length>150)html+=`<div style="text-align:center;padding:10px;color:#888;">(共 ${filteredData.length} 筆，顯示前 150 筆)</div>`;
     content.innerHTML=html;
 
-    /* 壓紀錄按鈕 */
     document.querySelectorAll('.quick-record-btn').forEach(btn=>{
         btn.onclick=e=>{
             const memberId=e.target.getAttribute('data-id');
@@ -520,7 +441,6 @@ function renderList(){
         };
     });
 
-    /* 備註按鈕 */
     document.querySelectorAll('.memo-btn').forEach(btn=>{
         btn.onclick=e=>{
             const memberId=e.target.getAttribute('data-id');
@@ -533,11 +453,17 @@ function renderList(){
             document.getElementById('memo-text').value=sd.memo||'';
             
             const reInquireContainer = document.getElementById('re-inquire-container');
+            const reInqBtn = document.getElementById('memo-re-inquire-btn');
             if (item.type == 1) {
                 reInquireContainer.style.display = 'none';
             } else {
-                reInquireContainer.style.display = 'flex';
-                document.getElementById('memo-re-inquire').checked = (sd.status === '再次留單');
+                reInquireContainer.style.display = 'block';
+                const isReInq = (sd.status === '再次留單');
+                reInqBtn.setAttribute('data-active', isReInq ? 'true' : 'false');
+                reInqBtn.style.background = isReInq ? '#c0392b' : '#fff';
+                reInqBtn.style.borderColor = isReInq ? '#c0392b' : '#ddd';
+                reInqBtn.style.color = isReInq ? '#fff' : '#555';
+                reInqBtn.innerText = isReInq ? '✅ 已標記 (請點擊下方儲存)' : '🚩 標記為「再次留單」';
             }
 
             selectedGrade=sd.grade||'';
@@ -554,7 +480,6 @@ function renderList(){
     });
 }
 
-/* ══ 送出紀錄 ══ */
 document.getElementById('modal-submit').onclick=()=>{
     if(!currentItem)return;
     const memberId=document.getElementById('modal-member-id').value;
