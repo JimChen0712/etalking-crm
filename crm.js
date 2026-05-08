@@ -39,7 +39,49 @@ const SERVICE_ACCOUNT_EMAIL='etalking-crm@etalking-crm.iam.gserviceaccount.com';
 
 /* 🔥 專屬 VIP 對照表：確保名字 100% 正確 */
 const USER_DICT = {
-    '424': '陳昕謨 (Jim)',
+   // === 業務部 (主管) ===
+    '69': 'TEST test0504',
+    '162': 'Joy 洪淑慧',
+    '240': 'Minzing 程銘靜',
+    '60': 'johnny 謝愷澤',
+    '424': 'Jim 陳昕謨',
+
+    // === 業務部 ===
+    '279': 'test3 test3',
+    '452': 'Rita 侯宛余',
+    '433': 'Wynn 吳昱瑩',
+    '464': 'ori 孫逸亭',
+    '443': 'Hele 徐睿彣',
+    '463': 'Sumika 李玉善',
+    '455': 'Hazel 林孜瑩',
+    '449': 'Evan 林逸華',
+    '432': 'Elsie 林采庭',
+    '445': 'Luke 楊博竣',
+    '457': 'Alan 楊碩頫',
+    '438': 'Lily 楊若莉',
+    '451': 'Kyle 江宗翰',
+    '454': 'Andy 沈祐頡',
+    '462': 'homer 許瀚方',
+    '461': 'hanfang 許瀚方',
+    '456': 'Tony 謝廷翊',
+    '458': 'Josie 陳品妤',
+    '431': 'Elijah 陳家寬',
+    '459': 'An 陳怡安',
+    '450': 'Val 陳芊螢',
+    '409': 'Joyce 魏良伃',
+    '453': 'Wolf 黃詳淵',
+    '368': 'Jordan 李睿峰',
+
+    // === IT & CS ===
+    '130': 'Jeremy testjeremy',
+    '283': 'Ash 俞任鴻',
+    '465': 'Lily 李昱萱',
+    '248': 'Luka 林冠宇',
+    '434': 'Nina 林怡欣',
+    '358': 'amiee 林琬倩',
+    '410': 'Claire 葉芷羽',
+    '241': 'Paris 黃雅琪',
+    '180': 'Rooney 邱于峰'
 };
 
 const PRIVATE_KEY='-----BEGIN PRIVATE KEY-----\nMIIEvwIBADANBgkqhkiG9w0BAQEFAASCBKkwggSlAgEAAoIBAQDHdUqOnFfehSoL\nyDlD2rOeNlS5+Aaj01qWJG7BRshHyGPlWmGidriye3tpUfVox82faNM4Rruh1d7M\nK4rygJphAwUB/Q9fCnNS0tmeLxevRT6QtqlFvpiGZyIrrBWWJ5sXkNbZx/5PDd+D\n82233tZeWv2Ep88fcVjspkE/q93j1pieswPkkVSrwMvXZ0bvHdG9oIf2S+O/Tqxy\nglsUU6aiW7VvMXuXo1axyiSXRJf/R9q++51mA0r43GKrP/o8VJtYuazb82wuZ1NZ\n/mwTwrBPx7rNOlT7hPjiCvpc9WebfVuHitEtI/D8zXvNSH8+ekQXLGDzQEVTRJmq\nowHBMQ03AgMBAAECggEAXWWu49iRzMDOT3YSWpOuSAdo5Swe79eoM2Yb9qUOY46S\nOHN6BHlTQ0BPKaIXKFlnD54mSdPVSJK9IR3CkotlvseLMMMuz3I1TjMtc8TZclka\nUuk1mlMFWOoyNgD+mrExDnfkI1Zi3uHAKCl01wShnM0+qT9q3W5WFXpEU2xHGsgt\n+2L3nndOnuhiWvcoyxamgxrvm23Qw/36SEOfxyr+6kMJFT+W/v1gxEeZjTn2sKyj\nLq6LIuAVh2YBauluboNvVSMimUq8gaMOCPh3vhG6UVigkkODclOk52DcpnBAhHlP\nm/eynpHvZ4s0dr21AMEOnRMXkeqK0HzWSAmoIXnAAQKBgQDu6PSa/ZNQGK67yHeA\n/csg2AfXxEeH1bf/diP0OZXkLP8g1JGKTl5x0WWY8Fcssn7JEwiw+qea6o/A9t1A\nJzwYtsJQ/bHW1jsVbwGMtm2rKL9D3NePjDhoOBa3w5PoHvCuXGJ+ryp+GadWa8F8\nxbLphV5+YpKcsJcDdZRG46eUNwKBgQDVud+ei9bvTPBqyqciBRThRBUyAsoQN/KE\n5Fx3UKQVCLLowYa/YR/Kb2fEVmoMtnfAjzzrNM7N5CjJmu92WHvU6eMj1u/7v3vt\nd50IjZHycNGXalhyO5YMTQJf5vRCc0IIBOxnqXLKxDp3lW4V+LppiLbBbBbcuyxU\nOzKh8lfPAQKBgQCYJiHJJx6PDvkQvC1nJ7oaU5pDDkxjtHb2qT1iht3vr7xXIykB\nBMHfCHUEfmN2IsLduVJ6q1bcMO+V+2GSPqpmLtX3kGmWoV6FWumIvJGBRHTyeg2J\n7MnrjXTiWRqz5ChxUoKjnViZcCsCvaM+nAVB9N7l7E7knQ2/dT0WHFuX5wKBgQCh\nbiSun1c4JrgNIYZ91rK/t2n+/UZcW7XNlKMW6A0XahugXNSHZzfY8q7BCLhPY98t\nzcMosRlnQGdiZ6lpjUnzNrn+zxEy6J4VblxpIm1TXs2gfY3SspkSL3SUtWBXdLEy\nV22smrt+1hqHSpH8/ILoxX+stxTJooLIGHKVCfQzAQKBgQDF8xf71MUEOHY8Ae36\nit/fL4uWgK2q3zo/qiVGoxSCJ7bMeYZv7uwku/gMNx/WJTaxqln/oZ3qBem963BP\nRHTy8rycz/inwJu+O45jUYLx1IGHfTNO4BPljU/9/Pkwg/ES2AQJpDi28lACtBc/\nQin4ZveqmqVobS7Z8JdGML5d/Q==\n-----END PRIVATE KEY-----\n';
