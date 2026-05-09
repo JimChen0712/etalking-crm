@@ -85,13 +85,15 @@ async function gasGet(params){
 }
 
 async function gasPost(data){
-    const res=await fetch(APPS_SCRIPT_URL,{
-        method:'POST',
-        headers:{'Content-Type':'text/plain;charset=utf-8'},
-        headers:{'Content-Type':'application/json'},
-        body:JSON.stringify(data)
-    });
-    return res.json();
+    const res = await fetch(APPS_SCRIPT_URL, {
+        method: 'POST',
+        // 👇 確保這裡只有 text/plain，不要有 application/json 或是 charset
+        headers: {
+            'Content-Type': 'text/plain'
+        },
+        body: JSON.stringify(data)
+    });
+    return res.json();
 }
 
 async function initSheet(){
