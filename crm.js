@@ -126,7 +126,8 @@ async function loadSheetData(){
                 if(idx===0)return;
                 const memberId=row[0];
                 if(memberId){
-                    sheetData[memberId]={status:row[7]||'',grade:row[8]||'',memo:row[9]||''};
+                    // 👇 因為前面多了一欄，所以陣列位置從 7,8,9 變成 8,9,10 👇
+                    sheetData[memberId]={status:row[8]||'',grade:row[9]||'',memo:row[10]||''};
                     sheetRowMap[memberId]=idx+1;
                 }
             });
@@ -145,7 +146,8 @@ async function syncNewMemberToSheet(item,assignDate){
     const month=now.getFullYear()+'/'+String(now.getMonth()+1).padStart(2,'0');
     const dateStr=assignDate||now.toISOString().split('T')[0];
     const ownerName = (item.user_name && item.user_name.trim()) ? item.user_name.trim() : getWriterName();
-    await appendRow([memberId,item.member_name||'',item.mobile||'',ownerName,crmUid,dateStr,month,'新單','','',now.toLocaleString('zh-TW')]);
+    // 👇 修改這裡：在電話後面，偷偷夾帶 item.source 給 GAS 👇
+    await appendRow([memberId,item.member_name||'',item.mobile||'',item.source||'無',ownerName,crmUid,dateStr,month,'新單','','',now.toLocaleString('zh-TW')]);
     sheetRowMap[memberId]=Object.keys(sheetRowMap).length+2;
 }
 
@@ -157,14 +159,14 @@ async function updateSheetMemo(memberId,status,grade,memo,item){
         const month=now.getFullYear()+'/'+String(now.getMonth()+1).padStart(2,'0');
         const dateStr=now.toISOString().split('T')[0];
         const ownerName = (item.user_name && item.user_name.trim()) ? item.user_name.trim() : getWriterName();
-        await appendRow([String(memberId),item.member_name||'',item.mobile||'',ownerName,crmUid,dateStr,month,status,grade,memo,timeStr]);
+        // 👇 一樣修改這裡：夾帶 item.source 👇
+        await appendRow([String(memberId),item.member_name||'',item.mobile||'',item.source||'無',ownerName,crmUid,dateStr,month,status,grade,memo,timeStr]);
         sheetRowMap[String(memberId)]=Object.keys(sheetRowMap).length+2;
     }else{
         await updateRow(rowNum,[status,grade,memo,timeStr]);
     }
     sheetData[String(memberId)]={status,grade,memo};
 }
-
 async function sheetsDeleteRow(rowNum){
     await deleteRow(rowNum);
 }
