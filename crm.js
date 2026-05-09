@@ -77,7 +77,7 @@ const USER_DICT = {
 const isManager=crmUid===MANAGER_UID;
 const fetchUrl='https://server.etalkingonline.com/name_list/new_list/'+(isManager?'-1':crmUid);
 
-/* ══ Apps Script API（取代私鑰）══ */
+/* ══ Apps Script API ══ */
 async function gasGet(params){
     const url=APPS_SCRIPT_URL+'?'+new URLSearchParams(params).toString();
     const res=await fetch(url);
@@ -87,9 +87,7 @@ async function gasGet(params){
 async function gasPost(data){
     const res = await fetch(APPS_SCRIPT_URL, {
         method: 'POST',
-        headers: {
-            'Content-Type': 'text/plain'
-        },
+        headers: { 'Content-Type': 'text/plain' },
         body: JSON.stringify(data)
     });
     return res.json();
@@ -170,6 +168,44 @@ async function updateSheetMemo(memberId,status,grade,memo,item){
 async function sheetsDeleteRow(rowNum){
     await deleteRow(rowNum);
 }
+
+/* 👇 新增：負責整理要同步的原始資料，並發送給 GAS 的函式 👇 */
+async function syncDemoRawData(){
+    const statusLabel = document.getElementById('loading-status');
+    statusLabel.innerText = '🔄 比對並同步 Demo 名單...';
+    
+    // 把目前的 Demo 名單整理成 GAS 好處理的乾淨格式
+    const demoList = allData.filter(item => String(item.type) === '3').map(item => ({
+        member_id: item.member_id || item.id,
+        member_name: item.member_name,
+        mobile: item.mobile,
+        source: item.source,
+        user_name: item.user_name,
+        next_time: (item.next_time && !item.next_time.includes('0000')) ? item.next_time.split(' ')[0] : '無紀錄'
+    }));
+    
+    if(demoList.length === 0){
+        statusLabel.innerText = '✅ 目前沒有 Demo 名單';
+        setTimeout(() => statusLabel.innerText = '', 2000);
+        return;
+    }
+    
+    try {
+        const res = await gasPost({ action: 'syncDemoRaw', demoList: demoList });
+        if(res.success){
+            if(res.addedCount > 0){
+                statusLabel.innerText = `✅ 成功新增 ${res.addedCount} 筆 Demo 原始資料`;
+            } else {
+                statusLabel.innerText = '✅ 名單皆已存在，無須新增';
+            }
+        }
+        setTimeout(() => statusLabel.innerText = '', 3000);
+    } catch (e) {
+        statusLabel.innerText = '❌ 同步失敗';
+        console.error('Demo Raw Data Sync Error:', e);
+    }
+}
+/* 👆 結束 👆 */
 
 /* ══ DOM UI ══ */
 ['custom-crm-curtain','custom-crm-panel'].forEach(id=>{const el=document.getElementById(id);if(el)el.remove();});
@@ -409,7 +445,6 @@ function renderList(){
     if(filteredData.length>150)html+='<div style="text-align:center;padding:10px;color:#888;">(共 '+filteredData.length+' 筆，顯示前 150 筆)</div>';
     content.innerHTML=html;
 
-    /* 👇 這裡就是新增日期限制的地方 👇 */
     document.querySelectorAll('.quick-record-btn').forEach(btn=>{
         btn.onclick=e=>{
             const memberId=e.target.getAttribute('data-id');
@@ -417,7 +452,6 @@ function renderList(){
             currentItem=item;
             document.getElementById('modal-member-id').value=memberId;
             
-            // 安全的本地日期格式轉換 (YYYY-MM-DD)
             const formatDate = (date) => {
                 const y = date.getFullYear();
                 const m = String(date.getMonth() + 1).padStart(2, '0');
@@ -430,9 +464,8 @@ function renderList(){
             nextTarget.setDate(today.getDate() + (item.type == 1 ? 1 : 3));
             
             const dateInput = document.getElementById('modal-date');
-            dateInput.value = formatDate(nextTarget); // 預設日期
+            dateInput.value = formatDate(nextTarget); 
             
-            // 設定 Min 為今日 (不能選過去)，Max 為 D+14
             const maxDate = new Date(today);
             maxDate.setDate(today.getDate() + 14);
             dateInput.min = formatDate(today);
@@ -445,7 +478,6 @@ function renderList(){
             recordModal.style.display='block';
         };
     });
-    /* 👆 修改到這裡結束 👆 */
 
     document.querySelectorAll('.memo-btn').forEach(btn=>{
         btn.onclick=e=>{
@@ -509,7 +541,15 @@ document.getElementById('close-btn').onclick=()=>{
     setTimeout(()=>{window.location.href='https://admin.etalkingonline.com/etalking2.0/#/kpi';},300);
 };
 document.getElementById('refresh-btn').onclick=fetchData;
-document.getElementById('t-type-filter').onchange=renderList;
+
+/* 👇 新增：監聽種類下拉選單，選到 Demo過名單(3) 時觸發防呆寫入 👇 */
+document.getElementById('t-type-filter').onchange=function(){
+    renderList();
+    if(isManager && this.value === '3'){
+        syncDemoRawData();
+    }
+};
+
 document.getElementById('modal-cancel').onclick=()=>recordModal.style.display='none';
 document.getElementById('modal-status').onchange=function(){
     const m={'1':'已接聽','2':'非本人','3':'未接','4':'關機'};
