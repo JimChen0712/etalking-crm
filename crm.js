@@ -312,7 +312,7 @@ async function fetchData(){
 
         // 👇 支線任務：組員在背景偷偷抓 -1 總表，解鎖並附加來源碼 👇
         if(!isManager && allData.length > 0) {
-            statusLabel.innerText='🔄 解鎖來源碼...';
+            statusLabel.innerText='🔄 同步進階資料...';
             try {
                 const resAll = await fetch('https://server.etalkingonline.com/name_list/new_list/-1');
                 const dataAll = await resAll.json();
