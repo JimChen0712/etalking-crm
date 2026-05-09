@@ -85,15 +85,14 @@ async function gasGet(params){
 }
 
 async function gasPost(data){
-    const res = await fetch(APPS_SCRIPT_URL, {
-        method: 'POST',
-        // 👇 確保這裡只有 text/plain，不要有 application/json 或是 charset
-        headers: {
-            'Content-Type': 'text/plain'
-        },
-        body: JSON.stringify(data)
-    });
-    return res.json();
+    const res = await fetch(APPS_SCRIPT_URL, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'text/plain'
+        },
+        body: JSON.stringify(data)
+    });
+    return res.json();
 }
 
 async function initSheet(){
@@ -142,32 +141,30 @@ function getWriterName(){
 }
 
 async function syncNewMemberToSheet(item,assignDate){
-    const memberId=String(item.member_id);
-    if(sheetRowMap[memberId])return;
-    const now=new Date();
-    const month=now.getFullYear()+'/'+String(now.getMonth()+1).padStart(2,'0');
-    const dateStr=assignDate||now.toISOString().split('T')[0];
-    // 👇 優先抓取名單本身的業務 (item.user_name)，如果抓不到才用當前操作者名字
+    const memberId=String(item.member_id);
+    if(sheetRowMap[memberId])return;
+    const now=new Date();
+    const month=now.getFullYear()+'/'+String(now.getMonth()+1).padStart(2,'0');
+    const dateStr=assignDate||now.toISOString().split('T')[0];
     const ownerName = (item.user_name && item.user_name.trim()) ? item.user_name.trim() : getWriterName();
-    await appendRow([memberId,item.member_name||'',item.mobile||'',ownerName,crmUid,dateStr,month,'新單','','',now.toLocaleString('zh-TW')]);
-    sheetRowMap[memberId]=Object.keys(sheetRowMap).length+2;
+    await appendRow([memberId,item.member_name||'',item.mobile||'',ownerName,crmUid,dateStr,month,'新單','','',now.toLocaleString('zh-TW')]);
+    sheetRowMap[memberId]=Object.keys(sheetRowMap).length+2;
 }
 
 async function updateSheetMemo(memberId,status,grade,memo,item){
-    const rowNum=sheetRowMap[String(memberId)];
-    const now=new Date();
-    const timeStr=now.toLocaleString('zh-TW');
-    if(!rowNum){
-        const month=now.getFullYear()+'/'+String(now.getMonth()+1).padStart(2,'0');
-        const dateStr=now.toISOString().split('T')[0];
-        // 👇 一樣優先抓取名單本身的業務
+    const rowNum=sheetRowMap[String(memberId)];
+    const now=new Date();
+    const timeStr=now.toLocaleString('zh-TW');
+    if(!rowNum){
+        const month=now.getFullYear()+'/'+String(now.getMonth()+1).padStart(2,'0');
+        const dateStr=now.toISOString().split('T')[0];
         const ownerName = (item.user_name && item.user_name.trim()) ? item.user_name.trim() : getWriterName();
-        await appendRow([String(memberId),item.member_name||'',item.mobile||'',ownerName,crmUid,dateStr,month,status,grade,memo,timeStr]);
-        sheetRowMap[String(memberId)]=Object.keys(sheetRowMap).length+2;
-    }else{
-        await updateRow(rowNum,[status,grade,memo,timeStr]);
-    }
-    sheetData[String(memberId)]={status,grade,memo};
+        await appendRow([String(memberId),item.member_name||'',item.mobile||'',ownerName,crmUid,dateStr,month,status,grade,memo,timeStr]);
+        sheetRowMap[String(memberId)]=Object.keys(sheetRowMap).length+2;
+    }else{
+        await updateRow(rowNum,[status,grade,memo,timeStr]);
+    }
+    sheetData[String(memberId)]={status,grade,memo};
 }
 
 async function sheetsDeleteRow(rowNum){
@@ -412,14 +409,35 @@ function renderList(){
     if(filteredData.length>150)html+='<div style="text-align:center;padding:10px;color:#888;">(共 '+filteredData.length+' 筆，顯示前 150 筆)</div>';
     content.innerHTML=html;
 
+    /* 👇 這裡就是新增日期限制的地方 👇 */
     document.querySelectorAll('.quick-record-btn').forEach(btn=>{
         btn.onclick=e=>{
             const memberId=e.target.getAttribute('data-id');
             const item=allData.find(m=>(m.member_id||m.id)==memberId);
             currentItem=item;
             document.getElementById('modal-member-id').value=memberId;
-            const nextTarget=new Date();nextTarget.setDate(nextTarget.getDate()+(item.type==1?1:3));
-            document.getElementById('modal-date').value=nextTarget.toISOString().split('T')[0];
+            
+            // 安全的本地日期格式轉換 (YYYY-MM-DD)
+            const formatDate = (date) => {
+                const y = date.getFullYear();
+                const m = String(date.getMonth() + 1).padStart(2, '0');
+                const d = String(date.getDate()).padStart(2, '0');
+                return `${y}-${m}-${d}`;
+            };
+
+            const today = new Date();
+            const nextTarget = new Date(today);
+            nextTarget.setDate(today.getDate() + (item.type == 1 ? 1 : 3));
+            
+            const dateInput = document.getElementById('modal-date');
+            dateInput.value = formatDate(nextTarget); // 預設日期
+            
+            // 設定 Min 為今日 (不能選過去)，Max 為 D+14
+            const maxDate = new Date(today);
+            maxDate.setDate(today.getDate() + 14);
+            dateInput.min = formatDate(today);
+            dateInput.max = formatDate(maxDate);
+            
             const d=detailData[memberId];
             document.getElementById('modal-info-text').innerText=item.type==1&&d?'【新單】已壓 '+d.contactCount+' 次，目標 6 次，還需 '+Math.max(0,6-d.contactCount)+' 次':'';
             document.getElementById('modal-status').value='3';
@@ -427,6 +445,7 @@ function renderList(){
             recordModal.style.display='block';
         };
     });
+    /* 👆 修改到這裡結束 👆 */
 
     document.querySelectorAll('.memo-btn').forEach(btn=>{
         btn.onclick=e=>{
