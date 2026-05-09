@@ -142,28 +142,32 @@ function getWriterName(){
 }
 
 async function syncNewMemberToSheet(item,assignDate){
-    const memberId=String(item.member_id);
-    if(sheetRowMap[memberId])return;
-    const now=new Date();
-    const month=now.getFullYear()+'/'+String(now.getMonth()+1).padStart(2,'0');
-    const dateStr=assignDate||now.toISOString().split('T')[0];
-    await appendRow([memberId,item.member_name||'',item.mobile||'',getWriterName(),crmUid,dateStr,month,'新單','','',now.toLocaleString('zh-TW')]);
-    sheetRowMap[memberId]=Object.keys(sheetRowMap).length+2;
+    const memberId=String(item.member_id);
+    if(sheetRowMap[memberId])return;
+    const now=new Date();
+    const month=now.getFullYear()+'/'+String(now.getMonth()+1).padStart(2,'0');
+    const dateStr=assignDate||now.toISOString().split('T')[0];
+    // 👇 優先抓取名單本身的業務 (item.user_name)，如果抓不到才用當前操作者名字
+    const ownerName = (item.user_name && item.user_name.trim()) ? item.user_name.trim() : getWriterName();
+    await appendRow([memberId,item.member_name||'',item.mobile||'',ownerName,crmUid,dateStr,month,'新單','','',now.toLocaleString('zh-TW')]);
+    sheetRowMap[memberId]=Object.keys(sheetRowMap).length+2;
 }
 
 async function updateSheetMemo(memberId,status,grade,memo,item){
-    const rowNum=sheetRowMap[String(memberId)];
-    const now=new Date();
-    const timeStr=now.toLocaleString('zh-TW');
-    if(!rowNum){
-        const month=now.getFullYear()+'/'+String(now.getMonth()+1).padStart(2,'0');
-        const dateStr=now.toISOString().split('T')[0];
-        await appendRow([String(memberId),item.member_name||'',item.mobile||'',getWriterName(),crmUid,dateStr,month,status,grade,memo,timeStr]);
-        sheetRowMap[String(memberId)]=Object.keys(sheetRowMap).length+2;
-    }else{
-        await updateRow(rowNum,[status,grade,memo,timeStr]);
-    }
-    sheetData[String(memberId)]={status,grade,memo};
+    const rowNum=sheetRowMap[String(memberId)];
+    const now=new Date();
+    const timeStr=now.toLocaleString('zh-TW');
+    if(!rowNum){
+        const month=now.getFullYear()+'/'+String(now.getMonth()+1).padStart(2,'0');
+        const dateStr=now.toISOString().split('T')[0];
+        // 👇 一樣優先抓取名單本身的業務
+        const ownerName = (item.user_name && item.user_name.trim()) ? item.user_name.trim() : getWriterName();
+        await appendRow([String(memberId),item.member_name||'',item.mobile||'',ownerName,crmUid,dateStr,month,status,grade,memo,timeStr]);
+        sheetRowMap[String(memberId)]=Object.keys(sheetRowMap).length+2;
+    }else{
+        await updateRow(rowNum,[status,grade,memo,timeStr]);
+    }
+    sheetData[String(memberId)]={status,grade,memo};
 }
 
 async function sheetsDeleteRow(rowNum){
