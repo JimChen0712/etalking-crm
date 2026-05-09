@@ -31,19 +31,14 @@ if(!crmUid){alert('❌ 無法識別身份！\n\n請從 etalking 後台點擊書�
 
 /* ══ 設定 ══ */
 const MANAGER_UID='424';
-const SHEET_ID='1HXo-O7CbwftLDjBe0csbyYPalPckmqYfhMeVqU-FJWk';
-const SERVICE_ACCOUNT_EMAIL='etalking-crm-bot@etalking-crm.iam.gserviceaccount.com';
+const APPS_SCRIPT_URL='https://script.google.com/macros/s/AKfycbxSPDlyiL8Mvx77Jcj0nUuiqjmhWuC9GS4_ZLbpfwGwaMRjL2vfdVvlYFpVmww076elMw/exec';
 
-/* 🔥 專屬 VIP 對照表：確保名字 100% 正確 */
 const USER_DICT = {
-   // === 業務部 (主管) ===
     '69': 'TEST test0504',
     '162': 'Joy 洪淑慧',
     '240': 'Minzing 程銘靜',
     '60': 'johnny 謝愷澤',
     '424': 'Jim 陳昕謨',
-
-    // === 業務部 ===
     '279': 'test3 test3',
     '452': 'Rita 侯宛余',
     '433': 'Wynn 吳昱瑩',
@@ -68,8 +63,6 @@ const USER_DICT = {
     '409': 'Joyce 魏良伃',
     '453': 'Wolf 黃詳淵',
     '368': 'Jordan 李睿峰',
-
-    // === IT & CS ===
     '130': 'Jeremy testjeremy',
     '283': 'Ash 俞任鴻',
     '465': 'Lily 李昱萱',
@@ -81,60 +74,59 @@ const USER_DICT = {
     '180': 'Rooney 邱于峰'
 };
 
-const PRIVATE_KEY='-----BEGIN PRIVATE KEY-----\nMIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQDRecUi7BMJlyQs\nT1a+K+Z4au+cU5CLuND4ENsfWG2fmqkCwpYkPYNDtB7ICm257zuYeimo1v/88sb3\nKNRA9j2b4Ch5cxZLS8/FOLpgzb7EVrpr9xZITHY6f2nK3AxgjJH2aqSmPAf+8rp/\nD7+sV1A4MFZA58CMfxFpowkah6W9xNFFF14H1bHYcT58lini2r5Wflev108F8Ypt\nNfXtL2NHwRuVqMrpgufK/QKcPa3lWI2rbLb0rp4FiyPiXvFZ8lx002c9mQKyEgHM\nglsKie9089AHWbZjDf0ofdC1BrMwY0xpiRwQBu/yqyb8kGymK/tx3OcrUvCCNoq/\nrLWV4BrNAgMBAAECggEAAWR8LAGXwCOSE6f/XUpGFkeCX5lVR6iAiHWhj0bI4Ru9\nGI3vQ5RpGqUdje+Lz9ry8XjhGASTNRJEF6vc0AW9s8XnXvn7NvWXuamT4PAyiXRD\neajt1qiIzKtrf567h6oc5PTL3WhewTzJ1+2533fBH8PVKZ9Lcg5SMPqVepNWRbmr\nI8pNsUe7uoiQq1S6Jo/q9Vn4gU72weY457aaM5WQpgXEmOGr455b8yey9QXPLH9S\n3BbYL9557UiU03t4914qUpXbvczvm3UEuNBOgAaFqR48okYc4jrcBfekuP2uVtz1\nAerjZ9LzNaWylec1DOdgYAhQxncbUyROb2z7a5zlvQKBgQD0eAqm0Sraxx42Fm5g\nuXtobnEV3S6PH7WrCzI67V6y9i0fbprlstWCR1AZM/YJYxNA9rzbdaQTMBk4WfKh\nXKl2OK4fzy1nwrmBYUHuveuAHOxKGSX9YkvmTliZvfIjjs0Vru1Je5bP2NMSLkoY\nE0yCC+2Hb+VggL9RhwVOfywfrwKBgQDbWy9+EZgIEuofxLkIc/VCv76aMPzvLxvd\ndkhVoCw35/TFg+8VOg6a4U+cylnwU1yYEYGqgGoM1e4JRHomwUWOPZsyFhPP+u0P\ngGN+ti3Ml78ylQjuRgz1Q7foDJWj4K2ZIOnIwnQ4CaQ8NstaMEvSRytsM15ofXil\nsaa1rI0wQwKBgQCMrbtrbXhctzKia1wPGw1x9gPrUgFl6RhwmhvInynckB89NDe8\nsKF+u6zTI/yUQEgnHRVmsJa/V/FbZR9jTeBSoKFKurzlNb/sPNxlFzM64On0Ze5f\nlj4ZBMKljhGV9qn7rVLs80rAxoQHtU179zcSquyAAJsdYlk2AB3EoxfwDwKBgGnY\nEw+K38gtkEkp/HqmsVa2/Pqb3sBvA8wV0gt3ET8crtBLvCaK8Bct1uN6BHHhV5GN\nCPtDoWh2JbjVEPf4VF6xPVyqqH63voG3Wsr+jxTkt/5pSXjn1kLWnTvcLqx3smxs\nJEKaCcgsZtIjQnZPTZa2fq5kDw7uVDPnh+Cr1SjPAoGBANEbm+uGaUkVrZi3GXPB\nNvap0pyojECPAzgtaxDYpTe+47DTwkaVSJCRwVM1Y2epIYCIdg4kGQVVDQVpmsq4\nLF4tWBcQF14obZK1QtpRw0gwAF1ViaVB3afXaat8gBs92dectf3sxD8jxVLpyjML\nuGik3uYBHlBH2fFnU4axdGsK\n-----END PRIVATE KEY-----\n';
 const isManager=crmUid===MANAGER_UID;
 const fetchUrl='https://server.etalkingonline.com/name_list/new_list/'+(isManager?'-1':crmUid);
 
-/* ══ Google Sheets Auth ══ */
-async function getAccessToken(){
-    const header=btoa(JSON.stringify({alg:'RS256',typ:'JWT'})).replace(/=/g,'').replace(/\+/g,'-').replace(/\//g,'_');
-    const now=Math.floor(Date.now()/1000);
-    const claim=btoa(JSON.stringify({iss:SERVICE_ACCOUNT_EMAIL,scope:'https://www.googleapis.com/auth/spreadsheets',aud:'https://oauth2.googleapis.com/token',exp:now+3600,iat:now})).replace(/=/g,'').replace(/\+/g,'-').replace(/\//g,'_');
-    const sigInput=header+'.'+claim;
-    const keyData=PRIVATE_KEY.replace('-----BEGIN PRIVATE KEY-----','').replace('-----END PRIVATE KEY-----','').replace(/\n/g,'');
-    const cryptoKey=await crypto.subtle.importKey('pkcs8',Uint8Array.from(atob(keyData),c=>c.charCodeAt(0)),{name:'RSASSA-PKCS1-v1_5',hash:'SHA-256'},false,['sign']);
-    const sig=btoa(String.fromCharCode(...new Uint8Array(await crypto.subtle.sign('RSASSA-PKCS1-v1_5',cryptoKey,new TextEncoder().encode(sigInput))))).replace(/=/g,'').replace(/\+/g,'-').replace(/\//g,'_');
-    const res=await fetch('https://oauth2.googleapis.com/token',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:`grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer&assertion=${sigInput+'.'+sig}`});
-    const d=await res.json(); return d.access_token;
+/* ══ Apps Script API（取代私鑰）══ */
+async function gasGet(params){
+    const url=APPS_SCRIPT_URL+'?'+new URLSearchParams(params).toString();
+    const res=await fetch(url);
+    return res.json();
 }
 
-async function sheetsGet(token,range){ return (await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${encodeURIComponent(range)}`,{headers:{Authorization:'Bearer '+token}})).json(); }
-async function sheetsUpdate(token,range,values){ await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${encodeURIComponent(range)}?valueInputOption=USER_ENTERED`,{method:'PUT',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify({values})}); }
-async function sheetsAppend(token,range,values){ await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${encodeURIComponent(range)}:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`,{method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify({values})}); }
-
-async function sheetsDeleteRow(token, rowNum) {
-    try {
-        const metaRes = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}?fields=sheets(properties(sheetId,title))`, {headers:{Authorization:'Bearer '+token}});
-        const metaData = await metaRes.json();
-        const sheet = metaData.sheets.find(s => s.properties.title === '工作表1');
-        const sheetId = sheet ? sheet.properties.sheetId : 0;
-        const req = { requests: [{ deleteDimension: { range: { sheetId: sheetId, dimension: 'ROWS', startIndex: rowNum - 1, endIndex: rowNum } } }] };
-        await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}:batchUpdate`, { method: 'POST', headers: {Authorization:'Bearer '+token, 'Content-Type': 'application/json'}, body: JSON.stringify(req) });
-    } catch(e) { console.error('刪除名單列失敗:', e); }
+async function gasPost(data){
+    const res=await fetch(APPS_SCRIPT_URL,{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify(data)
+    });
+    return res.json();
 }
 
-async function initSheet(token){
-    const data=await sheetsGet(token,'工作表1!A1:K1');
-    if(!data.values||!data.values[0]||data.values[0][0]!=='member_id'){
-        await sheetsUpdate(token,'工作表1!A1:K1',[['member_id','姓名','電話','業務','uid','進單日期','進單月份','目前狀態','等級(A/C)','備註','最後更新']]);
-    }
+async function initSheet(){
+    await gasGet({action:'init'});
 }
 
-let sheetToken=null, sheetData={}, sheetRowMap={};
+async function readSheet(){
+    return gasGet({action:'read'});
+}
+
+async function appendRow(values){
+    return gasPost({action:'append',values});
+}
+
+async function updateRow(rowNum,values){
+    return gasPost({action:'update',rowNum,values});
+}
+
+async function deleteRow(rowNum){
+    return gasPost({action:'delete',rowNum});
+}
+
+let sheetData={}, sheetRowMap={};
 let allData=[], detailData={}, currentItem=null, currentMemoItem=null, selectedGrade='';
 
 async function loadSheetData(){
     try{
-        sheetToken=await getAccessToken();
-        await initSheet(sheetToken);
-        const data=await sheetsGet(sheetToken,'工作表1!A:K');
+        await initSheet();
+        const data=await readSheet();
         sheetData={};sheetRowMap={};
         if(data.values){
             data.values.forEach((row,idx)=>{
                 if(idx===0)return;
                 const memberId=row[0];
                 if(memberId){
-                    sheetData[memberId]={status:row[7]||'', grade:row[8]||'', memo:row[9]||''};
+                    sheetData[memberId]={status:row[7]||'',grade:row[8]||'',memo:row[9]||''};
                     sheetRowMap[memberId]=idx+1;
                 }
             });
@@ -142,42 +134,40 @@ async function loadSheetData(){
     }catch(e){console.log('Sheet載入失敗:',e);}
 }
 
-// 🌟 核心命名邏輯：強勢控管，只認字典！(如果忘記加字典，就寫入數字 UID 提醒主管)
-function getWriterName(item) {
-    if (USER_DICT[crmUid]) return USER_DICT[crmUid];
-    return crmUid; 
+function getWriterName(){
+    return USER_DICT[crmUid]||crmUid;
 }
 
 async function syncNewMemberToSheet(item,assignDate){
-    if(!sheetToken)return;
     const memberId=String(item.member_id);
-    if(sheetRowMap[memberId])return; 
+    if(sheetRowMap[memberId])return;
     const now=new Date();
-    const month=`${now.getFullYear()}/${String(now.getMonth()+1).padStart(2,'0')}`;
+    const month=now.getFullYear()+'/'+String(now.getMonth()+1).padStart(2,'0');
     const dateStr=assignDate||now.toISOString().split('T')[0];
-    
-    await sheetsAppend(sheetToken,'工作表1!A:K',[[memberId,item.member_name||'',item.mobile||'',getWriterName(item),crmUid,dateStr,month,'新單','','',now.toLocaleString('zh-TW')]]);
+    await appendRow([memberId,item.member_name||'',item.mobile||'',getWriterName(),crmUid,dateStr,month,'新單','','',now.toLocaleString('zh-TW')]);
     sheetRowMap[memberId]=Object.keys(sheetRowMap).length+2;
 }
 
-async function updateSheetMemo(memberId, status, grade, memo, item){
-    if(!sheetToken)return;
+async function updateSheetMemo(memberId,status,grade,memo,item){
     const rowNum=sheetRowMap[String(memberId)];
     const now=new Date();
-    const timeStr = now.toLocaleString('zh-TW');
-
+    const timeStr=now.toLocaleString('zh-TW');
     if(!rowNum){
-        const month=`${now.getFullYear()}/${String(now.getMonth()+1).padStart(2,'0')}`;
-        const dateStr=now.toISOString().split('T')[0]; 
-        await sheetsAppend(sheetToken,'工作表1!A:K',[[String(memberId), item.member_name||'', item.mobile||'', getWriterName(item), crmUid, dateStr, month, status, grade, memo, timeStr]]);
-        sheetRowMap[String(memberId)] = Object.keys(sheetRowMap).length + 2; 
-    } else {
-        await sheetsUpdate(sheetToken,`工作表1!H${rowNum}:K${rowNum}`,[[status, grade, memo, timeStr]]);
+        const month=now.getFullYear()+'/'+String(now.getMonth()+1).padStart(2,'0');
+        const dateStr=now.toISOString().split('T')[0];
+        await appendRow([String(memberId),item.member_name||'',item.mobile||'',getWriterName(),crmUid,dateStr,month,status,grade,memo,timeStr]);
+        sheetRowMap[String(memberId)]=Object.keys(sheetRowMap).length+2;
+    }else{
+        await updateRow(rowNum,[status,grade,memo,timeStr]);
     }
-    sheetData[String(memberId)]={status, grade, memo};
+    sheetData[String(memberId)]={status,grade,memo};
 }
 
-/* ══ DOM UI 初始化 ══ */
+async function sheetsDeleteRow(rowNum){
+    await deleteRow(rowNum);
+}
+
+/* ══ DOM UI ══ */
 ['custom-crm-curtain','custom-crm-panel'].forEach(id=>{const el=document.getElementById(id);if(el)el.remove();});
 const curtain=document.createElement('div');
 curtain.id='custom-crm-curtain';
@@ -192,7 +182,7 @@ panel.style.cssText='position:fixed;top:50%;left:50%;transform:translate(-50%,-5
 
 const header=document.createElement('div');
 header.style.cssText='padding:12px 15px;background:#2c3e50;color:white;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;flex-shrink:0;';
-header.innerHTML=`<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;"><h3 style="margin:0;font-size:15px;">📊 名單管理面板</h3>${isManager?'<select id="consultant-filter" style="padding:4px;border-radius:4px;border:none;max-width:150px;"><option value="-1">所有業務</option></select>':'<span style="font-size:12px;color:#bdc3c7;">我的名單</span>'}<select id="t-type-filter" style="padding:4px;border-radius:4px;border:none;"><option value="-1">所有種類</option><option value="1">新單</option><option value="2">常態名單</option><option value="3">Demo過名單</option><option value="4">釋出名單</option></select><button id="refresh-btn" style="padding:4px 10px;cursor:pointer;border-radius:4px;border:none;background:#3498db;color:white;">重新整理</button><span id="loading-status" style="font-size:11px;color:#f1c40f;font-weight:bold;"></span></div><button id="close-btn" style="background:transparent;border:none;color:white;font-size:20px;cursor:pointer;">×</button>`;
+header.innerHTML='<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;"><h3 style="margin:0;font-size:15px;">📊 名單管理面板</h3>'+(isManager?'<select id="consultant-filter" style="padding:4px;border-radius:4px;border:none;max-width:150px;"><option value="-1">所有業務</option></select>':'<span style="font-size:12px;color:#bdc3c7;">我的名單</span>')+'<select id="t-type-filter" style="padding:4px;border-radius:4px;border:none;"><option value="-1">所有種類</option><option value="1">新單</option><option value="2">常態名單</option><option value="3">Demo過名單</option><option value="4">釋出名單</option></select><button id="refresh-btn" style="padding:4px 10px;cursor:pointer;border-radius:4px;border:none;background:#3498db;color:white;">重新整理</button><span id="loading-status" style="font-size:11px;color:#f1c40f;font-weight:bold;"></span></div><button id="close-btn" style="background:transparent;border:none;color:white;font-size:20px;cursor:pointer;">×</button>';
 
 const content=document.createElement('div');
 content.style.cssText='flex:1;overflow-y:auto;padding:12px;background:#f8f9fa;';
@@ -200,7 +190,7 @@ content.style.cssText='flex:1;overflow-y:auto;padding:12px;background:#f8f9fa;';
 const memoModal=document.createElement('div');
 memoModal.id='memo-modal';
 memoModal.style.cssText='display:none;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:340px;background:white;padding:20px;border-radius:10px;box-shadow:0 4px 20px rgba(0,0,0,0.25);z-index:1000001;';
-memoModal.innerHTML=`<h4 style="margin:0 0 4px;">編輯備註</h4><div id="memo-member-name" style="font-size:12px;color:#7f8c8d;margin-bottom:14px;"></div><input type="hidden" id="memo-member-id"><div id="re-inquire-container" style="display:none; margin-bottom:12px;"><button id="memo-re-inquire-btn" data-active="false" style="width:100%; padding:8px; border:2px solid #ddd; border-radius:6px; cursor:pointer; font-weight:bold; font-size:13px; background:#fff; color:#555; transition:all 0.2s;">🚩 標記為「再次留單」</button></div><div style="margin-bottom:12px;"><label style="font-size:13px;font-weight:bold;">等級</label><div style="display:flex;gap:8px;margin-top:6px;"><button class="grade-btn" data-val="A" style="flex:1;padding:8px;border:2px solid #ddd;border-radius:6px;cursor:pointer;font-weight:bold;font-size:14px;background:#fff;">A 級</button><button class="grade-btn" data-val="C" style="flex:1;padding:8px;border:2px solid #ddd;border-radius:6px;cursor:pointer;font-weight:bold;font-size:14px;background:#fff;">C 級</button><button class="grade-btn" data-val="" style="flex:1;padding:8px;border:2px solid #ddd;border-radius:6px;cursor:pointer;font-size:13px;background:#fff;">清除</button></div></div><div style="margin-bottom:14px;"><label style="font-size:13px;font-weight:bold;">備註</label><textarea id="memo-text" style="width:100%;margin-top:6px;padding:8px;border:1px solid #ddd;border-radius:6px;font-family:sans-serif;font-size:13px;resize:vertical;min-height:70px;" placeholder="輸入備註..."></textarea></div><div style="display:flex;gap:8px;justify-content:flex-end;"><button id="memo-cancel" style="padding:6px 16px;cursor:pointer;border:1px solid #ddd;border-radius:6px;background:#fff;">取消</button><button id="memo-save" style="padding:6px 16px;cursor:pointer;border:none;border-radius:6px;background:#27ae60;color:white;font-weight:bold;">儲存</button></div>`;
+memoModal.innerHTML='<h4 style="margin:0 0 4px;">編輯備註</h4><div id="memo-member-name" style="font-size:12px;color:#7f8c8d;margin-bottom:14px;"></div><input type="hidden" id="memo-member-id"><div id="re-inquire-container" style="display:none;margin-bottom:12px;"><button id="memo-re-inquire-btn" data-active="false" style="width:100%;padding:8px;border:2px solid #ddd;border-radius:6px;cursor:pointer;font-weight:bold;font-size:13px;background:#fff;color:#555;">🚩 標記為「再次留單」</button></div><div style="margin-bottom:12px;"><label style="font-size:13px;font-weight:bold;">等級</label><div style="display:flex;gap:8px;margin-top:6px;"><button class="grade-btn" data-val="A" style="flex:1;padding:8px;border:2px solid #ddd;border-radius:6px;cursor:pointer;font-weight:bold;font-size:14px;background:#fff;">A 級</button><button class="grade-btn" data-val="C" style="flex:1;padding:8px;border:2px solid #ddd;border-radius:6px;cursor:pointer;font-weight:bold;font-size:14px;background:#fff;">C 級</button><button class="grade-btn" data-val="" style="flex:1;padding:8px;border:2px solid #ddd;border-radius:6px;cursor:pointer;font-size:13px;background:#fff;">清除</button></div></div><div style="margin-bottom:14px;"><label style="font-size:13px;font-weight:bold;">備註</label><textarea id="memo-text" style="width:100%;margin-top:6px;padding:8px;border:1px solid #ddd;border-radius:6px;font-family:sans-serif;font-size:13px;resize:vertical;min-height:70px;" placeholder="輸入備註..."></textarea></div><div style="display:flex;gap:8px;justify-content:flex-end;"><button id="memo-cancel" style="padding:6px 16px;cursor:pointer;border:1px solid #ddd;border-radius:6px;background:#fff;">取消</button><button id="memo-save" style="padding:6px 16px;cursor:pointer;border:none;border-radius:6px;background:#27ae60;color:white;font-weight:bold;">儲存</button></div>';
 
 const recordModal=document.createElement('div');
 recordModal.id='record-modal';
@@ -213,29 +203,24 @@ panel.appendChild(memoModal);
 panel.appendChild(recordModal);
 document.body.appendChild(panel);
 
-// 🚩 再次留單按鈕的切換邏輯
-document.getElementById('memo-re-inquire-btn').onclick = (e) => {
-    const btn = e.target;
-    const isActive = btn.getAttribute('data-active') === 'true';
-    if (isActive) {
-        btn.setAttribute('data-active', 'false');
-        btn.style.background = '#fff';
-        btn.style.borderColor = '#ddd';
-        btn.style.color = '#555';
-        btn.innerText = '🚩 標記為「再次留單」';
-    } else {
-        btn.setAttribute('data-active', 'true');
-        btn.style.background = '#c0392b';
-        btn.style.borderColor = '#c0392b';
-        btn.style.color = '#fff';
-        btn.innerText = '✅ 已標記 (請點擊下方儲存)';
+document.getElementById('memo-re-inquire-btn').onclick=(e)=>{
+    const btn=e.target;
+    const isActive=btn.getAttribute('data-active')==='true';
+    if(isActive){
+        btn.setAttribute('data-active','false');
+        btn.style.background='#fff';btn.style.borderColor='#ddd';btn.style.color='#555';
+        btn.innerText='🚩 標記為「再次留單」';
+    }else{
+        btn.setAttribute('data-active','true');
+        btn.style.background='#c0392b';btn.style.borderColor='#c0392b';btn.style.color='#fff';
+        btn.innerText='✅ 已標記 (請點擊下方儲存)';
     }
 };
 
 memoModal.querySelectorAll('.grade-btn').forEach(btn=>{
     btn.onclick=()=>{
         selectedGrade=btn.dataset.val;
-        memoModal.querySelectorAll('.grade-btn').forEach(b=>{ b.style.background='#fff';b.style.borderColor='#ddd';b.style.color='#333'; });
+        memoModal.querySelectorAll('.grade-btn').forEach(b=>{b.style.background='#fff';b.style.borderColor='#ddd';b.style.color='#333';});
         if(selectedGrade==='A'){btn.style.background='#1a6fc4';btn.style.borderColor='#1a6fc4';btn.style.color='white';}
         else if(selectedGrade==='C'){btn.style.background='#e67e22';btn.style.borderColor='#e67e22';btn.style.color='white';}
         else{btn.style.background='#95a5a6';btn.style.borderColor='#95a5a6';btn.style.color='white';}
@@ -245,22 +230,20 @@ memoModal.querySelectorAll('.grade-btn').forEach(btn=>{
 document.getElementById('memo-save').onclick=async()=>{
     const memberId=document.getElementById('memo-member-id').value;
     const memo=document.getElementById('memo-text').value.trim();
-    const isReInquire = document.getElementById('memo-re-inquire-btn').getAttribute('data-active') === 'true';
-    const rowNum = sheetRowMap[String(memberId)];
-    const sd = sheetData[String(memberId)] || {};
-
+    const isReInquire=document.getElementById('memo-re-inquire-btn').getAttribute('data-active')==='true';
+    const rowNum=sheetRowMap[String(memberId)];
+    const sd=sheetData[String(memberId)]||{};
     const btn=document.getElementById('memo-save');
     btn.textContent='處理中...';btn.disabled=true;
-
-    if (currentMemoItem.type != 1 && !isReInquire && rowNum) {
-        await sheetsDeleteRow(sheetToken, rowNum);
+    if(currentMemoItem.type!=1&&!isReInquire&&rowNum){
+        await sheetsDeleteRow(rowNum);
         delete sheetData[String(memberId)];
-        await loadSheetData(); 
-    } else if (currentMemoItem.type == 1 || isReInquire) {
-        let statusToSave = sd.status || '';
-        if (currentMemoItem.type == 1) statusToSave = '新單';
-        else if (isReInquire) statusToSave = '再次留單';
-        await updateSheetMemo(memberId, statusToSave, selectedGrade, memo, currentMemoItem);
+        await loadSheetData();
+    }else if(currentMemoItem.type==1||isReInquire){
+        let statusToSave=sd.status||'';
+        if(currentMemoItem.type==1)statusToSave='新單';
+        else if(isReInquire)statusToSave='再次留單';
+        await updateSheetMemo(memberId,statusToSave,selectedGrade,memo,currentMemoItem);
     }
     btn.textContent='儲存';btn.disabled=false;
     memoModal.style.display='none';
@@ -273,7 +256,7 @@ function updateConsultantDropdown(){
     const select=document.getElementById('consultant-filter');
     const names=[...new Set(allData.map(m=>m.user_name?m.user_name.trim():'未指派'))].sort();
     let html='<option value="-1">所有業務</option>';
-    names.forEach(n=>{html+=`<option value="${n}">${n}</option>`;});
+    names.forEach(n=>{html+='<option value="'+n+'">'+n+'</option>';});
     select.innerHTML=html;select.value='-1';
 }
 
@@ -287,14 +270,13 @@ async function fetchData(){
         const res=await fetch(fetchUrl);
         const data=await res.json();
         allData=data.list||[];
-        
         updateConsultantDropdown();
         renderList();
-        if(!isManager){ statusLabel.innerText='🔄 載入新單細節...'; await loadDetailsForAll(); }
+        if(!isManager){statusLabel.innerText='🔄 載入新單細節...';await loadDetailsForAll();}
         statusLabel.innerText='✅ 載入完成';
         setTimeout(()=>statusLabel.innerText='',2000);
     }catch(err){
-        content.innerHTML=`<div style="color:red;text-align:center;">載入失敗: ${err.message}</div>`;
+        content.innerHTML='<div style="color:red;text-align:center;">載入失敗: '+err.message+'</div>';
         statusLabel.innerText='❌ 載入失敗';
     }
 }
@@ -307,7 +289,7 @@ async function loadDetailsForAll(){
         const batch=targets.slice(i,i+5);
         await Promise.all(batch.map(async m=>{
             try{
-                const res=await fetch(`/admin/request_develop?member_id=${m.member_id}&hide_layout=true`);
+                const res=await fetch('/admin/request_develop?member_id='+m.member_id+'&hide_layout=true');
                 const html=await res.text();
                 const doc=new DOMParser().parseFromString(html,'text/html');
                 const rows=doc.querySelectorAll('table tbody tr');
@@ -323,7 +305,7 @@ async function loadDetailsForAll(){
                 if(assignDate)await syncNewMemberToSheet(m,assignDate);
             }catch(e){}
         }));
-        statusLabel.innerText=`🔄 新單細節 ${Math.min(i+5,targets.length)}/${targets.length}`;
+        statusLabel.innerText='🔄 新單細節 '+Math.min(i+5,targets.length)+'/'+targets.length;
         renderList();
     }
 }
@@ -332,12 +314,12 @@ async function loadDetailsForConsultant(consultantName){
     const targets=allData.filter(m=>m.type==1&&(m.user_name||'').trim()===consultantName&&!detailData[m.member_id]);
     if(!targets.length)return;
     const statusLabel=document.getElementById('loading-status');
-    statusLabel.innerText=`🔄 同步 ${consultantName} 的新單...`;
+    statusLabel.innerText='🔄 同步 '+consultantName+' 的新單...';
     for(let i=0;i<targets.length;i+=5){
         const batch=targets.slice(i,i+5);
         await Promise.all(batch.map(async m=>{
             try{
-                const res=await fetch(`/admin/request_develop?member_id=${m.member_id}&hide_layout=true`);
+                const res=await fetch('/admin/request_develop?member_id='+m.member_id+'&hide_layout=true');
                 const html=await res.text();
                 const doc=new DOMParser().parseFromString(html,'text/html');
                 const rows=doc.querySelectorAll('table tbody tr');
@@ -353,10 +335,10 @@ async function loadDetailsForConsultant(consultantName){
                 if(assignDate)await syncNewMemberToSheet(m,assignDate);
             }catch(e){}
         }));
-        statusLabel.innerText=`🔄 ${consultantName} 新單 ${Math.min(i+5,targets.length)}/${targets.length}`;
+        statusLabel.innerText='🔄 '+consultantName+' 新單 '+Math.min(i+5,targets.length)+'/'+targets.length;
         renderList();
     }
-    statusLabel.innerText=`✅ ${consultantName} 同步完成`;
+    statusLabel.innerText='✅ '+consultantName+' 同步完成';
     setTimeout(()=>statusLabel.innerText='',2000);
 }
 
@@ -388,7 +370,7 @@ function renderList(){
     const typeStyles={'1':{label:'新單',bg:'#1a6fc4'},'2':{label:'常態',bg:'#27ae60'},'3':{label:'Demo',bg:'#8e44ad'},'4':{label:'釋出',bg:'#e67e22'}};
     const sourceHeader=isManager?'<th style="padding:6px;width:8%;">來源</th>':'';
     let html='<table style="width:100%;border-collapse:collapse;font-size:12px;">';
-    html+=`<tr style="background:#e9ecef;text-align:left;position:sticky;top:0;"><th style="padding:6px;">姓名/狀態</th><th style="padding:6px;">電話</th><th style="padding:6px;width:12%;">等級</th><th style="padding:6px;width:18%;">備註</th><th style="padding:6px;width:18%;">下次聯繫 & 預警</th>${sourceHeader}<th style="padding:6px;">業務</th><th style="padding:6px;width:10%;">操作</th></tr>`;
+    html+='<tr style="background:#e9ecef;text-align:left;position:sticky;top:0;"><th style="padding:6px;">姓名/狀態</th><th style="padding:6px;">電話</th><th style="padding:6px;width:12%;">等級</th><th style="padding:6px;width:18%;">備註</th><th style="padding:6px;width:18%;">下次聯繫 & 預警</th>'+sourceHeader+'<th style="padding:6px;">業務</th><th style="padding:6px;width:10%;">操作</th></tr>';
     filteredData.slice(0,150).forEach(item=>{
         const id=item.member_id||item.id||'';
         const d=detailData[id];
@@ -398,31 +380,29 @@ function renderList(){
         const rowBorderColor=dropDays!==null&&dropDays<=0?'#e74c3c':dropDays!==null&&dropDays<=2?'#e67e22':ts.bg;
         let warningHtml='';
         if(dropDays!==null){
-            if(dropDays<0)warningHtml=`<br><span style="color:#c0392b;font-weight:bold;">🔥 已噴單(過期${Math.abs(dropDays)}天)</span>`;
-            else if(dropDays===0)warningHtml=`<br><span style="color:#d35400;font-weight:bold;">🔥 今日噴單</span>`;
-            else if(dropDays<=2)warningHtml=`<br><span style="color:#e67e22;font-weight:bold;">⚠️ 剩 ${dropDays} 天</span>`;
-            else warningHtml=`<br><span style="color:#16a085;">距噴單 ${dropDays} 天</span>`;
+            if(dropDays<0)warningHtml='<br><span style="color:#c0392b;font-weight:bold;">🔥 已噴單(過期'+Math.abs(dropDays)+'天)</span>';
+            else if(dropDays===0)warningHtml='<br><span style="color:#d35400;font-weight:bold;">🔥 今日噴單</span>';
+            else if(dropDays<=2)warningHtml='<br><span style="color:#e67e22;font-weight:bold;">⚠️ 剩 '+dropDays+' 天</span>';
+            else warningHtml='<br><span style="color:#16a085;">距噴單 '+dropDays+' 天</span>';
         }else if(item.type==1&&!d){
-            warningHtml=isManager&&selectedConsultant=='-1'?`<br><span style="color:#95a5a6;">請選取業務載入</span>`:`<br><span style="color:#95a5a6;">載入中...</span>`;
+            warningHtml=isManager&&selectedConsultant=='-1'?'<br><span style="color:#95a5a6;">請選取業務載入</span>':'<br><span style="color:#95a5a6;">載入中...</span>';
         }
         let progressHtml='';
         if(item.type==1){
             const count=d?d.contactCount:0;
             const pct=Math.min(100,(count/6)*100);
             const assignStr=(d&&d.assignDate)?d.assignDate:'待載入';
-            progressHtml=`<div style="font-size:10px;color:#1a6fc4;margin-top:3px;">進單:${assignStr} 進度:${count}/6</div><div style="width:100%;height:3px;background:#ddd;border-radius:2px;margin-top:2px;"><div style="width:${pct}%;height:100%;background:${pct<100?'#3498db':'#27ae60'};border-radius:2px;"></div></div>`;
+            progressHtml='<div style="font-size:10px;color:#1a6fc4;margin-top:3px;">進單:'+assignStr+' 進度:'+count+'/6</div><div style="width:100%;height:3px;background:#ddd;border-radius:2px;margin-top:2px;"><div style="width:'+pct+'%;height:100%;background:'+(pct<100?'#3498db':'#27ae60')+';border-radius:2px;"></div></div>';
         }
-        
-        let reInquireHtml = sd.status === '再次留單' ? `<span style="background:#c0392b;color:white;padding:1px 5px;border-radius:3px;font-size:10px;margin-left:5px;display:inline-block;margin-top:3px;">再次留單</span>` : '';
-
+        const reInquireHtml=sd.status==='再次留單'?'<span style="background:#c0392b;color:white;padding:1px 5px;border-radius:3px;font-size:10px;margin-left:5px;display:inline-block;margin-top:3px;">再次留單</span>':'';
         const btnBg=dropDays!==null&&dropDays<=0?'#e74c3c':ts.bg;
-        const sourceCell=isManager?`<td style="padding:6px;color:#8e44ad;font-size:11px;vertical-align:top;">S:${item.source||'-'}</td>`:'';
-        const gradeHtml=sd.grade?`<span style="background:${sd.grade==='A'?'#1a6fc4':'#e67e22'};color:white;padding:2px 8px;border-radius:4px;font-weight:bold;font-size:12px;">${sd.grade}</span>`:'<span style="color:#bdc3c7;font-size:11px;">未設定</span>';
-        const memoHtml=sd.memo?`<span style="font-size:11px;color:#555;">${sd.memo.slice(0,20)}${sd.memo.length>20?'...':''}</span>`:'<span style="color:#bdc3c7;font-size:11px;">-</span>';
-        html+=`<tr style="border-bottom:1px solid #dee2e6;border-left:4px solid ${rowBorderColor};"><td style="padding:6px;vertical-align:top;"><b>${item.member_name||'未知'}</b><br><span style="background:${ts.bg};color:white;padding:1px 5px;border-radius:3px;font-size:10px;">${ts.label}</span>${reInquireHtml}${progressHtml}</td><td style="padding:6px;vertical-align:top;">${item.mobile||'-'}</td><td style="padding:6px;vertical-align:middle;">${gradeHtml}</td><td style="padding:6px;vertical-align:middle;">${memoHtml}</td><td style="padding:6px;vertical-align:top;"><span style="color:#d35400;">${item.next_time&&!item.next_time.includes('0000')?item.next_time.split(' ')[0]:'無紀錄'}</span>${warningHtml}</td>${sourceCell}<td style="padding:6px;color:#7f8c8d;vertical-align:top;font-size:11px;">${item.user_name||'-'}</td><td style="padding:6px;vertical-align:top;"><div style="display:flex;flex-direction:column;gap:4px;"><button class="quick-record-btn" data-id="${id}" style="padding:3px 7px;background:${btnBg};color:white;border:none;border-radius:4px;cursor:pointer;font-size:11px;font-weight:bold;">壓紀錄</button><button class="memo-btn" data-id="${id}" style="padding:3px 7px;background:#8e44ad;color:white;border:none;border-radius:4px;cursor:pointer;font-size:11px;">備註</button></div></td></tr>`;
+        const sourceCell=isManager?'<td style="padding:6px;color:#8e44ad;font-size:11px;vertical-align:top;">S:'+(item.source||'-')+'</td>':'';
+        const gradeHtml=sd.grade?'<span style="background:'+(sd.grade==='A'?'#1a6fc4':'#e67e22')+';color:white;padding:2px 8px;border-radius:4px;font-weight:bold;font-size:12px;">'+sd.grade+'</span>':'<span style="color:#bdc3c7;font-size:11px;">未設定</span>';
+        const memoHtml=sd.memo?'<span style="font-size:11px;color:#555;">'+sd.memo.slice(0,20)+(sd.memo.length>20?'...':'')+'</span>':'<span style="color:#bdc3c7;font-size:11px;">-</span>';
+        html+='<tr style="border-bottom:1px solid #dee2e6;border-left:4px solid '+rowBorderColor+';"><td style="padding:6px;vertical-align:top;"><b>'+(item.member_name||'未知')+'</b><br><span style="background:'+ts.bg+';color:white;padding:1px 5px;border-radius:3px;font-size:10px;">'+ts.label+'</span>'+reInquireHtml+progressHtml+'</td><td style="padding:6px;vertical-align:top;">'+(item.mobile||'-')+'</td><td style="padding:6px;vertical-align:middle;">'+gradeHtml+'</td><td style="padding:6px;vertical-align:middle;">'+memoHtml+'</td><td style="padding:6px;vertical-align:top;"><span style="color:#d35400;">'+(item.next_time&&!item.next_time.includes('0000')?item.next_time.split(' ')[0]:'無紀錄')+'</span>'+warningHtml+'</td>'+sourceCell+'<td style="padding:6px;color:#7f8c8d;vertical-align:top;font-size:11px;">'+(item.user_name||'-')+'</td><td style="padding:6px;vertical-align:top;"><div style="display:flex;flex-direction:column;gap:4px;"><button class="quick-record-btn" data-id="'+id+'" style="padding:3px 7px;background:'+btnBg+';color:white;border:none;border-radius:4px;cursor:pointer;font-size:11px;font-weight:bold;">壓紀錄</button><button class="memo-btn" data-id="'+id+'" style="padding:3px 7px;background:#8e44ad;color:white;border:none;border-radius:4px;cursor:pointer;font-size:11px;">備註</button></div></td></tr>';
     });
     html+='</table>';
-    if(filteredData.length>150)html+=`<div style="text-align:center;padding:10px;color:#888;">(共 ${filteredData.length} 筆，顯示前 150 筆)</div>`;
+    if(filteredData.length>150)html+='<div style="text-align:center;padding:10px;color:#888;">(共 '+filteredData.length+' 筆，顯示前 150 筆)</div>';
     content.innerHTML=html;
 
     document.querySelectorAll('.quick-record-btn').forEach(btn=>{
@@ -434,7 +414,7 @@ function renderList(){
             const nextTarget=new Date();nextTarget.setDate(nextTarget.getDate()+(item.type==1?1:3));
             document.getElementById('modal-date').value=nextTarget.toISOString().split('T')[0];
             const d=detailData[memberId];
-            document.getElementById('modal-info-text').innerText=item.type==1&&d?`【新單】已壓 ${d.contactCount} 次，目標 6 次，還需 ${Math.max(0,6-d.contactCount)} 次`:'';
+            document.getElementById('modal-info-text').innerText=item.type==1&&d?'【新單】已壓 '+d.contactCount+' 次，目標 6 次，還需 '+Math.max(0,6-d.contactCount)+' 次':'';
             document.getElementById('modal-status').value='3';
             document.getElementById('modal-content').value='未接 *1';
             recordModal.style.display='block';
@@ -447,25 +427,22 @@ function renderList(){
             const item=allData.find(m=>(m.member_id||m.id)==memberId);
             const sd=sheetData[String(memberId)]||{};
             currentMemoItem=item;
-            
             document.getElementById('memo-member-id').value=memberId;
-            document.getElementById('memo-member-name').textContent=`${item.member_name||''}　${item.mobile||''}`;
+            document.getElementById('memo-member-name').textContent=(item.member_name||'')+'　'+(item.mobile||'');
             document.getElementById('memo-text').value=sd.memo||'';
-            
-            const reInquireContainer = document.getElementById('re-inquire-container');
-            const reInqBtn = document.getElementById('memo-re-inquire-btn');
-            if (item.type == 1) {
-                reInquireContainer.style.display = 'none';
-            } else {
-                reInquireContainer.style.display = 'block';
-                const isReInq = (sd.status === '再次留單');
-                reInqBtn.setAttribute('data-active', isReInq ? 'true' : 'false');
-                reInqBtn.style.background = isReInq ? '#c0392b' : '#fff';
-                reInqBtn.style.borderColor = isReInq ? '#c0392b' : '#ddd';
-                reInqBtn.style.color = isReInq ? '#fff' : '#555';
-                reInqBtn.innerText = isReInq ? '✅ 已標記 (請點擊下方儲存)' : '🚩 標記為「再次留單」';
+            const reInquireContainer=document.getElementById('re-inquire-container');
+            const reInqBtn=document.getElementById('memo-re-inquire-btn');
+            if(item.type==1){
+                reInquireContainer.style.display='none';
+            }else{
+                reInquireContainer.style.display='block';
+                const isReInq=(sd.status==='再次留單');
+                reInqBtn.setAttribute('data-active',isReInq?'true':'false');
+                reInqBtn.style.background=isReInq?'#c0392b':'#fff';
+                reInqBtn.style.borderColor=isReInq?'#c0392b':'#ddd';
+                reInqBtn.style.color=isReInq?'#fff':'#555';
+                reInqBtn.innerText=isReInq?'✅ 已標記 (請點擊下方儲存)':'🚩 標記為「再次留單」';
             }
-
             selectedGrade=sd.grade||'';
             memoModal.querySelectorAll('.grade-btn').forEach(b=>{
                 b.style.background='#fff';b.style.borderColor='#ddd';b.style.color='#333';
