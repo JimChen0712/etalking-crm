@@ -75,8 +75,8 @@ const USER_DICT = {
 };
 
 const isManager=crmUid===MANAGER_UID;
-// 👇 強制所有人背景都抓取 -1 總表，確保能拿到 source 👇
-const fetchUrl='https://server.etalkingonline.com/name_list/new_list/-1';
+// 👇 復原：讓畫面的主線任務回歸抓取自己的 crmUid，保證畫面絕對不白掉 👇
+const fetchUrl='https://server.etalkingonline.com/name_list/new_list/'+(isManager?'-1':crmUid);
 
 /* ══ Apps Script API ══ */
 async function gasGet(params){
@@ -127,7 +127,6 @@ async function loadSheetData(){
                 if(idx===0)return;
                 const memberId=row[0];
                 if(memberId){
-                    // 👇 因為新增了「來源(D欄)」，所以備註相關欄位延後一格變成 8,9,10 👇
                     sheetData[memberId]={status:row[8]||'',grade:row[9]||'',memo:row[10]||''};
                     sheetRowMap[memberId]=idx+1;
                 }
@@ -147,7 +146,6 @@ async function syncNewMemberToSheet(item,assignDate){
     const month=now.getFullYear()+'/'+String(now.getMonth()+1).padStart(2,'0');
     const dateStr=assignDate||now.toISOString().split('T')[0];
     const ownerName = (item.user_name && item.user_name.trim()) ? item.user_name.trim() : getWriterName();
-    // 👇 夾帶 item.source 到第四個欄位 👇
     await appendRow([memberId,item.member_name||'',item.mobile||'',item.source||'無',ownerName,crmUid,dateStr,month,'新單','','',now.toLocaleString('zh-TW')]);
     sheetRowMap[memberId]=Object.keys(sheetRowMap).length+2;
 }
@@ -160,7 +158,6 @@ async function updateSheetMemo(memberId,status,grade,memo,item){
         const month=now.getFullYear()+'/'+String(now.getMonth()+1).padStart(2,'0');
         const dateStr=now.toISOString().split('T')[0];
         const ownerName = (item.user_name && item.user_name.trim()) ? item.user_name.trim() : getWriterName();
-        // 👇 夾帶 item.source 到第四個欄位 👇
         await appendRow([String(memberId),item.member_name||'',item.mobile||'',item.source||'無',ownerName,crmUid,dateStr,month,status,grade,memo,timeStr]);
         sheetRowMap[String(memberId)]=Object.keys(sheetRowMap).length+2;
     }else{
@@ -312,6 +309,27 @@ async function fetchData(){
         const res=await fetch(fetchUrl);
         const data=await res.json();
         allData=data.list||[];
+
+        // 👇 支線任務：組員在背景偷偷抓 -1 總表，解鎖並附加來源碼 👇
+        if(!isManager && allData.length > 0) {
+            statusLabel.innerText='🔄 解鎖來源碼...';
+            try {
+                const resAll = await fetch('https://server.etalkingonline.com/name_list/new_list/-1');
+                const dataAll = await resAll.json();
+                const allList = dataAll.list || [];
+                // 建立對照字典，然後塞進剛剛抓到的 allData 裡
+                allList.forEach(m => {
+                    const mId = m.member_id || m.id;
+                    const target = allData.find(x => (x.member_id || x.id) == mId);
+                    if(target && m.source) {
+                        target.source = m.source;
+                    }
+                });
+            } catch(e) {
+                console.log('偷偷抓取 -1 失敗，使用預設值', e);
+            }
+        }
+
         updateConsultantDropdown();
         renderList();
         if(!isManager){statusLabel.innerText='🔄 載入新單細節...';await loadDetailsForAll();}
@@ -324,9 +342,8 @@ async function fetchData(){
 }
 
 async function loadDetailsForAll(){
-    const myName = getWriterName().trim();
-    // 👇 確保組員只會去抓取「屬於自己」的新單細節 👇
-    const targets=allData.filter(m=>m.type==1 && (m.user_name||'').trim()===myName && !detailData[m.member_id]);
+    // 👇 復原：讓抓取新單細節的條件回歸最乾淨的狀態 👇
+    const targets=allData.filter(m=>m.type==1&&!detailData[m.member_id]);
     if(!targets.length)return;
     const statusLabel=document.getElementById('loading-status');
     for(let i=0;i<targets.length;i+=5){
@@ -405,13 +422,9 @@ function renderList(){
     const selectedConsultant=isManager?document.getElementById('consultant-filter').value:'-1';
     const selectedTType=document.getElementById('t-type-filter').value;
     
-    // 👇 修改這裡：如果是組員，強制只比對自己的名字 (過濾掉別人的單) 👇
+    // 👇 復原：讓過濾條件回歸最單純的狀態，不用再擔心字串比對失敗 👇
     let filteredData=allData.filter(item=>{
-        const myName = getWriterName().trim();
-        const cMatch = isManager ? 
-            (selectedConsultant=='-1' || (item.user_name||'').trim()===selectedConsultant) : 
-            ((item.user_name||'').trim() === myName);
-            
+        const cMatch=isManager?(selectedConsultant=='-1'||(item.user_name||'').trim()===selectedConsultant):true;
         const tMatch=selectedTType=='-1'||String(item.type)===selectedTType;
         return cMatch&&tMatch;
     });
