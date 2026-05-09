@@ -422,7 +422,6 @@ function renderList(){
     const selectedConsultant=isManager?document.getElementById('consultant-filter').value:'-1';
     const selectedTType=document.getElementById('t-type-filter').value;
     
-    // 👇 復原：讓過濾條件回歸最單純的狀態，不用再擔心字串比對失敗 👇
     let filteredData=allData.filter(item=>{
         const cMatch=isManager?(selectedConsultant=='-1'||(item.user_name||'').trim()===selectedConsultant):true;
         const tMatch=selectedTType=='-1'||String(item.type)===selectedTType;
@@ -461,9 +460,15 @@ function renderList(){
         const reInquireHtml=sd.status==='再次留單'?'<span style="background:#c0392b;color:white;padding:1px 5px;border-radius:3px;font-size:10px;margin-left:5px;display:inline-block;margin-top:3px;">再次留單</span>':'';
         const btnBg=dropDays!==null&&dropDays<=0?'#e74c3c':ts.bg;
         const sourceCell=isManager?'<td style="padding:6px;color:#8e44ad;font-size:11px;vertical-align:top;">S:'+(item.source||'-')+'</td>':'';
+        
+        // 👇 新增：如果系統吐出空的名字，強制套用自己字典裡的業務名稱 👇
+        const displayUserName = (item.user_name && item.user_name.trim()) ? item.user_name.trim() : getWriterName();
+
         const gradeHtml=sd.grade?'<span style="background:'+(sd.grade==='A'?'#1a6fc4':'#e67e22')+';color:white;padding:2px 8px;border-radius:4px;font-weight:bold;font-size:12px;">'+sd.grade+'</span>':'<span style="color:#bdc3c7;font-size:11px;">未設定</span>';
         const memoHtml=sd.memo?'<span style="font-size:11px;color:#555;">'+sd.memo.slice(0,20)+(sd.memo.length>20?'...':'')+'</span>':'<span style="color:#bdc3c7;font-size:11px;">-</span>';
-        html+='<tr style="border-bottom:1px solid #dee2e6;border-left:4px solid '+rowBorderColor+';"><td style="padding:6px;vertical-align:top;"><b>'+(item.member_name||'未知')+'</b><br><span style="background:'+ts.bg+';color:white;padding:1px 5px;border-radius:3px;font-size:10px;">'+ts.label+'</span>'+reInquireHtml+progressHtml+'</td><td style="padding:6px;vertical-align:top;">'+(item.mobile||'-')+'</td><td style="padding:6px;vertical-align:middle;">'+gradeHtml+'</td><td style="padding:6px;vertical-align:middle;">'+memoHtml+'</td><td style="padding:6px;vertical-align:top;"><span style="color:#d35400;">'+(item.next_time&&!item.next_time.includes('0000')?item.next_time.split(' ')[0]:'無紀錄')+'</span>'+warningHtml+'</td>'+sourceCell+'<td style="padding:6px;color:#7f8c8d;vertical-align:top;font-size:11px;">'+(item.user_name||'-')+'</td><td style="padding:6px;vertical-align:top;"><div style="display:flex;flex-direction:column;gap:4px;"><button class="quick-record-btn" data-id="'+id+'" style="padding:3px 7px;background:'+btnBg+';color:white;border:none;border-radius:4px;cursor:pointer;font-size:11px;font-weight:bold;">壓紀錄</button><button class="memo-btn" data-id="'+id+'" style="padding:3px 7px;background:#8e44ad;color:white;border:none;border-radius:4px;cursor:pointer;font-size:11px;">備註</button></div></td></tr>';
+        
+        // 👇 修改：原本的 (item.user_name||'-') 已經換成了 displayUserName 👇
+        html+='<tr style="border-bottom:1px solid #dee2e6;border-left:4px solid '+rowBorderColor+';"><td style="padding:6px;vertical-align:top;"><b>'+(item.member_name||'未知')+'</b><br><span style="background:'+ts.bg+';color:white;padding:1px 5px;border-radius:3px;font-size:10px;">'+ts.label+'</span>'+reInquireHtml+progressHtml+'</td><td style="padding:6px;vertical-align:top;">'+(item.mobile||'-')+'</td><td style="padding:6px;vertical-align:middle;">'+gradeHtml+'</td><td style="padding:6px;vertical-align:middle;">'+memoHtml+'</td><td style="padding:6px;vertical-align:top;"><span style="color:#d35400;">'+(item.next_time&&!item.next_time.includes('0000')?item.next_time.split(' ')[0]:'無紀錄')+'</span>'+warningHtml+'</td>'+sourceCell+'<td style="padding:6px;color:#7f8c8d;vertical-align:top;font-size:11px;">'+displayUserName+'</td><td style="padding:6px;vertical-align:top;"><div style="display:flex;flex-direction:column;gap:4px;"><button class="quick-record-btn" data-id="'+id+'" style="padding:3px 7px;background:'+btnBg+';color:white;border:none;border-radius:4px;cursor:pointer;font-size:11px;font-weight:bold;">壓紀錄</button><button class="memo-btn" data-id="'+id+'" style="padding:3px 7px;background:#8e44ad;color:white;border:none;border-radius:4px;cursor:pointer;font-size:11px;">備註</button></div></td></tr>';
     });
     html+='</table>';
     if(filteredData.length>150)html+='<div style="text-align:center;padding:10px;color:#888;">(共 '+filteredData.length+' 筆，顯示前 150 筆)</div>';
