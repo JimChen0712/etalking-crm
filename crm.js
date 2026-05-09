@@ -75,7 +75,8 @@ const USER_DICT = {
 };
 
 const isManager=crmUid===MANAGER_UID;
-const fetchUrl='https://server.etalkingonline.com/name_list/new_list/'+(isManager?'-1':crmUid);
+// 👇 強制所有人背景都抓取 -1 總表，確保能拿到 source 👇
+const fetchUrl='https://server.etalkingonline.com/name_list/new_list/-1';
 
 /* ══ Apps Script API ══ */
 async function gasGet(params){
@@ -126,7 +127,7 @@ async function loadSheetData(){
                 if(idx===0)return;
                 const memberId=row[0];
                 if(memberId){
-                    // 👇 因為前面多了一欄，所以陣列位置從 7,8,9 變成 8,9,10 👇
+                    // 👇 因為新增了「來源(D欄)」，所以備註相關欄位延後一格變成 8,9,10 👇
                     sheetData[memberId]={status:row[8]||'',grade:row[9]||'',memo:row[10]||''};
                     sheetRowMap[memberId]=idx+1;
                 }
@@ -146,7 +147,7 @@ async function syncNewMemberToSheet(item,assignDate){
     const month=now.getFullYear()+'/'+String(now.getMonth()+1).padStart(2,'0');
     const dateStr=assignDate||now.toISOString().split('T')[0];
     const ownerName = (item.user_name && item.user_name.trim()) ? item.user_name.trim() : getWriterName();
-    // 👇 修改這裡：在電話後面，偷偷夾帶 item.source 給 GAS 👇
+    // 👇 夾帶 item.source 到第四個欄位 👇
     await appendRow([memberId,item.member_name||'',item.mobile||'',item.source||'無',ownerName,crmUid,dateStr,month,'新單','','',now.toLocaleString('zh-TW')]);
     sheetRowMap[memberId]=Object.keys(sheetRowMap).length+2;
 }
@@ -159,7 +160,7 @@ async function updateSheetMemo(memberId,status,grade,memo,item){
         const month=now.getFullYear()+'/'+String(now.getMonth()+1).padStart(2,'0');
         const dateStr=now.toISOString().split('T')[0];
         const ownerName = (item.user_name && item.user_name.trim()) ? item.user_name.trim() : getWriterName();
-        // 👇 一樣修改這裡：夾帶 item.source 👇
+        // 👇 夾帶 item.source 到第四個欄位 👇
         await appendRow([String(memberId),item.member_name||'',item.mobile||'',item.source||'無',ownerName,crmUid,dateStr,month,status,grade,memo,timeStr]);
         sheetRowMap[String(memberId)]=Object.keys(sheetRowMap).length+2;
     }else{
@@ -167,16 +168,16 @@ async function updateSheetMemo(memberId,status,grade,memo,item){
     }
     sheetData[String(memberId)]={status,grade,memo};
 }
+
 async function sheetsDeleteRow(rowNum){
     await deleteRow(rowNum);
 }
 
-/* 👇 新增：負責整理要同步的原始資料，並發送給 GAS 的函式 👇 */
+/* 負責整理要同步的原始資料，並發送給 GAS 的函式 */
 async function syncDemoRawData(){
     const statusLabel = document.getElementById('loading-status');
     statusLabel.innerText = '🔄 比對並同步 Demo 名單...';
     
-    // 把目前的 Demo 名單整理成 GAS 好處理的乾淨格式
     const demoList = allData.filter(item => String(item.type) === '3').map(item => ({
         member_id: item.member_id || item.id,
         member_name: item.member_name,
@@ -207,7 +208,6 @@ async function syncDemoRawData(){
         console.error('Demo Raw Data Sync Error:', e);
     }
 }
-/* 👆 結束 👆 */
 
 /* ══ DOM UI ══ */
 ['custom-crm-curtain','custom-crm-panel'].forEach(id=>{const el=document.getElementById(id);if(el)el.remove();});
@@ -324,7 +324,9 @@ async function fetchData(){
 }
 
 async function loadDetailsForAll(){
-    const targets=allData.filter(m=>m.type==1&&!detailData[m.member_id]);
+    const myName = getWriterName().trim();
+    // 👇 確保組員只會去抓取「屬於自己」的新單細節 👇
+    const targets=allData.filter(m=>m.type==1 && (m.user_name||'').trim()===myName && !detailData[m.member_id]);
     if(!targets.length)return;
     const statusLabel=document.getElementById('loading-status');
     for(let i=0;i<targets.length;i+=5){
@@ -402,11 +404,18 @@ function getDropDaysLeft(item,detail){
 function renderList(){
     const selectedConsultant=isManager?document.getElementById('consultant-filter').value:'-1';
     const selectedTType=document.getElementById('t-type-filter').value;
+    
+    // 👇 修改這裡：如果是組員，強制只比對自己的名字 (過濾掉別人的單) 👇
     let filteredData=allData.filter(item=>{
-        const cMatch=isManager?(selectedConsultant=='-1'||(item.user_name||'').trim()===selectedConsultant):true;
+        const myName = getWriterName().trim();
+        const cMatch = isManager ? 
+            (selectedConsultant=='-1' || (item.user_name||'').trim()===selectedConsultant) : 
+            ((item.user_name||'').trim() === myName);
+            
         const tMatch=selectedTType=='-1'||String(item.type)===selectedTType;
         return cMatch&&tMatch;
     });
+    
     filteredData.sort((a,b)=>(getDropDaysLeft(a,detailData[a.member_id])??999)-(getDropDaysLeft(b,detailData[b.member_id])??999));
     if(!filteredData.length){content.innerHTML='<div style="text-align:center;padding:20px;color:#666;">找不到符合條件的名單。</div>';return;}
     const typeStyles={'1':{label:'新單',bg:'#1a6fc4'},'2':{label:'常態',bg:'#27ae60'},'3':{label:'Demo',bg:'#8e44ad'},'4':{label:'釋出',bg:'#e67e22'}};
@@ -544,7 +553,6 @@ document.getElementById('close-btn').onclick=()=>{
 };
 document.getElementById('refresh-btn').onclick=fetchData;
 
-/* 👇 新增：監聽種類下拉選單，選到 Demo過名單(3) 時觸發防呆寫入 👇 */
 document.getElementById('t-type-filter').onchange=function(){
     renderList();
     if(isManager && this.value === '3'){
