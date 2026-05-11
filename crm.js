@@ -221,8 +221,20 @@ panel.style.cssText='position:fixed;top:50%;left:50%;transform:translate(-50%,-5
 
 const header=document.createElement('div');
 header.style.cssText='padding:12px 15px;background:#2c3e50;color:white;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;flex-shrink:0;';
-header.innerHTML='<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;"><h3 style="margin:0;font-size:15px;color:white;">名單管理面板</h3>'+(isManager?'<select id="consultant-filter" style="padding:4px;border-radius:4px;border:none;max-width:150px;"><option value="-1">所有業務</option></select>':'<span style="font-size:12px;color:#bdc3c7;">我的名單</span>')+'<select id="t-type-filter" style="padding:4px;border-radius:4px;border:none;"><option value="-1">所有種類</option><option value="1">新單</option><option value="2">常態名單</option><option value="3">Demo過名單</option><option value="4">釋出名單</option></select><button id="refresh-btn" style="padding:4px 10px;cursor:pointer;border-radius:4px;border:none;background:#3498db;color:white;">重新整理</button><span id="loading-status" style="font-size:11px;color:#f1c40f;font-weight:bold;"></span></div><button id="close-btn" style="background:transparent;border:none;color:white;font-size:20px;cursor:pointer;">×</button>';
-
+header.innerHTML=`<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+    <h3 style="margin:0;font-size:15px;color:white;">名單管理面板</h3>
+    ${isManager ? '<select id="consultant-filter" style="padding:4px;border-radius:4px;border:none;max-width:150px;"><option value="-1">所有業務</option></select><button id="sync-all-new-btn" style="padding:4px 10px;cursor:pointer;border-radius:4px;border:none;background:#8e44ad;color:white;font-weight:bold;">同步全體新單</button>' : '<span style="font-size:12px;color:#bdc3c7;">我的名單</span>'}
+    <select id="t-type-filter" style="padding:4px;border-radius:4px;border:none;">
+        <option value="-1">所有種類</option>
+        <option value="1">新單</option>
+        <option value="2">常態名單</option>
+        <option value="3">Demo過名單</option>
+        <option value="4">釋出名單</option>
+    </select>
+    <button id="refresh-btn" style="padding:4px 10px;cursor:pointer;border-radius:4px;border:none;background:#3498db;color:white;">重新整理</button>
+    <span id="loading-status" style="font-size:11px;color:#f1c40f;font-weight:bold;"></span>
+</div>
+<button id="close-btn" style="background:transparent;border:none;color:white;font-size:20px;cursor:pointer;">×</button>`;
 const content=document.createElement('div');
 content.style.cssText='flex:1;overflow-y:auto;padding:12px;background:#f8f9fa;';
 
@@ -584,10 +596,38 @@ document.getElementById('modal-status').onchange=function(){
     document.getElementById('modal-content').value=(m[this.value]||'聯絡')+' *1';
 };
 if(isManager){
+    // 1. 原有的：切換業務員時，載入該業務的細節
     document.getElementById('consultant-filter').onchange=function(){
         renderList();
         if(this.value!=='-1')loadDetailsForConsultant(this.value);
     };
+
+    // 2. 新增的：點擊「同步全體新單」按鈕時的動作
+    const syncBtn = document.getElementById('sync-all-new-btn');
+    if(syncBtn) {
+        syncBtn.onclick = async () => {
+            const statusLabel = document.getElementById('loading-status');
+            
+            // 防止重複點擊，先把按鈕變灰色
+            syncBtn.disabled = true;
+            syncBtn.style.background = '#95a5a6';
+            syncBtn.innerText = '同步中...';
+            
+            // 執行你寫好的全體掃描（這會跑遍所有人，抓到日期就存入 Sheet）
+            await loadDetailsForAll(); 
+            
+            // 跑完後恢復按鈕
+            syncBtn.disabled = false;
+            syncBtn.style.background = '#8e44ad';
+            syncBtn.innerText = '同步全體新單';
+            
+            statusLabel.innerText = '✅ 全體同步完成';
+            setTimeout(() => statusLabel.innerText = '', 3000);
+            
+            // 刷新畫面，讓畫面上原本顯示「載入中」的地方變出日期
+            renderList(); 
+        };
+    }
 }
 fetchData();
 })();
