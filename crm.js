@@ -75,7 +75,6 @@ const USER_DICT = {
 };
 
 const isManager=crmUid===MANAGER_UID;
-// 👇 復原：讓畫面的主線任務回歸抓取自己的 crmUid，保證畫面絕對不白掉 👇
 const fetchUrl='https://server.etalkingonline.com/name_list/new_list/'+(isManager?'-1':crmUid);
 
 /* ══ Apps Script API ══ */
@@ -223,7 +222,7 @@ const header=document.createElement('div');
 header.style.cssText='padding:12px 15px;background:#2c3e50;color:white;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;flex-shrink:0;';
 header.innerHTML=`<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
     <h3 style="margin:0;font-size:15px;color:white;">名單管理面板</h3>
-    ${isManager ? '<select id="consultant-filter" style="padding:4px;border-radius:4px;border:none;max-width:150px;"><option value="-1">所有業務</option></select><button id="sync-all-new-btn" style="padding:4px 10px;cursor:pointer;border-radius:4px;border:none;background:#8e44ad;color:white;font-weight:bold;">同步全體新單</button>' : '<span style="font-size:12px;color:#bdc3c7;">我的名單</span>'}
+    ${isManager ? '<select id="consultant-filter" style="padding:4px;border-radius:4px;border:none;max-width:120px;"><option value="-1">所有業務</option></select><button id="sync-all-new-btn" style="padding:4px 10px;cursor:pointer;border-radius:4px;border:none;background:#8e44ad;color:white;font-weight:bold;">同步全體新單</button><button id="sync-demo-btn" style="padding:4px 10px;cursor:pointer;border-radius:4px;border:none;background:#e67e22;color:white;font-weight:bold;">同步Demo</button>' : '<span style="font-size:12px;color:#bdc3c7;">我的名單</span>'}
     <select id="t-type-filter" style="padding:4px;border-radius:4px;border:none;">
         <option value="-1">所有種類</option>
         <option value="1">新單</option>
@@ -354,7 +353,7 @@ async function fetchData(){
 }
 
 async function loadDetailsForAll(){
-    // 👇 復原：讓抓取新單細節的條件回歸最乾淨的狀態 👇
+    // 👇 復原：讓抓取新單細節的條件回歸最乾淨的狀態 (只抓 type 1) 👇
     const targets=allData.filter(m=>m.type==1&&!detailData[m.member_id]);
     if(!targets.length)return;
     const statusLabel=document.getElementById('loading-status');
@@ -473,13 +472,11 @@ function renderList(){
         const btnBg=dropDays!==null&&dropDays<=0?'#e74c3c':ts.bg;
         const sourceCell=isManager?'<td style="padding:6px;color:#8e44ad;font-size:11px;vertical-align:top;">S:'+(item.source||'-')+'</td>':'';
         
-        // 👇 新增：如果系統吐出空的名字，強制套用自己字典裡的業務名稱 👇
         const displayUserName = (item.user_name && item.user_name.trim()) ? item.user_name.trim() : getWriterName();
 
         const gradeHtml=sd.grade?'<span style="background:'+(sd.grade==='A'?'#1a6fc4':'#e67e22')+';color:white;padding:2px 8px;border-radius:4px;font-weight:bold;font-size:12px;">'+sd.grade+'</span>':'<span style="color:#bdc3c7;font-size:11px;">未設定</span>';
         const memoHtml=sd.memo?'<span style="font-size:11px;color:#555;">'+sd.memo.slice(0,20)+(sd.memo.length>20?'...':'')+'</span>':'<span style="color:#bdc3c7;font-size:11px;">-</span>';
         
-        // 👇 修改：原本的 (item.user_name||'-') 已經換成了 displayUserName 👇
         html+='<tr style="border-bottom:1px solid #dee2e6;border-left:4px solid '+rowBorderColor+';"><td style="padding:6px;vertical-align:top;"><b>'+(item.member_name||'未知')+'</b><br><span style="background:'+ts.bg+';color:white;padding:1px 5px;border-radius:3px;font-size:10px;">'+ts.label+'</span>'+reInquireHtml+progressHtml+'</td><td style="padding:6px;vertical-align:top;">'+(item.mobile||'-')+'</td><td style="padding:6px;vertical-align:middle;">'+gradeHtml+'</td><td style="padding:6px;vertical-align:middle;">'+memoHtml+'</td><td style="padding:6px;vertical-align:top;"><span style="color:#d35400;">'+(item.next_time&&!item.next_time.includes('0000')?item.next_time.split(' ')[0]:'無紀錄')+'</span>'+warningHtml+'</td>'+sourceCell+'<td style="padding:6px;color:#7f8c8d;vertical-align:top;font-size:11px;">'+displayUserName+'</td><td style="padding:6px;vertical-align:top;"><div style="display:flex;flex-direction:column;gap:4px;"><button class="quick-record-btn" data-id="'+id+'" style="padding:3px 7px;background:'+btnBg+';color:white;border:none;border-radius:4px;cursor:pointer;font-size:11px;font-weight:bold;">壓紀錄</button><button class="memo-btn" data-id="'+id+'" style="padding:3px 7px;background:#8e44ad;color:white;border:none;border-radius:4px;cursor:pointer;font-size:11px;">備註</button></div></td></tr>';
     });
     html+='</table>';
@@ -595,37 +592,52 @@ document.getElementById('modal-status').onchange=function(){
     const m={'1':'已接聽','2':'非本人','3':'未接','4':'關機'};
     document.getElementById('modal-content').value=(m[this.value]||'聯絡')+' *1';
 };
+
+// 👇 修改：主管面板的兩個獨立同步按鈕邏輯 👇
 if(isManager){
-    // 1. 原有的：切換業務員時，載入該業務的細節
+    // 1. 切換業務員
     document.getElementById('consultant-filter').onchange=function(){
         renderList();
         if(this.value!=='-1')loadDetailsForConsultant(this.value);
     };
 
-    // 2. 新增的：點擊「同步全體新單」按鈕時的動作
-    const syncBtn = document.getElementById('sync-all-new-btn');
-    if(syncBtn) {
-        syncBtn.onclick = async () => {
+    // 2. 新增：第一顆按鈕 (紫色) -> 慢慢爬取全體新單
+    const syncNewBtn = document.getElementById('sync-all-new-btn');
+    if(syncNewBtn) {
+        syncNewBtn.onclick = async () => {
             const statusLabel = document.getElementById('loading-status');
+            syncNewBtn.disabled = true;
+            syncNewBtn.style.background = '#95a5a6';
+            syncNewBtn.innerText = '同步中...';
             
-            // 防止重複點擊，先把按鈕變灰色
-            syncBtn.disabled = true;
-            syncBtn.style.background = '#95a5a6';
-            syncBtn.innerText = '同步中...';
-            
-            // 執行你寫好的全體掃描（這會跑遍所有人，抓到日期就存入 Sheet）
             await loadDetailsForAll(); 
             
-            // 跑完後恢復按鈕
-            syncBtn.disabled = false;
-            syncBtn.style.background = '#8e44ad';
-            syncBtn.innerText = '同步全體新單';
+            syncNewBtn.disabled = false;
+            syncNewBtn.style.background = '#8e44ad';
+            syncNewBtn.innerText = '同步全體新單';
             
-            statusLabel.innerText = '✅ 全體同步完成';
+            statusLabel.innerText = '✅ 新單同步完成';
             setTimeout(() => statusLabel.innerText = '', 3000);
-            
-            // 刷新畫面，讓畫面上原本顯示「載入中」的地方變出日期
             renderList(); 
+        };
+    }
+
+    // 3. 新增：第二顆按鈕 (橘色) -> 光速整包同步 Demo 單
+    const syncDemoBtn = document.getElementById('sync-demo-btn');
+    if(syncDemoBtn) {
+        syncDemoBtn.onclick = async () => {
+            const statusLabel = document.getElementById('loading-status');
+            syncDemoBtn.disabled = true;
+            syncDemoBtn.style.background = '#95a5a6';
+            syncDemoBtn.innerText = '同步中...';
+            
+            // 直接呼叫你原本寫好的超快批次同步函數
+            await syncDemoRawData(); 
+            
+            syncDemoBtn.disabled = false;
+            syncDemoBtn.style.background = '#e67e22';
+            syncDemoBtn.innerText = '同步Demo';
+            renderList();
         };
     }
 }
