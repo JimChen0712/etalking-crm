@@ -169,31 +169,73 @@ async function sheetsDeleteRow(rowNum){
     await deleteRow(rowNum);
 }
 
-/* 負責整理要同步的原始資料，並發送給 GAS 的函式 */
+/* 👇 負責比對並同步 Demo 名單，加入雙日期爬蟲邏輯 👇 */
 async function syncDemoRawData(){
     const statusLabel = document.getElementById('loading-status');
-    statusLabel.innerText = '🔄 比對並同步 Demo 名單...';
+    statusLabel.innerText = '🔄 準備同步 Demo 名單...';
     
-    const demoList = allData.filter(item => String(item.type) === '3').map(item => ({
-        member_id: item.member_id || item.id,
-        member_name: item.member_name,
-        mobile: item.mobile,
-        source: item.source,
-        user_name: item.user_name,
-        next_time: (item.next_time && !item.next_time.includes('0000')) ? item.next_time.split(' ')[0] : '無紀錄'
-    }));
-    
-    if(demoList.length === 0){
+    // 1. 篩選出畫面上的 Demo 名單
+    const demoTargets = allData.filter(item => String(item.type) === '3');
+    if(demoTargets.length === 0){
         statusLabel.innerText = '✅ 目前沒有 Demo 名單';
         setTimeout(() => statusLabel.innerText = '', 2000);
         return;
     }
     
+    // 2. 爬蟲進去抓日期
+    for(let i=0; i<demoTargets.length; i+=5){
+        const batch = demoTargets.slice(i, i+5);
+        statusLabel.innerText = `🔄 抓取 Demo 軌跡 ${Math.min(i+5, demoTargets.length)}/${demoTargets.length}...`;
+        
+        await Promise.all(batch.map(async m => {
+            try {
+                const res = await fetch('/admin/request_develop?member_id=' + (m.member_id || m.id) + '&hide_layout=true');
+                const html = await res.text();
+                const doc = new DOMParser().parseFromString(html, 'text/html');
+                const rows = doc.querySelectorAll('table tbody tr');
+                
+                let leadDate = '', demoDate = '';
+                rows.forEach(r => {
+                    const cells = r.querySelectorAll('td');
+                    if(cells.length < 4) return;
+                    const logType = cells[3].innerText.trim();
+                    const logContent = cells[4] ? cells[4].innerText : '';
+                    const dateVal = cells[1].innerText.split(' ')[0];
+
+                    if(logType.includes('名單移動')) {
+                        // 找進單日
+                        if(logContent.includes('移動到新名單') && !leadDate) leadDate = dateVal;
+                        // 找轉Demo日
+                        if(logContent.includes('移動到DEMO過名單') && !demoDate) demoDate = dateVal;
+                    }
+                });
+                m.leadDate = leadDate;
+                m.demoDate = demoDate;
+            } catch(e) {
+                console.log('抓取細節失敗', m.member_id);
+            }
+        }));
+    }
+    
+    // 3. 打包資料準備發送
+    statusLabel.innerText = '🔄 傳送資料至試算表...';
+    const demoList = demoTargets.map(item => ({
+        member_id: item.member_id || item.id,
+        member_name: item.member_name,
+        mobile: item.mobile,
+        source: item.source,
+        user_name: item.user_name,
+        next_time: (item.next_time && !item.next_time.includes('0000')) ? item.next_time.split(' ')[0] : '無紀錄',
+        leadDate: item.leadDate || '',
+        demoDate: item.demoDate || ''
+    }));
+    
+    // 4. 發送給 GAS
     try {
         const res = await gasPost({ action: 'syncDemoRaw', demoList: demoList });
         if(res.success){
             if(res.addedCount > 0){
-                statusLabel.innerText = `✅ 成功新增 ${res.addedCount} 筆 Demo 原始資料`;
+                statusLabel.innerText = `✅ 成功新增 ${res.addedCount} 筆 Demo 資料`;
             } else {
                 statusLabel.innerText = '✅ 名單皆已存在，無須新增';
             }
@@ -222,7 +264,7 @@ const header=document.createElement('div');
 header.style.cssText='padding:12px 15px;background:#2c3e50;color:white;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;flex-shrink:0;';
 header.innerHTML=`<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
     <h3 style="margin:0;font-size:15px;color:white;">名單管理面板</h3>
-    ${isManager ? '<select id="consultant-filter" style="padding:4px;border-radius:4px;border:none;max-width:120px;"><option value="-1">所有業務</option></select><button id="sync-all-new-btn" style="padding:4px 10px;cursor:pointer;border-radius:4px;border:none;background:#8e44ad;color:white;font-weight:bold;">同步全體新單</button><button id="sync-demo-btn" style="padding:4px 10px;cursor:pointer;border-radius:4px;border:none;background:#e67e22;color:white;font-weight:bold;">同步Demo</button>' : '<span style="font-size:12px;color:#bdc3c7;">我的名單</span>'}
+    ${isManager ? '<select id="consultant-filter" style="padding:4px;border-radius:4px;border:none;max-width:150px;"><option value="-1">所有業務</option></select><button id="sync-all-new-btn" style="padding:4px 10px;cursor:pointer;border-radius:4px;border:none;background:#8e44ad;color:white;font-weight:bold;">同步全體新單</button><button id="sync-demo-btn" style="padding:4px 10px;cursor:pointer;border-radius:4px;border:none;background:#e67e22;color:white;font-weight:bold;">同步Demo</button>' : '<span style="font-size:12px;color:#bdc3c7;">我的名單</span>'}
     <select id="t-type-filter" style="padding:4px;border-radius:4px;border:none;">
         <option value="-1">所有種類</option>
         <option value="1">新單</option>
@@ -321,14 +363,12 @@ async function fetchData(){
         const data=await res.json();
         allData=data.list||[];
 
-        // 👇 支線任務：組員在背景偷偷抓 -1 總表，解鎖並附加來源碼 👇
         if(!isManager && allData.length > 0) {
             statusLabel.innerText='🔄 同步進階資料...';
             try {
                 const resAll = await fetch('https://server.etalkingonline.com/name_list/new_list/-1');
                 const dataAll = await resAll.json();
                 const allList = dataAll.list || [];
-                // 建立對照字典，然後塞進剛剛抓到的 allData 裡
                 allList.forEach(m => {
                     const mId = m.member_id || m.id;
                     const target = allData.find(x => (x.member_id || x.id) == mId);
@@ -353,7 +393,6 @@ async function fetchData(){
 }
 
 async function loadDetailsForAll(){
-    // 👇 復原：讓抓取新單細節的條件回歸最乾淨的狀態 (只抓 type 1) 👇
     const targets=allData.filter(m=>m.type==1&&!detailData[m.member_id]);
     if(!targets.length)return;
     const statusLabel=document.getElementById('loading-status');
@@ -582,9 +621,7 @@ document.getElementById('refresh-btn').onclick=fetchData;
 
 document.getElementById('t-type-filter').onchange=function(){
     renderList();
-    if(isManager && this.value === '3'){
-        syncDemoRawData();
-    }
+    // 移除切換下拉選單時自動爬蟲的設定，改為讓使用者手動點擊按鈕
 };
 
 document.getElementById('modal-cancel').onclick=()=>recordModal.style.display='none';
@@ -593,15 +630,14 @@ document.getElementById('modal-status').onchange=function(){
     document.getElementById('modal-content').value=(m[this.value]||'聯絡')+' *1';
 };
 
-// 👇 修改：主管面板的兩個獨立同步按鈕邏輯 👇
+// 👇 雙按鈕邏輯綁定區 👇
 if(isManager){
-    // 1. 切換業務員
     document.getElementById('consultant-filter').onchange=function(){
         renderList();
         if(this.value!=='-1')loadDetailsForConsultant(this.value);
     };
 
-    // 2. 新增：第一顆按鈕 (紫色) -> 慢慢爬取全體新單
+    // 紫色：同步全體新單
     const syncNewBtn = document.getElementById('sync-all-new-btn');
     if(syncNewBtn) {
         syncNewBtn.onclick = async () => {
@@ -622,7 +658,7 @@ if(isManager){
         };
     }
 
-    // 3. 新增：第二顆按鈕 (橘色) -> 光速整包同步 Demo 單
+    // 橘色：同步Demo (含智慧爬蟲)
     const syncDemoBtn = document.getElementById('sync-demo-btn');
     if(syncDemoBtn) {
         syncDemoBtn.onclick = async () => {
@@ -631,7 +667,6 @@ if(isManager){
             syncDemoBtn.style.background = '#95a5a6';
             syncDemoBtn.innerText = '同步中...';
             
-            // 直接呼叫你原本寫好的超快批次同步函數
             await syncDemoRawData(); 
             
             syncDemoBtn.disabled = false;
