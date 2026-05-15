@@ -49,44 +49,16 @@ const INTERVIEW_TEMPLATE = `【英文名字】
 【其他備註】`;
 
 const USER_DICT = {
-    '69': 'TEST test0504',
-    '162': 'Joy 洪淑慧',
-    '240': 'Minzing 程銘靜',
-    '60': 'johnny 謝愷澤',
-    '424': 'Jim 陳昕謨',
-    '279': 'test3 test3',
-    '452': 'Rita 侯宛余',
-    '433': 'Wynn 吳昱瑩',
-    '464': 'ori 孫逸亭',
-    '443': 'Hele 徐睿彣',
-    '463': 'Sumika 李玉善',
-    '455': 'Hazel 林孜瑩',
-    '449': 'Evan 林逸華',
-    '432': 'Elsie 林采庭',
-    '445': 'Luke 楊博竣',
-    '457': 'Alan 楊碩頫',
-    '438': 'Lily 楊若莉',
-    '451': 'Kyle 江宗翰',
-    '454': 'Andy 沈祐頡',
-    '462': 'homer 許瀚方',
-    '461': 'hanfang 許瀚方',
-    '456': 'Tony 謝廷翊',
-    '458': 'Josie 陳品妤',
-    '431': 'Elijah 陳家寬',
-    '459': 'An 陳怡安',
-    '450': 'Val 陳芊螢',
-    '409': 'Joyce 魏良伃',
-    '453': 'Wolf 黃詳淵',
-    '368': 'Jordan 李睿峰',
-    '130': 'Jeremy testjeremy',
-    '283': 'Ash 俞任鴻',
-    '465': 'Lily 李昱萱',
-    '248': 'Luka 林冠宇',
-    '434': 'Nina 林怡欣',
-    '358': 'amiee 林琬倩',
-    '410': 'Claire 葉芷羽',
-    '241': 'Paris 黃雅琪',
-    '180': 'Rooney 邱于峰'
+    '69': 'TEST test0504', '162': 'Joy 洪淑慧', '240': 'Minzing 程銘靜', '60': 'johnny 謝愷澤', 
+    '424': 'Jim 陳昕謨', '279': 'test3 test3', '452': 'Rita 侯宛余', '433': 'Wynn 吳昱瑩', 
+    '464': 'ori 孫逸亭', '443': 'Hele 徐睿彣', '463': 'Sumika 李玉善', '455': 'Hazel 林孜瑩', 
+    '449': 'Evan 林逸華', '432': 'Elsie 林采庭', '445': 'Luke 楊博竣', '457': 'Alan 楊碩頫', 
+    '438': 'Lily 楊若莉', '451': 'Kyle 江宗翰', '454': 'Andy 沈祐頡', '462': 'homer 許瀚方', 
+    '461': 'hanfang 許瀚方', '456': 'Tony 謝廷翊', '458': 'Josie 陳品妤', '431': 'Elijah 陳家寬', 
+    '459': 'An 陳怡安', '450': 'Val 陳芊螢', '409': 'Joyce 魏良伃', '453': 'Wolf 黃詳淵', 
+    '368': 'Jordan 李睿峰', '130': 'Jeremy testjeremy', '283': 'Ash 俞任鴻', '465': 'Lily 李昱萱', 
+    '248': 'Luka 林冠宇', '434': 'Nina 林怡欣', '358': 'amiee 林琬倩', '410': 'Claire 葉芷羽', 
+    '241': 'Paris 黃雅琪', '180': 'Rooney 邱于峰'
 };
 
 const isManager=crmUid===MANAGER_UID;
@@ -108,10 +80,12 @@ async function appendRow(values){ return gasPost({action:'append',values}); }
 async function updateRow(rowNum,values){ return gasPost({action:'update',rowNum,values}); }
 async function deleteRow(rowNum){ return gasPost({action:'delete',rowNum}); }
 
+/* ══ 全局變數 ══ */
 let sheetData={}, sheetRowMap={};
-let allData=[], detailData={}, currentItem=null, currentMemoItem=null, selectedGrade='';
+let allData=[], detailData={}, currentItem=null;
+let maxKnownRow = 1; // 追蹤試算表目前的最後一行，確保 Append 不會錯亂
 
-/* ══ 防抖儲存佇列 ══ */
+/* ══ 防抖儲存佇列 (排隊系統) ══ */
 const saveTimers = {};
 const saveStatus = {};
 
@@ -125,29 +99,54 @@ function setSaveStatus(memberId, status) {
     else if(status === 'error') { el.textContent = '❌ 失敗'; el.style.color = '#e74c3c'; }
 }
 
+// 核心儲存邏輯：無論是打字、評等、標記，全透過此函數統一送出
 function debounceSaveMemo(memberId, grade, memo, item) {
     setSaveStatus(memberId, 'pending');
-    if(saveTimers[memberId]) clearTimeout(saveTimers[memberId]);
+    if(saveTimers[memberId]) clearTimeout(saveTimers[memberId]); // 刷新等待時間，防連點
+    
     saveTimers[memberId] = setTimeout(async () => {
         setSaveStatus(memberId, 'saving');
         try {
-            const sd = sheetData[String(memberId)] || {};
+            const sd = sheetData[String(memberId)] || {status:'', grade:'', memo:''};
             let statusToSave = sd.status || '';
             if(item.type == 1) statusToSave = '新單';
-            await updateSheetMemo(memberId, statusToSave, grade, memo, item);
+
+            const rowNum = sheetRowMap[String(memberId)];
+            const isEmpty = (statusToSave === '' && !grade && !memo); // 判斷是否為無用空資料
+
+            // 💡 智慧刪除邏輯：非新單且資料全空時，執行刪除
+            if (item.type != 1 && isEmpty && typeof rowNum === 'number') {
+                await sheetsDeleteRow(rowNum);
+                delete sheetData[String(memberId)];
+                delete sheetRowMap[String(memberId)];
+                
+                // 【關鍵】刪除一列後，在它下方的所有資料都會往上移，因此本地 RowNum 要集體減 1
+                for (let id in sheetRowMap) {
+                    if (typeof sheetRowMap[id] === 'number' && sheetRowMap[id] > rowNum) {
+                        sheetRowMap[id]--;
+                    }
+                }
+                if(maxKnownRow >= rowNum) maxKnownRow--;
+            } 
+            // 若有資料，則新增或更新
+            else if (!isEmpty || item.type == 1) {
+                await updateSheetMemo(memberId, statusToSave, grade, memo, item);
+            }
+            
             setSaveStatus(memberId, 'saved');
         } catch(e) {
+            console.error(e);
             setSaveStatus(memberId, 'error');
         }
         delete saveTimers[memberId];
-    }, 1500);
+    }, 800); // 停止動作 0.8 秒後才發送，提升反應速度
 }
 
 async function loadSheetData(){
     try{
         await initSheet();
         const data=await readSheet();
-        sheetData={};sheetRowMap={};
+        sheetData={}; sheetRowMap={}; maxKnownRow=1;
         if(data.values){
             data.values.forEach((row,idx)=>{
                 if(idx===0)return;
@@ -155,41 +154,56 @@ async function loadSheetData(){
                 if(memberId){
                     sheetData[memberId]={status:row[8]||'',grade:row[9]||'',memo:row[10]||''};
                     sheetRowMap[memberId]=idx+1;
+                    if((idx+1) > maxKnownRow) maxKnownRow = idx+1;
                 }
             });
         }
     }catch(e){console.log('Sheet載入失敗:',e);}
 }
 
-function getWriterName(){
-    return USER_DICT[crmUid]||crmUid;
-}
+function getWriterName(){ return USER_DICT[crmUid]||crmUid; }
 
 async function syncNewMemberToSheet(item,assignDate){
     const memberId=String(item.member_id);
     if(sheetRowMap[memberId])return;
+    sheetRowMap[memberId] = 'pending'; // 上鎖防重複
+    
     const now=new Date();
     const month=now.getFullYear()+'/'+String(now.getMonth()+1).padStart(2,'0');
     const dateStr=assignDate||now.toISOString().split('T')[0];
     const ownerName=(item.user_name&&item.user_name.trim())?item.user_name.trim():getWriterName();
+    
     await appendRow([memberId,item.member_name||'',item.mobile||'',item.source||'無',ownerName,crmUid,dateStr,month,'新單','','',now.toLocaleString('zh-TW')]);
-    sheetRowMap[memberId]=Object.keys(sheetRowMap).length+2;
+    
+    maxKnownRow++;
+    sheetRowMap[memberId] = maxKnownRow; // 解鎖並寫入正確行數
 }
 
 async function updateSheetMemo(memberId,status,grade,memo,item){
-    const rowNum=sheetRowMap[String(memberId)];
+    if(sheetRowMap[String(memberId)] === 'pending') return; // 如果正在新增，直接擋掉防止重複新增
+    
+    let rowNum = sheetRowMap[String(memberId)];
     const now=new Date();
     const timeStr=now.toLocaleString('zh-TW');
+    
     if(!rowNum){
+        sheetRowMap[String(memberId)] = 'pending'; // 上鎖
         const month=now.getFullYear()+'/'+String(now.getMonth()+1).padStart(2,'0');
         const dateStr=now.toISOString().split('T')[0];
         const ownerName=(item.user_name&&item.user_name.trim())?item.user_name.trim():getWriterName();
+        
         await appendRow([String(memberId),item.member_name||'',item.mobile||'',item.source||'無',ownerName,crmUid,dateStr,month,status,grade,memo,timeStr]);
-        sheetRowMap[String(memberId)]=Object.keys(sheetRowMap).length+2;
+        
+        maxKnownRow++;
+        sheetRowMap[String(memberId)] = maxKnownRow; // 解鎖並寫入
     }else{
         await updateRow(rowNum,[status,grade,memo,timeStr]);
     }
-    sheetData[String(memberId)]={status,grade,memo};
+    
+    if(!sheetData[String(memberId)]) sheetData[String(memberId)] = {status:'', grade:'', memo:''};
+    sheetData[String(memberId)].status = status;
+    sheetData[String(memberId)].grade = grade;
+    sheetData[String(memberId)].memo = memo;
 }
 
 async function sheetsDeleteRow(rowNum){ await deleteRow(rowNum); }
@@ -413,6 +427,7 @@ function renderList(){
     });
     filteredData.sort((a,b)=>(getDropDaysLeft(a,detailData[a.member_id])??999)-(getDropDaysLeft(b,detailData[b.member_id])??999));
     if(!filteredData.length){content.innerHTML='<div style="text-align:center;padding:20px;color:#666;">找不到符合條件的名單。</div>';return;}
+    
     const typeStyles={'1':{label:'新單',bg:'#1a6fc4'},'2':{label:'常態',bg:'#27ae60'},'3':{label:'Demo',bg:'#8e44ad'},'4':{label:'釋出',bg:'#e67e22'}};
     const sourceHeader=isManager?'<th style="padding:6px;width:7%;">來源</th>':'';
     let html='<table style="width:100%;border-collapse:collapse;font-size:12px;">';
@@ -456,7 +471,7 @@ function renderList(){
         /* ══ 漸進式揭露邏輯：釋出名單(Type 4) 且尚未標記時，只顯示大按鈕 ══ */
         if (item.type == 4 && !isReInquire) {
             gradeHtml = '<span style="color:#bdc3c7;font-size:11px;">無須評等</span>';
-            memoHtml = '<button class="reinquire-btn" data-id="'+id+'" style="padding:6px 12px;border:1px solid #c0392b;border-radius:4px;background:#fff;color:#c0392b;cursor:pointer;font-size:12px;font-weight:bold;width:100%;">🚩 標記為「再次留單」</button>';
+            memoHtml = '<button class="reinquire-btn" data-id="'+id+'" style="padding:6px 12px;border:1px solid #c0392b;border-radius:4px;background:#fff;color:#c0392b;cursor:pointer;font-size:12px;font-weight:bold;width:100%;">🚩 標記為「再次留單」</button><span id="save-status-'+id+'" style="font-size:10px;margin-left:6px;"></span>';
         } else {
             /* ══ 內嵌 A/C 按鈕 ══ */
             const gradeA = sd.grade==='A';
@@ -493,57 +508,51 @@ function renderList(){
     if(filteredData.length>150)html+='<div style="text-align:center;padding:10px;color:#888;">(共 '+filteredData.length+' 筆，顯示前 150 筆)</div>';
     content.innerHTML=html;
 
-    /* ══ 再次留單切換事件 ══ */
+    /* ══ 👇 以下動作全部統一進入 debounceSaveMemo 佇列 👇 ══ */
+    
+    // 再次留單切換事件
     document.querySelectorAll('.reinquire-btn').forEach(btn=>{
-        btn.onclick=async e=>{
+        btn.onclick=e=>{
             const memberId=e.target.getAttribute('data-id');
             const item=allData.find(m=>(m.member_id||m.id)==memberId);
             if(!sheetData[String(memberId)])sheetData[String(memberId)]={status:'',grade:'',memo:''};
-            const sd=sheetData[String(memberId)];
             
-            // 切換狀態：若原本是再次留單就清除，否則標記
+            const sd=sheetData[String(memberId)];
             sd.status = (sd.status === '再次留單') ? '' : '再次留單';
-            renderList(); // 立即更新畫面展開欄位
-
-            // 背景儲存至 Sheet
-            try{
-                let statusToSave = sd.status;
-                if(item && item.type == 1) statusToSave = '新單'; // 新單強制保護
-                await updateSheetMemo(memberId, statusToSave, sd.grade, sd.memo, item);
-            }catch(err){console.log('再次留單狀態更新失敗',err);}
+            
+            renderList(); // 立即更新 UI，給予視覺回饋
+            debounceSaveMemo(memberId, sd.grade, sd.memo, item); // 進入儲存佇列
         };
     });
 
-    /* ══ A/C 按鈕點擊事件 ══ */
+    // A/C 按鈕點擊事件
     document.querySelectorAll('.grade-inline-btn').forEach(btn=>{
-        btn.onclick=async e=>{
+        btn.onclick=e=>{
             const memberId=e.target.getAttribute('data-id');
             const val=e.target.getAttribute('data-val');
             const item=allData.find(m=>(m.member_id||m.id)==memberId);
-            const sd=sheetData[String(memberId)]||{};
-            const memo=sd.memo||'';
             if(!sheetData[String(memberId)])sheetData[String(memberId)]={status:'',grade:'',memo:''};
+            
             sheetData[String(memberId)].grade=val;
-            renderList();
-            try{
-                let statusToSave=sd.status||'';
-                if(item&&item.type==1)statusToSave='新單';
-                await updateSheetMemo(memberId,statusToSave,val,memo,item);
-            }catch(e){console.log('A/C 儲存失敗',e);}
+            
+            renderList(); // 立即更新 UI
+            const sd=sheetData[String(memberId)];
+            debounceSaveMemo(memberId, sd.grade, sd.memo, item); // 進入儲存佇列
         };
     });
 
-    /* ══ 備註輸入框防抖儲存 ══ */
+    // 備註輸入框防抖儲存
     document.querySelectorAll('.memo-inline-input').forEach(input=>{
         input.addEventListener('input', e=>{
             const memberId=e.target.getAttribute('data-id');
             const memo=e.target.value;
             const item=allData.find(m=>(m.member_id||m.id)==memberId);
-            const sd=sheetData[String(memberId)]||{};
-            const grade=sd.grade||'';
             if(!sheetData[String(memberId)])sheetData[String(memberId)]={status:'',grade:'',memo:''};
+            
             sheetData[String(memberId)].memo=memo;
-            debounceSaveMemo(memberId,grade,memo,item);
+            
+            const sd=sheetData[String(memberId)];
+            debounceSaveMemo(memberId, sd.grade, sd.memo, item); // 進入儲存佇列
         });
     });
 
