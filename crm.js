@@ -83,9 +83,9 @@ async function deleteRow(rowNum){ return gasPost({action:'delete',rowNum}); }
 /* ══ 全局變數 ══ */
 let sheetData={}, sheetRowMap={};
 let allData=[], detailData={}, currentItem=null;
-let maxKnownRow = 1; // 追蹤試算表目前的最後一行，確保 Append 不會錯亂
+let maxKnownRow = 1; // 追蹤試算表目前的最後一行
 
-/* ══ 防抖儲存佇列 (排隊系統) ══ */
+/* ══ 防抖儲存佇列 (排隊與防呆系統) ══ */
 const saveTimers = {};
 const saveStatus = {};
 
@@ -99,28 +99,43 @@ function setSaveStatus(memberId, status) {
     else if(status === 'error') { el.textContent = '❌ 失敗'; el.style.color = '#e74c3c'; }
 }
 
-// 核心儲存邏輯：無論是打字、評等、標記，全透過此函數統一送出
 function debounceSaveMemo(memberId, grade, memo, item) {
     setSaveStatus(memberId, 'pending');
-    if(saveTimers[memberId]) clearTimeout(saveTimers[memberId]); // 刷新等待時間，防連點
+    if(saveTimers[memberId]) clearTimeout(saveTimers[memberId]); 
     
     saveTimers[memberId] = setTimeout(async () => {
         setSaveStatus(memberId, 'saving');
         try {
+            // 🚥 等待可能正在進行的「新增」動作完成 (防重複寫入)
+            let waitCount = 0;
+            while(sheetRowMap[String(memberId)] === 'pending' && waitCount < 20) {
+                await new Promise(r => setTimeout(r, 500));
+                waitCount++;
+            }
+
             const sd = sheetData[String(memberId)] || {status:'', grade:'', memo:''};
+            
+            // 💡 釋出名單(Type 4) 強制淨空：如果取消留單，連帶清空隱藏的 A/C 與備註
+            if (item.type == 4 && sd.status !== '再次留單') {
+                sd.grade = '';
+                sd.memo = '';
+            }
+            
             let statusToSave = sd.status || '';
+            let gradeToSave = sd.grade || '';
+            let memoToSave = sd.memo || '';
             if(item.type == 1) statusToSave = '新單';
 
-            const rowNum = sheetRowMap[String(memberId)];
-            const isEmpty = (statusToSave === '' && !grade && !memo); // 判斷是否為無用空資料
+            let rowNum = sheetRowMap[String(memberId)];
+            const isEmpty = (statusToSave === '' && !gradeToSave && !memoToSave);
 
-            // 💡 智慧刪除邏輯：非新單且資料全空時，執行刪除
+            // 🗑️ 刪除邏輯：非新單且資料全空時，執行刪除並校正行數
             if (item.type != 1 && isEmpty && typeof rowNum === 'number') {
                 await sheetsDeleteRow(rowNum);
                 delete sheetData[String(memberId)];
                 delete sheetRowMap[String(memberId)];
                 
-                // 【關鍵】刪除一列後，在它下方的所有資料都會往上移，因此本地 RowNum 要集體減 1
+                // 將受影響的下方資料行數全部減 1
                 for (let id in sheetRowMap) {
                     if (typeof sheetRowMap[id] === 'number' && sheetRowMap[id] > rowNum) {
                         sheetRowMap[id]--;
@@ -128,9 +143,9 @@ function debounceSaveMemo(memberId, grade, memo, item) {
                 }
                 if(maxKnownRow >= rowNum) maxKnownRow--;
             } 
-            // 若有資料，則新增或更新
+            // 📝 更新/新增邏輯
             else if (!isEmpty || item.type == 1) {
-                await updateSheetMemo(memberId, statusToSave, grade, memo, item);
+                await updateSheetMemo(memberId, statusToSave, gradeToSave, memoToSave, item);
             }
             
             setSaveStatus(memberId, 'saved');
@@ -139,7 +154,7 @@ function debounceSaveMemo(memberId, grade, memo, item) {
             setSaveStatus(memberId, 'error');
         }
         delete saveTimers[memberId];
-    }, 800); // 停止動作 0.8 秒後才發送，提升反應速度
+    }, 800); 
 }
 
 async function loadSheetData(){
@@ -166,21 +181,26 @@ function getWriterName(){ return USER_DICT[crmUid]||crmUid; }
 async function syncNewMemberToSheet(item,assignDate){
     const memberId=String(item.member_id);
     if(sheetRowMap[memberId])return;
+    
     sheetRowMap[memberId] = 'pending'; // 上鎖防重複
-    
-    const now=new Date();
-    const month=now.getFullYear()+'/'+String(now.getMonth()+1).padStart(2,'0');
-    const dateStr=assignDate||now.toISOString().split('T')[0];
-    const ownerName=(item.user_name&&item.user_name.trim())?item.user_name.trim():getWriterName();
-    
-    await appendRow([memberId,item.member_name||'',item.mobile||'',item.source||'無',ownerName,crmUid,dateStr,month,'新單','','',now.toLocaleString('zh-TW')]);
-    
-    maxKnownRow++;
-    sheetRowMap[memberId] = maxKnownRow; // 解鎖並寫入正確行數
+    try {
+        const now=new Date();
+        const month=now.getFullYear()+'/'+String(now.getMonth()+1).padStart(2,'0');
+        const dateStr=assignDate||now.toISOString().split('T')[0];
+        const ownerName=(item.user_name&&item.user_name.trim())?item.user_name.trim():getWriterName();
+        
+        await appendRow([memberId,item.member_name||'',item.mobile||'',item.source||'無',ownerName,crmUid,dateStr,month,'新單','','',now.toLocaleString('zh-TW')]);
+        
+        maxKnownRow++;
+        sheetRowMap[memberId] = maxKnownRow; // 解鎖並寫入行數
+    } catch(e) {
+        delete sheetRowMap[memberId];
+        throw e;
+    }
 }
 
 async function updateSheetMemo(memberId,status,grade,memo,item){
-    if(sheetRowMap[String(memberId)] === 'pending') return; // 如果正在新增，直接擋掉防止重複新增
+    if(sheetRowMap[String(memberId)] === 'pending') return; 
     
     let rowNum = sheetRowMap[String(memberId)];
     const now=new Date();
@@ -188,14 +208,19 @@ async function updateSheetMemo(memberId,status,grade,memo,item){
     
     if(!rowNum){
         sheetRowMap[String(memberId)] = 'pending'; // 上鎖
-        const month=now.getFullYear()+'/'+String(now.getMonth()+1).padStart(2,'0');
-        const dateStr=now.toISOString().split('T')[0];
-        const ownerName=(item.user_name&&item.user_name.trim())?item.user_name.trim():getWriterName();
-        
-        await appendRow([String(memberId),item.member_name||'',item.mobile||'',item.source||'無',ownerName,crmUid,dateStr,month,status,grade,memo,timeStr]);
-        
-        maxKnownRow++;
-        sheetRowMap[String(memberId)] = maxKnownRow; // 解鎖並寫入
+        try {
+            const month=now.getFullYear()+'/'+String(now.getMonth()+1).padStart(2,'0');
+            const dateStr=now.toISOString().split('T')[0];
+            const ownerName=(item.user_name&&item.user_name.trim())?item.user_name.trim():getWriterName();
+            
+            await appendRow([String(memberId),item.member_name||'',item.mobile||'',item.source||'無',ownerName,crmUid,dateStr,month,status,grade,memo,timeStr]);
+            
+            maxKnownRow++;
+            sheetRowMap[String(memberId)] = maxKnownRow; 
+        } catch(e) {
+            delete sheetRowMap[String(memberId)];
+            throw e;
+        }
     }else{
         await updateRow(rowNum,[status,grade,memo,timeStr]);
     }
@@ -468,12 +493,11 @@ function renderList(){
         let gradeHtml = '';
         let memoHtml = '';
 
-        /* ══ 漸進式揭露邏輯：釋出名單(Type 4) 且尚未標記時，只顯示大按鈕 ══ */
+        /* ══ 漸進式揭露邏輯 ══ */
         if (item.type == 4 && !isReInquire) {
             gradeHtml = '<span style="color:#bdc3c7;font-size:11px;">無須評等</span>';
             memoHtml = '<button class="reinquire-btn" data-id="'+id+'" style="padding:6px 12px;border:1px solid #c0392b;border-radius:4px;background:#fff;color:#c0392b;cursor:pointer;font-size:12px;font-weight:bold;width:100%;">🚩 標記為「再次留單」</button><span id="save-status-'+id+'" style="font-size:10px;margin-left:6px;"></span>';
         } else {
-            /* ══ 內嵌 A/C 按鈕 ══ */
             const gradeA = sd.grade==='A';
             const gradeC = sd.grade==='C';
             gradeHtml =
@@ -483,12 +507,11 @@ function renderList(){
                 (sd.grade?'<button class="grade-inline-btn" data-id="'+id+'" data-val="" style="padding:2px 6px;border:1px solid #ddd;border-radius:4px;cursor:pointer;font-size:10px;background:#f5f5f5;color:#999;">✕</button>':'') +
                 '</div>';
 
-            /* ══ 內嵌備註輸入框與切換按鈕 ══ */
             let reInqToggle = '';
             if (item.type != 1) { 
                 if (isReInquire) {
                     reInqToggle = '<button class="reinquire-btn" data-id="'+id+'" style="margin-bottom:4px;padding:2px 6px;border:none;border-radius:4px;background:#c0392b;color:#fff;cursor:pointer;font-size:10px;font-weight:bold;">✅ 已標記再次留單 (點擊取消)</button><br>';
-                } else if (item.type != 4) { // 常態或 Demo 單的小型標記鈕
+                } else if (item.type != 4) { 
                     reInqToggle = '<button class="reinquire-btn" data-id="'+id+'" style="margin-bottom:4px;padding:2px 6px;border:1px solid #c0392b;border-radius:4px;background:#fff;color:#c0392b;cursor:pointer;font-size:10px;font-weight:bold;">🚩 標記為再次留單</button><br>';
                 }
             }
@@ -510,7 +533,6 @@ function renderList(){
 
     /* ══ 👇 以下動作全部統一進入 debounceSaveMemo 佇列 👇 ══ */
     
-    // 再次留單切換事件
     document.querySelectorAll('.reinquire-btn').forEach(btn=>{
         btn.onclick=e=>{
             const memberId=e.target.getAttribute('data-id');
@@ -520,12 +542,11 @@ function renderList(){
             const sd=sheetData[String(memberId)];
             sd.status = (sd.status === '再次留單') ? '' : '再次留單';
             
-            renderList(); // 立即更新 UI，給予視覺回饋
-            debounceSaveMemo(memberId, sd.grade, sd.memo, item); // 進入儲存佇列
+            renderList(); 
+            debounceSaveMemo(memberId, sd.grade, sd.memo, item); 
         };
     });
 
-    // A/C 按鈕點擊事件
     document.querySelectorAll('.grade-inline-btn').forEach(btn=>{
         btn.onclick=e=>{
             const memberId=e.target.getAttribute('data-id');
@@ -535,13 +556,12 @@ function renderList(){
             
             sheetData[String(memberId)].grade=val;
             
-            renderList(); // 立即更新 UI
+            renderList(); 
             const sd=sheetData[String(memberId)];
-            debounceSaveMemo(memberId, sd.grade, sd.memo, item); // 進入儲存佇列
+            debounceSaveMemo(memberId, sd.grade, sd.memo, item); 
         };
     });
 
-    // 備註輸入框防抖儲存
     document.querySelectorAll('.memo-inline-input').forEach(input=>{
         input.addEventListener('input', e=>{
             const memberId=e.target.getAttribute('data-id');
@@ -552,11 +572,10 @@ function renderList(){
             sheetData[String(memberId)].memo=memo;
             
             const sd=sheetData[String(memberId)];
-            debounceSaveMemo(memberId, sd.grade, sd.memo, item); // 進入儲存佇列
+            debounceSaveMemo(memberId, sd.grade, sd.memo, item); 
         });
     });
 
-    /* ══ 壓紀錄按鈕 ══ */
     document.querySelectorAll('.quick-record-btn').forEach(btn=>{
         btn.onclick=e=>{
             const memberId=e.target.getAttribute('data-id');
@@ -590,7 +609,6 @@ function renderList(){
     });
 }
 
-/* ══ 壓紀錄送出 ══ */
 document.getElementById('modal-submit').onclick=()=>{
     if(!currentItem)return;
     const memberId=document.getElementById('modal-member-id').value;
