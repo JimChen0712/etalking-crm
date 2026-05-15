@@ -9,7 +9,7 @@ if(!['www.etalkingonline.com','admin.etalkingonline.com'].includes(host)){
 const path=window.location.pathname;
 
 if(host==='www.etalkingonline.com'&&!path.includes('request_develop')){
-    alert('⚠️ 通道已失效！\n\n① 點確定返回後台\n② 進入名單管理頁面\n③ 點開任一張單的「編輯」\n④ 再點一次書籤');
+    alert('⚠️ 通道已失效！\n\n① 點確定返回後台\n② 進入名單管理頁面\n③ 點開任一張單的「編輯」\n④ 再點一次書籤.');
     window.location.href='https://admin.etalkingonline.com/etalking2.0/#/request_list';
     return;
 }
