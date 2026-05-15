@@ -9,7 +9,7 @@ if(!['www.etalkingonline.com','admin.etalkingonline.com'].includes(host)){
 const path=window.location.pathname;
 
 if(host==='www.etalkingonline.com'&&!path.includes('request_develop')){
-    alert('⚠️ 通道已失效！\n\n① 點確定返回後台\n② 進入名單管理頁面\n③ 點開任一張單的「編輯」\n④ 再點一次書籤.');
+    alert('⚠️ 通道已失效！\n\n① 點確定返回後台\n② 進入名單管理頁面\n③ 點開任一張單的「編輯」\n④ 再點一次書籤');
     window.location.href='https://admin.etalkingonline.com/etalking2.0/#/request_list';
     return;
 }
@@ -444,27 +444,47 @@ function renderList(){
             progressHtml='<div style="font-size:10px;color:#1a6fc4;margin-top:3px;">進單:'+assignStr+' 進度:'+count+'/6</div><div style="width:100%;height:3px;background:#ddd;border-radius:2px;margin-top:2px;"><div style="width:'+pct+'%;height:100%;background:'+(pct<100?'#3498db':'#27ae60')+';border-radius:2px;"></div></div>';
         }
 
-        const reInquireHtml=sd.status==='再次留單'?'<span style="background:#c0392b;color:white;padding:1px 5px;border-radius:3px;font-size:10px;margin-left:5px;">再次留單</span>':'';
+        const isReInquire = (sd.status === '再次留單');
+        const reInquireHtml = isReInquire ? '<span style="background:#c0392b;color:white;padding:1px 5px;border-radius:3px;font-size:10px;margin-left:5px;">再次留單</span>' : '';
         const btnBg=dropDays!==null&&dropDays<=0?'#e74c3c':ts.bg;
         const sourceCell=isManager?'<td style="padding:6px;color:#8e44ad;font-size:11px;vertical-align:top;">S:'+(item.source||'-')+'</td>':'';
         const displayUserName=(item.user_name&&item.user_name.trim())?item.user_name.trim():getWriterName();
 
-        /* ══ 內嵌 A/C 按鈕 ══ */
-        const gradeA = sd.grade==='A';
-        const gradeC = sd.grade==='C';
-        const gradeHtml =
-            '<div style="display:flex;gap:4px;align-items:center;flex-wrap:wrap;">' +
-            '<button class="grade-inline-btn" data-id="'+id+'" data-val="A" style="padding:2px 10px;border:2px solid '+(gradeA?'#1a6fc4':'#ddd')+';border-radius:4px;cursor:pointer;font-weight:bold;font-size:12px;background:'+(gradeA?'#1a6fc4':'#fff')+';color:'+(gradeA?'white':'#333')+';">A</button>' +
-            '<button class="grade-inline-btn" data-id="'+id+'" data-val="C" style="padding:2px 10px;border:2px solid '+(gradeC?'#e67e22':'#ddd')+';border-radius:4px;cursor:pointer;font-weight:bold;font-size:12px;background:'+(gradeC?'#e67e22':'#fff')+';color:'+(gradeC?'white':'#333')+';">C</button>' +
-            (sd.grade?'<button class="grade-inline-btn" data-id="'+id+'" data-val="" style="padding:2px 6px;border:1px solid #ddd;border-radius:4px;cursor:pointer;font-size:10px;background:#f5f5f5;color:#999;">✕</button>':'') +
-            '</div>';
+        let gradeHtml = '';
+        let memoHtml = '';
 
-        /* ══ 內嵌備註輸入框 ══ */
-        const memoHtml =
-            '<div style="position:relative;">' +
-            '<textarea class="memo-inline-input" data-id="'+id+'" rows="2" style="width:100%;padding:4px 6px;border:1px solid #ddd;border-radius:4px;font-size:11px;font-family:sans-serif;resize:none;background:#fafafa;" placeholder="輸入備註...">'+( sd.memo||'' )+'</textarea>' +
-            '<span id="save-status-'+id+'" style="font-size:10px;position:absolute;bottom:2px;right:4px;"></span>' +
-            '</div>';
+        /* ══ 漸進式揭露邏輯：釋出名單(Type 4) 且尚未標記時，只顯示大按鈕 ══ */
+        if (item.type == 4 && !isReInquire) {
+            gradeHtml = '<span style="color:#bdc3c7;font-size:11px;">無須評等</span>';
+            memoHtml = '<button class="reinquire-btn" data-id="'+id+'" style="padding:6px 12px;border:1px solid #c0392b;border-radius:4px;background:#fff;color:#c0392b;cursor:pointer;font-size:12px;font-weight:bold;width:100%;">🚩 標記為「再次留單」</button>';
+        } else {
+            /* ══ 內嵌 A/C 按鈕 ══ */
+            const gradeA = sd.grade==='A';
+            const gradeC = sd.grade==='C';
+            gradeHtml =
+                '<div style="display:flex;gap:4px;align-items:center;flex-wrap:wrap;">' +
+                '<button class="grade-inline-btn" data-id="'+id+'" data-val="A" style="padding:2px 10px;border:2px solid '+(gradeA?'#1a6fc4':'#ddd')+';border-radius:4px;cursor:pointer;font-weight:bold;font-size:12px;background:'+(gradeA?'#1a6fc4':'#fff')+';color:'+(gradeA?'white':'#333')+';">A</button>' +
+                '<button class="grade-inline-btn" data-id="'+id+'" data-val="C" style="padding:2px 10px;border:2px solid '+(gradeC?'#e67e22':'#ddd')+';border-radius:4px;cursor:pointer;font-weight:bold;font-size:12px;background:'+(gradeC?'#e67e22':'#fff')+';color:'+(gradeC?'white':'#333')+';">C</button>' +
+                (sd.grade?'<button class="grade-inline-btn" data-id="'+id+'" data-val="" style="padding:2px 6px;border:1px solid #ddd;border-radius:4px;cursor:pointer;font-size:10px;background:#f5f5f5;color:#999;">✕</button>':'') +
+                '</div>';
+
+            /* ══ 內嵌備註輸入框與切換按鈕 ══ */
+            let reInqToggle = '';
+            if (item.type != 1) { 
+                if (isReInquire) {
+                    reInqToggle = '<button class="reinquire-btn" data-id="'+id+'" style="margin-bottom:4px;padding:2px 6px;border:none;border-radius:4px;background:#c0392b;color:#fff;cursor:pointer;font-size:10px;font-weight:bold;">✅ 已標記再次留單 (點擊取消)</button><br>';
+                } else if (item.type != 4) { // 常態或 Demo 單的小型標記鈕
+                    reInqToggle = '<button class="reinquire-btn" data-id="'+id+'" style="margin-bottom:4px;padding:2px 6px;border:1px solid #c0392b;border-radius:4px;background:#fff;color:#c0392b;cursor:pointer;font-size:10px;font-weight:bold;">🚩 標記為再次留單</button><br>';
+                }
+            }
+
+            memoHtml =
+                '<div style="position:relative;">' +
+                reInqToggle +
+                '<textarea class="memo-inline-input" data-id="'+id+'" rows="2" style="width:100%;padding:4px 6px;border:1px solid #ddd;border-radius:4px;font-size:11px;font-family:sans-serif;resize:none;background:#fafafa;" placeholder="輸入備註...">'+( sd.memo||'' )+'</textarea>' +
+                '<span id="save-status-'+id+'" style="font-size:10px;position:absolute;bottom:2px;right:4px;"></span>' +
+                '</div>';
+        }
 
         html+='<tr style="border-bottom:1px solid #dee2e6;border-left:4px solid '+rowBorderColor+';"><td style="padding:6px;vertical-align:top;"><b>'+(item.member_name||'未知')+'</b><br><span style="background:'+ts.bg+';color:white;padding:1px 5px;border-radius:3px;font-size:10px;">'+ts.label+'</span>'+reInquireHtml+progressHtml+'</td><td style="padding:6px;vertical-align:top;">'+(item.mobile||'-')+'</td><td style="padding:6px;vertical-align:top;">'+gradeHtml+'</td><td style="padding:6px;vertical-align:top;">'+memoHtml+'</td><td style="padding:6px;vertical-align:top;"><span style="color:#d35400;">'+(item.next_time&&!item.next_time.includes('0000')?item.next_time.split(' ')[0]:'無紀錄')+'</span>'+warningHtml+'</td>'+sourceCell+'<td style="padding:6px;color:#7f8c8d;vertical-align:top;font-size:11px;">'+displayUserName+'</td><td style="padding:6px;vertical-align:top;"><button class="quick-record-btn" data-id="'+id+'" style="padding:4px 8px;background:'+btnBg+';color:white;border:none;border-radius:4px;cursor:pointer;font-size:11px;font-weight:bold;width:100%;">壓紀錄</button></td></tr>';
     });
@@ -472,6 +492,27 @@ function renderList(){
     html+='</table>';
     if(filteredData.length>150)html+='<div style="text-align:center;padding:10px;color:#888;">(共 '+filteredData.length+' 筆，顯示前 150 筆)</div>';
     content.innerHTML=html;
+
+    /* ══ 再次留單切換事件 ══ */
+    document.querySelectorAll('.reinquire-btn').forEach(btn=>{
+        btn.onclick=async e=>{
+            const memberId=e.target.getAttribute('data-id');
+            const item=allData.find(m=>(m.member_id||m.id)==memberId);
+            if(!sheetData[String(memberId)])sheetData[String(memberId)]={status:'',grade:'',memo:''};
+            const sd=sheetData[String(memberId)];
+            
+            // 切換狀態：若原本是再次留單就清除，否則標記
+            sd.status = (sd.status === '再次留單') ? '' : '再次留單';
+            renderList(); // 立即更新畫面展開欄位
+
+            // 背景儲存至 Sheet
+            try{
+                let statusToSave = sd.status;
+                if(item && item.type == 1) statusToSave = '新單'; // 新單強制保護
+                await updateSheetMemo(memberId, statusToSave, sd.grade, sd.memo, item);
+            }catch(err){console.log('再次留單狀態更新失敗',err);}
+        };
+    });
 
     /* ══ A/C 按鈕點擊事件 ══ */
     document.querySelectorAll('.grade-inline-btn').forEach(btn=>{
@@ -481,11 +522,9 @@ function renderList(){
             const item=allData.find(m=>(m.member_id||m.id)==memberId);
             const sd=sheetData[String(memberId)]||{};
             const memo=sd.memo||'';
-            // 立即更新本地狀態並重新渲染
             if(!sheetData[String(memberId)])sheetData[String(memberId)]={status:'',grade:'',memo:''};
             sheetData[String(memberId)].grade=val;
             renderList();
-            // 儲存到 Sheet
             try{
                 let statusToSave=sd.status||'';
                 if(item&&item.type==1)statusToSave='新單';
@@ -532,7 +571,6 @@ function renderList(){
             dateInput.max=formatDate(maxDate);
             const d=detailData[memberId];
             document.getElementById('modal-info-text').innerText=item.type==1&&d?'【新單】已壓 '+d.contactCount+' 次，目標 6 次，還需 '+Math.max(0,6-d.contactCount)+' 次':'';
-            // 重置狀態
             const statusSel=document.getElementById('modal-status');
             statusSel.value='3';
             const contentEl=document.getElementById('modal-content');
