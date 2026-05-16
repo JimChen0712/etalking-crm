@@ -83,7 +83,7 @@ async function deleteRow(rowNum){ return gasPost({action:'delete',rowNum}); }
 /* ══ 全局變數 ══ */
 let sheetData={}, sheetRowMap={};
 let allData=[], detailData={}, currentItem=null;
-let maxKnownRow = 1; // 追蹤試算表目前的最後一行
+let maxKnownRow = 1;
 
 /* ══ 防抖儲存佇列 (排隊與防呆系統) ══ */
 const saveTimers = {};
@@ -106,7 +106,6 @@ function debounceSaveMemo(memberId, grade, memo, item) {
     saveTimers[memberId] = setTimeout(async () => {
         setSaveStatus(memberId, 'saving');
         try {
-            // 🚥 等待可能正在進行的「新增」動作完成 (防重複寫入)
             let waitCount = 0;
             while(sheetRowMap[String(memberId)] === 'pending' && waitCount < 20) {
                 await new Promise(r => setTimeout(r, 500));
@@ -115,7 +114,6 @@ function debounceSaveMemo(memberId, grade, memo, item) {
 
             const sd = sheetData[String(memberId)] || {status:'', grade:'', memo:''};
             
-            // 💡 釋出名單(Type 4) 強制淨空：如果取消留單，連帶清空隱藏的 A/C 與備註
             if (item.type == 4 && sd.status !== '再次留單') {
                 sd.grade = '';
                 sd.memo = '';
@@ -129,13 +127,11 @@ function debounceSaveMemo(memberId, grade, memo, item) {
             let rowNum = sheetRowMap[String(memberId)];
             const isEmpty = (statusToSave === '' && !gradeToSave && !memoToSave);
 
-            // 🗑️ 刪除邏輯：非新單且資料全空時，執行刪除並校正行數
             if (item.type != 1 && isEmpty && typeof rowNum === 'number') {
                 await sheetsDeleteRow(rowNum);
                 delete sheetData[String(memberId)];
                 delete sheetRowMap[String(memberId)];
                 
-                // 將受影響的下方資料行數全部減 1
                 for (let id in sheetRowMap) {
                     if (typeof sheetRowMap[id] === 'number' && sheetRowMap[id] > rowNum) {
                         sheetRowMap[id]--;
@@ -143,7 +139,6 @@ function debounceSaveMemo(memberId, grade, memo, item) {
                 }
                 if(maxKnownRow >= rowNum) maxKnownRow--;
             } 
-            // 📝 更新/新增邏輯
             else if (!isEmpty || item.type == 1) {
                 await updateSheetMemo(memberId, statusToSave, gradeToSave, memoToSave, item);
             }
@@ -182,7 +177,7 @@ async function syncNewMemberToSheet(item,assignDate){
     const memberId=String(item.member_id);
     if(sheetRowMap[memberId])return;
     
-    sheetRowMap[memberId] = 'pending'; // 上鎖防重複
+    sheetRowMap[memberId] = 'pending';
     try {
         const now=new Date();
         const month=now.getFullYear()+'/'+String(now.getMonth()+1).padStart(2,'0');
@@ -192,7 +187,7 @@ async function syncNewMemberToSheet(item,assignDate){
         await appendRow([memberId,item.member_name||'',item.mobile||'',item.source||'無',ownerName,crmUid,dateStr,month,'新單','','',now.toLocaleString('zh-TW')]);
         
         maxKnownRow++;
-        sheetRowMap[memberId] = maxKnownRow; // 解鎖並寫入行數
+        sheetRowMap[memberId] = maxKnownRow;
     } catch(e) {
         delete sheetRowMap[memberId];
         throw e;
@@ -207,7 +202,7 @@ async function updateSheetMemo(memberId,status,grade,memo,item){
     const timeStr=now.toLocaleString('zh-TW');
     
     if(!rowNum){
-        sheetRowMap[String(memberId)] = 'pending'; // 上鎖
+        sheetRowMap[String(memberId)] = 'pending';
         try {
             const month=now.getFullYear()+'/'+String(now.getMonth()+1).padStart(2,'0');
             const dateStr=now.toISOString().split('T')[0];
@@ -295,7 +290,9 @@ panel.style.cssText='position:fixed;top:50%;left:50%;transform:translate(-50%,-5
 
 const header=document.createElement('div');
 header.style.cssText='padding:12px 15px;background:#2c3e50;color:white;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;flex-shrink:0;';
-header.innerHTML='<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;"><h3 style="margin:0;font-size:15px;color:white;">名單管理面板</h3>'+(isManager?'<select id="consultant-filter" style="padding:4px;border-radius:4px;border:none;max-width:150px;"><option value="-1">所有業務</option></select><button id="sync-all-new-btn" style="padding:4px 10px;cursor:pointer;border-radius:4px;border:none;background:#8e44ad;color:white;font-weight:bold;">同步全體新單</button><button id="sync-demo-btn" style="padding:4px 10px;cursor:pointer;border-radius:4px;border:none;background:#e67e22;color:white;font-weight:bold;">同步Demo</button>':'<span style="font-size:12px;color:#bdc3c7;">我的名單</span>')+'<select id="t-type-filter" style="padding:4px;border-radius:4px;border:none;"><option value="-1">所有種類</option><option value="1">新單</option><option value="2">常態名單</option><option value="3">Demo過名單</option><option value="4">釋出名單</option></select><button id="refresh-btn" style="padding:4px 10px;cursor:pointer;border-radius:4px;border:none;background:#3498db;color:white;">重新整理</button><span id="loading-status" style="font-size:11px;color:#f1c40f;font-weight:bold;"></span></div><button id="close-btn" style="background:transparent;border:none;color:white;font-size:20px;cursor:pointer;">×</button>';
+
+/* --- 這裡加上 isManager 的判斷，徹底把 source-filter 藏進經理特權裡 --- */
+header.innerHTML='<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;"><h3 style="margin:0;font-size:15px;color:white;">名單管理面板</h3>'+(isManager?'<select id="consultant-filter" style="padding:4px;border-radius:4px;border:none;max-width:150px;"><option value="-1">所有業務</option></select><select id="source-filter" style="padding:4px;border-radius:4px;border:none;max-width:100px;"><option value="-1">所有來源</option></select><button id="sync-all-new-btn" style="padding:4px 10px;cursor:pointer;border-radius:4px;border:none;background:#8e44ad;color:white;font-weight:bold;">同步全體新單</button><button id="sync-demo-btn" style="padding:4px 10px;cursor:pointer;border-radius:4px;border:none;background:#e67e22;color:white;font-weight:bold;">同步Demo</button>':'<span style="font-size:12px;color:#bdc3c7;">我的名單</span>')+'<select id="t-type-filter" style="padding:4px;border-radius:4px;border:none;"><option value="-1">所有種類</option><option value="1">新單</option><option value="2">常態名單</option><option value="3">Demo過名單</option><option value="4">釋出名單</option></select><button id="refresh-btn" style="padding:4px 10px;cursor:pointer;border-radius:4px;border:none;background:#3498db;color:white;">重新整理</button><span id="loading-status" style="font-size:11px;color:#f1c40f;font-weight:bold;"></span></div><button id="close-btn" style="background:transparent;border:none;color:white;font-size:20px;cursor:pointer;">×</button>';
 
 const content=document.createElement('div');
 content.style.cssText='flex:1;overflow-y:auto;padding:12px;background:#f8f9fa;';
@@ -333,6 +330,33 @@ function updateConsultantDropdown(){
     select.innerHTML=html;select.value='-1';
 }
 
+function updateSourceDropdown() {
+    /* --- 雙重防護：如果不是經理，直接中斷執行，不要去讀選單 --- */
+    if(!isManager) return; 
+    
+    const select = document.getElementById('source-filter');
+    if(!select) return;
+
+    const currentVal = select.value;
+    const prefixes = new Set();
+    allData.forEach(item => {
+        if(item.source && item.source.trim().length >= 2) {
+            prefixes.add(item.source.trim().substring(0, 2).toUpperCase());
+        }
+    });
+    const sortedPrefixes = [...prefixes].sort();
+    let html = '<option value="-1">所有來源</option>';
+    sortedPrefixes.forEach(p => {
+        html += '<option value="' + p + '">' + p + '</option>';
+    });
+    select.innerHTML = html;
+    if(sortedPrefixes.includes(currentVal)) {
+        select.value = currentVal;
+    } else {
+        select.value = '-1';
+    }
+}
+
 async function fetchData(){
     const statusLabel=document.getElementById('loading-status');
     content.innerHTML='<div style="text-align:center;padding:20px;">資料載入中...</div>';
@@ -356,6 +380,8 @@ async function fetchData(){
             }catch(e){}
         }
         updateConsultantDropdown();
+        updateSourceDropdown(); 
+        
         renderList();
         if(!isManager){statusLabel.innerText='🔄 載入新單細節...';await loadDetailsForAll();}
         statusLabel.innerText='✅ 載入完成';
@@ -445,10 +471,15 @@ function getDropDaysLeft(item,detail){
 function renderList(){
     const selectedConsultant=isManager?document.getElementById('consultant-filter').value:'-1';
     const selectedTType=document.getElementById('t-type-filter').value;
+    
+    /* --- 同樣也是只讓經理抓取選單的值 --- */
+    const selectedSource = (isManager && document.getElementById('source-filter')) ? document.getElementById('source-filter').value : '-1';
+    
     let filteredData=allData.filter(item=>{
         const cMatch=isManager?(selectedConsultant=='-1'||(item.user_name||'').trim()===selectedConsultant):true;
         const tMatch=selectedTType=='-1'||String(item.type)===selectedTType;
-        return cMatch&&tMatch;
+        const sMatch = selectedSource === '-1' || (item.source && item.source.trim().substring(0, 2).toUpperCase() === selectedSource);
+        return cMatch && tMatch && sMatch;
     });
     filteredData.sort((a,b)=>(getDropDaysLeft(a,detailData[a.member_id])??999)-(getDropDaysLeft(b,detailData[b.member_id])??999));
     if(!filteredData.length){content.innerHTML='<div style="text-align:center;padding:20px;color:#666;">找不到符合條件的名單。</div>';return;}
@@ -493,7 +524,6 @@ function renderList(){
         let gradeHtml = '';
         let memoHtml = '';
 
-        /* ══ 漸進式揭露邏輯 ══ */
         if (item.type == 4 && !isReInquire) {
             gradeHtml = '<span style="color:#bdc3c7;font-size:11px;">無須評等</span>';
             memoHtml = '<button class="reinquire-btn" data-id="'+id+'" style="padding:6px 12px;border:1px solid #c0392b;border-radius:4px;background:#fff;color:#c0392b;cursor:pointer;font-size:12px;font-weight:bold;width:100%;">🚩 標記為「再次留單」</button><span id="save-status-'+id+'" style="font-size:10px;margin-left:6px;"></span>';
@@ -531,8 +561,6 @@ function renderList(){
     if(filteredData.length>150)html+='<div style="text-align:center;padding:10px;color:#888;">(共 '+filteredData.length+' 筆，顯示前 150 筆)</div>';
     content.innerHTML=html;
 
-    /* ══ 👇 以下動作全部統一進入 debounceSaveMemo 佇列 👇 ══ */
-    
     document.querySelectorAll('.reinquire-btn').forEach(btn=>{
         btn.onclick=e=>{
             const memberId=e.target.getAttribute('data-id');
@@ -636,9 +664,9 @@ document.getElementById('close-btn').onclick=()=>{
 };
 document.getElementById('refresh-btn').onclick=fetchData;
 document.getElementById('t-type-filter').onchange=renderList;
-document.getElementById('modal-cancel').onclick=()=>recordModal.style.display='none';
 
 if(isManager){
+    document.getElementById('source-filter').onchange = renderList;
     document.getElementById('consultant-filter').onchange=function(){
         renderList();
         if(this.value!=='-1')loadDetailsForConsultant(this.value);
