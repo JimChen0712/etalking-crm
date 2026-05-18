@@ -85,6 +85,66 @@ let sheetData={}, sheetRowMap={};
 let allData=[], detailData={}, currentItem=null;
 let maxKnownRow = 1;
 
+/* ══════════════════════════════════════════════════════
+   Promise 鎖：防止同一 member_id 同時發出兩次 appendRow
+   取代舊版的 'pending' 字串方案
+══════════════════════════════════════════════════════ */
+const memberWriteLocks = {};
+
+/**
+ * 確保 member 已在 Sheet 中存在。
+ * - 若已有 rowNum（數字）→ 直接 return
+ * - 若其他人正在寫入 → 等待那個 Promise 結束再 return
+ * - 否則自己執行 appendRow，並從 GAS 回傳的 rowNum 對齊 sheetRowMap
+ */
+async function ensureMemberInSheet(memberId, item, assignDate) {
+    const id = String(memberId);
+
+    // 已有正確行號，直接結束
+    if (typeof sheetRowMap[id] === 'number') return;
+
+    // 有其他 Promise 正在寫入，等它完成
+    if (memberWriteLocks[id]) {
+        await memberWriteLocks[id];
+        return;
+    }
+
+    // 建立鎖
+    let resolveLock;
+    memberWriteLocks[id] = new Promise(r => resolveLock = r);
+
+    try {
+        const now = new Date();
+        const month = now.getFullYear() + '/' + String(now.getMonth() + 1).padStart(2, '0');
+        const dateStr = assignDate || now.toISOString().split('T')[0];
+        const ownerName = (item.user_name && item.user_name.trim())
+            ? item.user_name.trim() : getWriterName();
+
+        const res = await appendRow([
+            id, item.member_name || '', item.mobile || '',
+            item.source || '無', ownerName, crmUid, dateStr, month,
+            item.type == 1 ? '新單' : '', '', '', now.toLocaleString('zh-TW')
+        ]);
+
+        // ★ 核心改動：從 GAS 回傳值取得 rowNum（不論是新寫入還是已存在都有）
+        if (res && typeof res.rowNum === 'number') {
+            sheetRowMap[id] = res.rowNum;
+            if (res.rowNum > maxKnownRow) maxKnownRow = res.rowNum;
+        } else {
+            // GAS 沒回傳 rowNum（舊版 GAS 或異常）→ 用本地計數器兜底
+            maxKnownRow++;
+            sheetRowMap[id] = maxKnownRow;
+        }
+    } catch(e) {
+        // 失敗就清掉，讓下次可以重試
+        delete sheetRowMap[id];
+        throw e;
+    } finally {
+        resolveLock();
+        delete memberWriteLocks[id];
+    }
+}
+
 /* ══ 防抖儲存佇列 (排隊與防呆系統) ══ */
 const saveTimers = {};
 const saveStatus = {};
@@ -106,10 +166,9 @@ function debounceSaveMemo(memberId, grade, memo, item) {
     saveTimers[memberId] = setTimeout(async () => {
         setSaveStatus(memberId, 'saving');
         try {
-            let waitCount = 0;
-            while(sheetRowMap[String(memberId)] === 'pending' && waitCount < 20) {
-                await new Promise(r => setTimeout(r, 500));
-                waitCount++;
+            // ★ 改動：改用 Promise 鎖等待，不再用 while + 字串比對
+            if (memberWriteLocks[String(memberId)]) {
+                await memberWriteLocks[String(memberId)];
             }
 
             const sd = sheetData[String(memberId)] || {status:'', grade:'', memo:''};
@@ -173,57 +232,32 @@ async function loadSheetData(){
 
 function getWriterName(){ return USER_DICT[crmUid]||crmUid; }
 
-async function syncNewMemberToSheet(item,assignDate){
-    const memberId=String(item.member_id);
-    if(sheetRowMap[memberId])return;
-    
-    sheetRowMap[memberId] = 'pending';
-    try {
-        const now=new Date();
-        const month=now.getFullYear()+'/'+String(now.getMonth()+1).padStart(2,'0');
-        const dateStr=assignDate||now.toISOString().split('T')[0];
-        const ownerName=(item.user_name&&item.user_name.trim())?item.user_name.trim():getWriterName();
-        
-        await appendRow([memberId,item.member_name||'',item.mobile||'',item.source||'無',ownerName,crmUid,dateStr,month,'新單','','',now.toLocaleString('zh-TW')]);
-        
-        maxKnownRow++;
-        sheetRowMap[memberId] = maxKnownRow;
-    } catch(e) {
-        delete sheetRowMap[memberId];
-        throw e;
-    }
+/* ★ 改動：syncNewMemberToSheet 現在只是 ensureMemberInSheet 的薄包裝 */
+async function syncNewMemberToSheet(item, assignDate){
+    await ensureMemberInSheet(item.member_id, item, assignDate);
 }
 
-async function updateSheetMemo(memberId,status,grade,memo,item){
-    if(sheetRowMap[String(memberId)] === 'pending') return; 
-    
-    let rowNum = sheetRowMap[String(memberId)];
-    const now=new Date();
-    const timeStr=now.toLocaleString('zh-TW');
-    
-    if(!rowNum){
-        sheetRowMap[String(memberId)] = 'pending';
-        try {
-            const month=now.getFullYear()+'/'+String(now.getMonth()+1).padStart(2,'0');
-            const dateStr=now.toISOString().split('T')[0];
-            const ownerName=(item.user_name&&item.user_name.trim())?item.user_name.trim():getWriterName();
-            
-            await appendRow([String(memberId),item.member_name||'',item.mobile||'',item.source||'無',ownerName,crmUid,dateStr,month,status,grade,memo,timeStr]);
-            
-            maxKnownRow++;
-            sheetRowMap[String(memberId)] = maxKnownRow; 
-        } catch(e) {
-            delete sheetRowMap[String(memberId)];
-            throw e;
-        }
-    }else{
-        await updateRow(rowNum,[status,grade,memo,timeStr]);
+async function updateSheetMemo(memberId, status, grade, memo, item){
+    const id = String(memberId);
+
+    // ★ 改動：若尚未在 Sheet 中，先確保存在（走 ensureMemberInSheet，有鎖保護）
+    if (typeof sheetRowMap[id] !== 'number') {
+        await ensureMemberInSheet(memberId, item, null);
     }
-    
-    if(!sheetData[String(memberId)]) sheetData[String(memberId)] = {status:'', grade:'', memo:''};
-    sheetData[String(memberId)].status = status;
-    sheetData[String(memberId)].grade = grade;
-    sheetData[String(memberId)].memo = memo;
+
+    const rowNum = sheetRowMap[id];
+    if (typeof rowNum !== 'number') {
+        throw new Error('updateSheetMemo: 無法取得有效 rowNum，memberId=' + id);
+    }
+
+    const now = new Date();
+    const timeStr = now.toLocaleString('zh-TW');
+    await updateRow(rowNum, [status, grade, memo, timeStr]);
+
+    if(!sheetData[id]) sheetData[id] = {status:'', grade:'', memo:''};
+    sheetData[id].status = status;
+    sheetData[id].grade  = grade;
+    sheetData[id].memo   = memo;
 }
 
 async function sheetsDeleteRow(rowNum){ await deleteRow(rowNum); }
@@ -291,7 +325,6 @@ panel.style.cssText='position:fixed;top:50%;left:50%;transform:translate(-50%,-5
 const header=document.createElement('div');
 header.style.cssText='padding:12px 15px;background:#2c3e50;color:white;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;flex-shrink:0;';
 
-/* --- 這裡加上 isManager 的判斷，徹底把 source-filter 藏進經理特權裡 --- */
 header.innerHTML='<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;"><h3 style="margin:0;font-size:15px;color:white;">名單管理面板</h3>'+(isManager?'<select id="consultant-filter" style="padding:4px;border-radius:4px;border:none;max-width:150px;"><option value="-1">所有業務</option></select><select id="source-filter" style="padding:4px;border-radius:4px;border:none;max-width:100px;"><option value="-1">所有來源</option></select><button id="sync-all-new-btn" style="padding:4px 10px;cursor:pointer;border-radius:4px;border:none;background:#8e44ad;color:white;font-weight:bold;">同步全體新單</button><button id="sync-demo-btn" style="padding:4px 10px;cursor:pointer;border-radius:4px;border:none;background:#e67e22;color:white;font-weight:bold;">同步Demo</button>':'<span style="font-size:12px;color:#bdc3c7;">我的名單</span>')+'<select id="t-type-filter" style="padding:4px;border-radius:4px;border:none;"><option value="-1">所有種類</option><option value="1">新單</option><option value="2">常態名單</option><option value="3">Demo過名單</option><option value="4">釋出名單</option></select><button id="refresh-btn" style="padding:4px 10px;cursor:pointer;border-radius:4px;border:none;background:#3498db;color:white;">重新整理</button><span id="loading-status" style="font-size:11px;color:#f1c40f;font-weight:bold;"></span></div><button id="close-btn" style="background:transparent;border:none;color:white;font-size:20px;cursor:pointer;">×</button>';
 
 const content=document.createElement('div');
@@ -331,12 +364,9 @@ function updateConsultantDropdown(){
 }
 
 function updateSourceDropdown() {
-    /* --- 雙重防護：如果不是經理，直接中斷執行，不要去讀選單 --- */
     if(!isManager) return; 
-    
     const select = document.getElementById('source-filter');
     if(!select) return;
-
     const currentVal = select.value;
     const prefixes = new Set();
     allData.forEach(item => {
@@ -381,7 +411,6 @@ async function fetchData(){
         }
         updateConsultantDropdown();
         updateSourceDropdown(); 
-        
         renderList();
         if(!isManager){statusLabel.innerText='🔄 載入新單細節...';await loadDetailsForAll();}
         statusLabel.innerText='✅ 載入完成';
@@ -471,8 +500,6 @@ function getDropDaysLeft(item,detail){
 function renderList(){
     const selectedConsultant=isManager?document.getElementById('consultant-filter').value:'-1';
     const selectedTType=document.getElementById('t-type-filter').value;
-    
-    /* --- 同樣也是只讓經理抓取選單的值 --- */
     const selectedSource = (isManager && document.getElementById('source-filter')) ? document.getElementById('source-filter').value : '-1';
     
     let filteredData=allData.filter(item=>{
@@ -566,10 +593,8 @@ function renderList(){
             const memberId=e.target.getAttribute('data-id');
             const item=allData.find(m=>(m.member_id||m.id)==memberId);
             if(!sheetData[String(memberId)])sheetData[String(memberId)]={status:'',grade:'',memo:''};
-            
             const sd=sheetData[String(memberId)];
             sd.status = (sd.status === '再次留單') ? '' : '再次留單';
-            
             renderList(); 
             debounceSaveMemo(memberId, sd.grade, sd.memo, item); 
         };
@@ -581,9 +606,7 @@ function renderList(){
             const val=e.target.getAttribute('data-val');
             const item=allData.find(m=>(m.member_id||m.id)==memberId);
             if(!sheetData[String(memberId)])sheetData[String(memberId)]={status:'',grade:'',memo:''};
-            
             sheetData[String(memberId)].grade=val;
-            
             renderList(); 
             const sd=sheetData[String(memberId)];
             debounceSaveMemo(memberId, sd.grade, sd.memo, item); 
@@ -596,9 +619,7 @@ function renderList(){
             const memo=e.target.value;
             const item=allData.find(m=>(m.member_id||m.id)==memberId);
             if(!sheetData[String(memberId)])sheetData[String(memberId)]={status:'',grade:'',memo:''};
-            
             sheetData[String(memberId)].memo=memo;
-            
             const sd=sheetData[String(memberId)];
             debounceSaveMemo(memberId, sd.grade, sd.memo, item); 
         });
@@ -657,6 +678,8 @@ document.getElementById('modal-submit').onclick=()=>{
         renderList();
     },1000);
 };
+
+document.getElementById('modal-cancel').onclick=()=>{ recordModal.style.display='none'; };
 
 document.getElementById('close-btn').onclick=()=>{
     panel.remove();curtain.remove();document.body.style.overflow='';
