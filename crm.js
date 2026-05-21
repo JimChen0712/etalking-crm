@@ -87,56 +87,37 @@ let maxKnownRow = 1;
 
 /* ══════════════════════════════════════════════════════
    Promise 鎖：防止同一 member_id 同時發出兩次 appendRow
-   取代舊版的 'pending' 字串方案
 ══════════════════════════════════════════════════════ */
 const memberWriteLocks = {};
 
-/**
- * 確保 member 已在 Sheet 中存在。
- * - 若已有 rowNum（數字）→ 直接 return
- * - 若其他人正在寫入 → 等待那個 Promise 結束再 return
- * - 否則自己執行 appendRow，並從 GAS 回傳的 rowNum 對齊 sheetRowMap
- */
 async function ensureMemberInSheet(memberId, item, assignDate) {
     const id = String(memberId);
-
-    // 已有正確行號，直接結束
     if (typeof sheetRowMap[id] === 'number') return;
-
-    // 有其他 Promise 正在寫入，等它完成
     if (memberWriteLocks[id]) {
         await memberWriteLocks[id];
         return;
     }
-
-    // 建立鎖
     let resolveLock;
     memberWriteLocks[id] = new Promise(r => resolveLock = r);
-
     try {
         const now = new Date();
         const month = now.getFullYear() + '/' + String(now.getMonth() + 1).padStart(2, '0');
         const dateStr = assignDate || now.toISOString().split('T')[0];
         const ownerName = (item.user_name && item.user_name.trim())
             ? item.user_name.trim() : getWriterName();
-
         const res = await appendRow([
             id, item.member_name || '', item.mobile || '',
             item.source || '無', ownerName, crmUid, dateStr, month,
             item.type == 1 ? '新單' : '', '', '', now.toLocaleString('zh-TW')
         ]);
-
-        // ★ 核心改動：從 GAS 回傳值取得 rowNum（不論是新寫入還是已存在都有）
         if (res && typeof res.rowNum === 'number') {
             sheetRowMap[id] = res.rowNum;
             if (res.rowNum > maxKnownRow) maxKnownRow = res.rowNum;
         } else {
-            // GAS 沒回傳 rowNum（舊版 GAS 或異常）→ 用本地計數器兜底
             maxKnownRow++;
             sheetRowMap[id] = maxKnownRow;
         }
     } catch(e) {
-        // 失敗就清掉，讓下次可以重試
         delete sheetRowMap[id];
         throw e;
     } finally {
@@ -145,7 +126,7 @@ async function ensureMemberInSheet(memberId, item, assignDate) {
     }
 }
 
-/* ══ 防抖儲存佇列 (排隊與防呆系統) ══ */
+/* ══ 防抖儲存佇列 ══ */
 const saveTimers = {};
 const saveStatus = {};
 
@@ -162,35 +143,27 @@ function setSaveStatus(memberId, status) {
 function debounceSaveMemo(memberId, grade, memo, item) {
     setSaveStatus(memberId, 'pending');
     if(saveTimers[memberId]) clearTimeout(saveTimers[memberId]); 
-    
     saveTimers[memberId] = setTimeout(async () => {
         setSaveStatus(memberId, 'saving');
         try {
-            // ★ 改動：改用 Promise 鎖等待，不再用 while + 字串比對
             if (memberWriteLocks[String(memberId)]) {
                 await memberWriteLocks[String(memberId)];
             }
-
             const sd = sheetData[String(memberId)] || {status:'', grade:'', memo:''};
-            
             if (item.type == 4 && sd.status !== '再次留單') {
                 sd.grade = '';
                 sd.memo = '';
             }
-            
             let statusToSave = sd.status || '';
             let gradeToSave = sd.grade || '';
             let memoToSave = sd.memo || '';
             if(item.type == 1) statusToSave = '新單';
-
             let rowNum = sheetRowMap[String(memberId)];
             const isEmpty = (statusToSave === '' && !gradeToSave && !memoToSave);
-
             if (item.type != 1 && isEmpty && typeof rowNum === 'number') {
                 await sheetsDeleteRow(rowNum);
                 delete sheetData[String(memberId)];
                 delete sheetRowMap[String(memberId)];
-                
                 for (let id in sheetRowMap) {
                     if (typeof sheetRowMap[id] === 'number' && sheetRowMap[id] > rowNum) {
                         sheetRowMap[id]--;
@@ -201,7 +174,6 @@ function debounceSaveMemo(memberId, grade, memo, item) {
             else if (!isEmpty || item.type == 1) {
                 await updateSheetMemo(memberId, statusToSave, gradeToSave, memoToSave, item);
             }
-            
             setSaveStatus(memberId, 'saved');
         } catch(e) {
             console.error(e);
@@ -232,28 +204,22 @@ async function loadSheetData(){
 
 function getWriterName(){ return USER_DICT[crmUid]||crmUid; }
 
-/* ★ 改動：syncNewMemberToSheet 現在只是 ensureMemberInSheet 的薄包裝 */
 async function syncNewMemberToSheet(item, assignDate){
     await ensureMemberInSheet(item.member_id, item, assignDate);
 }
 
 async function updateSheetMemo(memberId, status, grade, memo, item){
     const id = String(memberId);
-
-    // ★ 改動：若尚未在 Sheet 中，先確保存在（走 ensureMemberInSheet，有鎖保護）
     if (typeof sheetRowMap[id] !== 'number') {
         await ensureMemberInSheet(memberId, item, null);
     }
-
     const rowNum = sheetRowMap[id];
     if (typeof rowNum !== 'number') {
         throw new Error('updateSheetMemo: 無法取得有效 rowNum，memberId=' + id);
     }
-
     const now = new Date();
     const timeStr = now.toLocaleString('zh-TW');
     await updateRow(rowNum, [status, grade, memo, timeStr]);
-
     if(!sheetData[id]) sheetData[id] = {status:'', grade:'', memo:''};
     sheetData[id].status = status;
     sheetData[id].grade  = grade;
@@ -412,7 +378,10 @@ async function fetchData(){
         updateConsultantDropdown();
         updateSourceDropdown(); 
         renderList();
-        if(!isManager){statusLabel.innerText='🔄 載入新單細節...';await loadDetailsForAll();}
+        if(!isManager){
+            statusLabel.innerText='🔄 載入名單細節...';
+            await loadDetailsForAll();
+        }
         statusLabel.innerText='✅ 載入完成';
         setTimeout(()=>statusLabel.innerText='',2000);
     }catch(err){
@@ -421,80 +390,122 @@ async function fetchData(){
     }
 }
 
+/* ══ 抓軌跡 log，同時處理新單(type==1)和常態名單(type==2) ══ */
+async function fetchMemberDetail(m) {
+    const memberId = m.member_id || m.id;
+    try {
+        const res = await fetch('/admin/request_develop?member_id=' + memberId + '&hide_layout=true');
+        const html = await res.text();
+        const doc = new DOMParser().parseFromString(html, 'text/html');
+        const rows = doc.querySelectorAll('table tbody tr');
+        let assignDate = null, normalDate = null, contactCount = 0;
+        rows.forEach(r => {
+            const cells = r.querySelectorAll('td');
+            if (cells.length < 4) return;
+            const logType = cells[3].innerText.trim();
+            const logContent = cells[4] ? cells[4].innerText : '';
+            const dateVal = cells[1].innerText.split(' ')[0];
+            if (logType.includes('名單移動')) {
+                // 新單進單日
+                if (logContent.includes('移動到新名單') && !assignDate) assignDate = dateVal;
+                // ★ 常態名單：變成常態的日期（取最新一筆，log 由新到舊排列所以第一筆最新）
+                if (logContent.includes('移動到常態名單') && !normalDate) normalDate = dateVal;
+            }
+            if (logType.includes('聯絡')) contactCount++;
+        });
+        detailData[memberId] = { assignDate, normalDate, contactCount };
+        // 新單才需要同步到 Sheet
+        if (m.type == 1 && assignDate) await syncNewMemberToSheet(m, assignDate);
+    } catch(e) {}
+}
+
 async function loadDetailsForAll(){
-    const targets=allData.filter(m=>m.type==1&&!detailData[m.member_id]);
-    if(!targets.length)return;
-    const statusLabel=document.getElementById('loading-status');
-    for(let i=0;i<targets.length;i+=5){
-        const batch=targets.slice(i,i+5);
-        await Promise.all(batch.map(async m=>{
-            try{
-                const res=await fetch('/admin/request_develop?member_id='+m.member_id+'&hide_layout=true');
-                const html=await res.text();
-                const doc=new DOMParser().parseFromString(html,'text/html');
-                const rows=doc.querySelectorAll('table tbody tr');
-                let assignDate=null,contactCount=0;
-                rows.forEach(r=>{
-                    const cells=r.querySelectorAll('td');
-                    if(cells.length<4)return;
-                    const type=cells[3].innerText.trim();
-                    if(type.includes('名單移動')&&cells[4]&&cells[4].innerText.includes('移動到新名單'))assignDate=cells[1].innerText.split(' ')[0];
-                    if(type.includes('聯絡'))contactCount++;
-                });
-                detailData[m.member_id]={assignDate,contactCount};
-                if(assignDate)await syncNewMemberToSheet(m,assignDate);
-            }catch(e){}
-        }));
-        statusLabel.innerText='🔄 新單細節 '+Math.min(i+5,targets.length)+'/'+targets.length;
+    // ★ 同時抓新單(type==1)和常態名單(type==2)
+    const targets = allData.filter(m => (m.type == 1 || m.type == 2) && !detailData[m.member_id]);
+    if (!targets.length) return;
+    const statusLabel = document.getElementById('loading-status');
+    for (let i = 0; i < targets.length; i += 5) {
+        const batch = targets.slice(i, i + 5);
+        await Promise.all(batch.map(m => fetchMemberDetail(m)));
+        statusLabel.innerText = '🔄 名單細節 ' + Math.min(i + 5, targets.length) + '/' + targets.length;
         renderList();
     }
 }
 
 async function loadDetailsForConsultant(consultantName){
-    const targets=allData.filter(m=>m.type==1&&(m.user_name||'').trim()===consultantName&&!detailData[m.member_id]);
-    if(!targets.length)return;
-    const statusLabel=document.getElementById('loading-status');
-    statusLabel.innerText='🔄 同步 '+consultantName+' 的新單...';
-    for(let i=0;i<targets.length;i+=5){
-        const batch=targets.slice(i,i+5);
-        await Promise.all(batch.map(async m=>{
-            try{
-                const res=await fetch('/admin/request_develop?member_id='+m.member_id+'&hide_layout=true');
-                const html=await res.text();
-                const doc=new DOMParser().parseFromString(html,'text/html');
-                const rows=doc.querySelectorAll('table tbody tr');
-                let assignDate=null,contactCount=0;
-                rows.forEach(r=>{
-                    const cells=r.querySelectorAll('td');
-                    if(cells.length<4)return;
-                    const type=cells[3].innerText.trim();
-                    if(type.includes('名單移動')&&cells[4]&&cells[4].innerText.includes('移動到新名單'))assignDate=cells[1].innerText.split(' ')[0];
-                    if(type.includes('聯絡'))contactCount++;
-                });
-                detailData[m.member_id]={assignDate,contactCount};
-                if(assignDate)await syncNewMemberToSheet(m,assignDate);
-            }catch(e){}
-        }));
-        statusLabel.innerText='🔄 '+consultantName+' 新單 '+Math.min(i+5,targets.length)+'/'+targets.length;
+    // ★ 同時抓新單和常態名單
+    const targets = allData.filter(m =>
+        (m.type == 1 || m.type == 2) &&
+        (m.user_name || '').trim() === consultantName &&
+        !detailData[m.member_id]
+    );
+    if (!targets.length) return;
+    const statusLabel = document.getElementById('loading-status');
+    statusLabel.innerText = '🔄 同步 ' + consultantName + ' 的名單...';
+    for (let i = 0; i < targets.length; i += 5) {
+        const batch = targets.slice(i, i + 5);
+        await Promise.all(batch.map(m => fetchMemberDetail(m)));
+        statusLabel.innerText = '🔄 ' + consultantName + ' 名單細節 ' + Math.min(i + 5, targets.length) + '/' + targets.length;
         renderList();
     }
-    statusLabel.innerText='✅ '+consultantName+' 同步完成';
-    setTimeout(()=>statusLabel.innerText='',2000);
+    statusLabel.innerText = '✅ ' + consultantName + ' 同步完成';
+    setTimeout(() => statusLabel.innerText = '', 2000);
 }
 
-function getDropDaysLeft(item,detail){
-    const today=new Date();today.setHours(0,0,0,0);
-    if(item.type==1){
-        if(!detail||!detail.assignDate)return null;
-        const assign=new Date(detail.assignDate);assign.setHours(0,0,0,0);
-        const dropDate=new Date(assign);dropDate.setDate(dropDate.getDate()+3);
-        return Math.ceil((dropDate-today)/86400000);
-    }else{
-        if(!item.next_time||item.next_time.includes('0000-00-00'))return null;
-        const nextT=new Date(item.next_time.split(' ')[0]);nextT.setHours(0,0,0,0);
-        const dropDate=new Date(nextT);dropDate.setDate(dropDate.getDate()+4);
-        return Math.ceil((dropDate-today)/86400000);
+/* ══ 噴單天數計算 ══ */
+function getDropDaysLeft(item, detail){
+    const today = new Date(); today.setHours(0,0,0,0);
+
+    if (item.type == 1) {
+        // 新單：進單日 + 3 天
+        if (!detail || !detail.assignDate) return null;
+        const assign = new Date(detail.assignDate); assign.setHours(0,0,0,0);
+        const dropDate = new Date(assign); dropDate.setDate(dropDate.getDate() + 3);
+        return Math.ceil((dropDate - today) / 86400000);
     }
+
+    if (item.type == 2) {
+        // ★ 常態名單邏輯：
+        // 基準噴單日 = normalDate + 4
+        // 例外：若 next_time > normalDate（代表變常態後有重新壓日期），則改用 next_time + 4
+        const normalDate = detail && detail.normalDate ? detail.normalDate : null;
+        const hasNextTime = item.next_time && !item.next_time.includes('0000-00-00');
+
+        if (!normalDate && !hasNextTime) return null;
+
+        let dropDate;
+
+        if (normalDate) {
+            const normalD = new Date(normalDate); normalD.setHours(0,0,0,0);
+            const baseDropDate = new Date(normalD); baseDropDate.setDate(normalD.getDate() + 4);
+
+            if (hasNextTime) {
+                const nextT = new Date(item.next_time.split(' ')[0]); nextT.setHours(0,0,0,0);
+                // next_time 比 normalDate 新 → 變常態後有重新壓，用 next_time + 4
+                if (nextT > normalD) {
+                    dropDate = new Date(nextT); dropDate.setDate(nextT.getDate() + 4);
+                } else {
+                    // next_time 是變常態前壓的舊日期，無視，用 normalDate + 4
+                    dropDate = baseDropDate;
+                }
+            } else {
+                // 沒有 next_time，直接用 normalDate + 4
+                dropDate = baseDropDate;
+            }
+        } else {
+            // 抓不到 normalDate（舊資料 fallback），用 next_time + 4
+            const nextT = new Date(item.next_time.split(' ')[0]); nextT.setHours(0,0,0,0);
+            dropDate = new Date(nextT); dropDate.setDate(nextT.getDate() + 4);
+        }
+
+        return Math.ceil((dropDate - today) / 86400000);
+    }
+
+    // 其他類型（type==3,4）：原本邏輯
+    if (!item.next_time || item.next_time.includes('0000-00-00')) return null;
+    const nextT = new Date(item.next_time.split(' ')[0]); nextT.setHours(0,0,0,0);
+    const dropDate = new Date(nextT); dropDate.setDate(nextT.getDate() + 4);
+    return Math.ceil((dropDate - today) / 86400000);
 }
 
 function renderList(){
@@ -530,7 +541,9 @@ function renderList(){
             else if(dropDays===0)warningHtml='<br><span style="color:#d35400;font-weight:bold;">🔥 今日噴單</span>';
             else if(dropDays<=2)warningHtml='<br><span style="color:#e67e22;font-weight:bold;">⚠️ 剩 '+dropDays+' 天</span>';
             else warningHtml='<br><span style="color:#16a085;">距噴單 '+dropDays+' 天</span>';
-        }else if(item.type==1&&!d){
+        } else if(item.type==2&&!d){
+            warningHtml=isManager&&selectedConsultant=='-1'?'<br><span style="color:#95a5a6;">請選取業務載入</span>':'<br><span style="color:#95a5a6;">載入中...</span>';
+        } else if(item.type==1&&!d){
             warningHtml=isManager&&selectedConsultant=='-1'?'<br><span style="color:#95a5a6;">請選取業務載入</span>':'<br><span style="color:#95a5a6;">載入中...</span>';
         }
 
@@ -540,6 +553,12 @@ function renderList(){
             const pct=Math.min(100,(count/6)*100);
             const assignStr=(d&&d.assignDate)?d.assignDate:'待載入';
             progressHtml='<div style="font-size:10px;color:#1a6fc4;margin-top:3px;">進單:'+assignStr+' 進度:'+count+'/6</div><div style="width:100%;height:3px;background:#ddd;border-radius:2px;margin-top:2px;"><div style="width:'+pct+'%;height:100%;background:'+(pct<100?'#3498db':'#27ae60')+';border-radius:2px;"></div></div>';
+        }
+
+        // ★ 常態名單：顯示變常態日
+        if(item.type==2){
+            const normalStr=(d&&d.normalDate)?d.normalDate:'待載入';
+            progressHtml='<div style="font-size:10px;color:#27ae60;margin-top:3px;">變常態:'+normalStr+'</div>';
         }
 
         const isReInquire = (sd.status === '再次留單');
@@ -675,6 +694,8 @@ document.getElementById('modal-submit').onclick=()=>{
         recordModal.style.display='none';btn.innerText='送出紀錄';
         if(currentItem.type==1&&detailData[memberId])detailData[memberId].contactCount++;
         currentItem.next_time=params['search_begin']+' 11:59:59';
+        // ★ 壓完紀錄後，若是常態名單，同步更新 detailData 的 next_time 影響（不改 normalDate）
+        // next_time 已更新在 currentItem，getDropDaysLeft 會重新計算
         renderList();
     },1000);
 };
