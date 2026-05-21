@@ -558,7 +558,7 @@ function renderList(){
         // ★ 常態名單：顯示變常態日
         if(item.type==2){
             const normalStr=(d&&d.normalDate)?d.normalDate:'待載入';
-            progressHtml='<div style="font-size:10px;color:#27ae60;margin-top:3px;">變常態:'+normalStr+'</div>';
+            progressHtml='<div style="font-size:10px;color:#27ae60;margin-top:3px;">轉常態時間:'+normalStr+'</div>';
         }
 
         const isReInquire = (sd.status === '再次留單');
