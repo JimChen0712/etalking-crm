@@ -403,11 +403,13 @@ async function fetchData(){
 }
 
 /* ══════════════════════════════════════════════════════
-   ★ 完美雙切解耦：讀取與寫入分離
+   ★ 完美雙切解耦：讀取與寫入分離，並且精準抓取常態噴單邏輯
 ══════════════════════════════════════════════════════ */
 async function fetchMemberDetail(m) {
     const memberId = m.member_id || m.id;
-    let assignDate = null, normalDate = null, contactCount = 0, lastContactDate = null;
+    let assignDate = null, normalDate = null, contactCount = 0;
+    let lastLogNextTime = null;
+    let reachedNormal = false;
 
     // --- 第一階段：爬取 Etalking 系統資料 ---
     try {
@@ -424,14 +426,20 @@ async function fetchMemberDetail(m) {
             const logType = cells[3].innerText.trim();
             const logContent = cells[4] ? cells[4].innerText : '';
             const dateVal = cells[1].innerText.split(' ')[0];
+            const nextTimeVal = cells[2] ? cells[2].innerText.trim().split(' ')[0] : '';
             
             if (logType.includes('名單移動')) {
                 if (logContent.includes('移動到新名單') && !assignDate) assignDate = dateVal;
-                if (logContent.includes('移動到常態名單') && !normalDate) normalDate = dateVal;
+                if (logContent.includes('移動到常態名單') && !normalDate) {
+                    normalDate = dateVal;
+                    reachedNormal = true; // 抓到常態點，更舊的 log 不必抓 lastLogNextTime 了
+                }
             }
             if (logType.includes('聯絡')) {
                 contactCount++;
-                if (!lastContactDate || dateVal > lastContactDate) lastContactDate = dateVal;
+                if (!reachedNormal && !lastLogNextTime && nextTimeVal && !nextTimeVal.includes('0000')) {
+                    lastLogNextTime = nextTimeVal;
+                }
             }
         });
 
@@ -440,14 +448,14 @@ async function fetchMemberDetail(m) {
         }
 
         // 資料抓取成功，立刻更新畫面，不讓 UI 卡住
-        detailData[memberId] = { assignDate, normalDate, contactCount, lastContactDate };
+        detailData[memberId] = { assignDate, normalDate, contactCount, lastLogNextTime };
         renderList(); 
 
     } catch(e) {
         // 第一階段失敗：刪除快取，徹底放生，等下次重新整理再來
         delete detailData[memberId];
         console.error("抓取日誌失敗，已移除快取準備重試", memberId, e);
-        return; // 直接中止，不用進去排隊寫 Google Sheet
+        return; 
     }
 
     // --- 第二階段：默默去排隊寫入 Google Sheet ---
@@ -504,31 +512,11 @@ function getDropDaysLeft(item, detail){
     }
 
     if (item.type == 2) {
-        if(!detail) return null; 
-        
-        let baseDate = null;
-        let nd = detail.normalDate ? new Date(detail.normalDate) : null;
-        if(nd) nd.setHours(0,0,0,0);
-        
-        let lc = detail.lastContactDate ? new Date(detail.lastContactDate) : null;
-        if(lc) lc.setHours(0,0,0,0);
-        
-        let nt = (item.next_time && !item.next_time.includes('0000-00-00')) ? new Date(item.next_time.split(' ')[0]) : null;
-        if(nt) nt.setHours(0,0,0,0);
-
-        if (nd) {
-            if (!lc || lc < nd) {
-                baseDate = nd; 
-            } else {
-                baseDate = nt ? nt : nd; 
-            }
-        } else {
-            baseDate = nt; 
-        }
-
-        if (!baseDate) return null;
-        const dropDate = new Date(baseDate);
-        dropDate.setDate(dropDate.getDate() + 4);
+        if (!detail) return null;
+        const base = detail.lastLogNextTime || detail.normalDate;
+        if (!base) return null;
+        const baseD = new Date(base); baseD.setHours(0,0,0,0);
+        const dropDate = new Date(baseD); dropDate.setDate(baseD.getDate() + 4);
         return Math.ceil((dropDate - today) / 86400000);
     }
 
@@ -721,8 +709,9 @@ document.getElementById('modal-submit').onclick=()=>{
         recordModal.style.display='none';btn.innerText='送出紀錄';
         if(currentItem.type==1&&detailData[memberId])detailData[memberId].contactCount++;
         
+        // ★ 當送出紀錄後，同步將畫面的最新聯繫日期指為剛剛壓的日期，觸發 getDropDaysLeft 重算噴單日
         if(detailData[memberId]) {
-            detailData[memberId].lastContactDate = new Date().toISOString().split('T')[0];
+            detailData[memberId].lastLogNextTime = params['search_begin'];
         }
         
         currentItem.next_time=params['search_begin']+' 11:59:59';
