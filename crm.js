@@ -302,7 +302,7 @@ panel.style.cssText='position:fixed;top:50%;left:50%;transform:translate(-50%,-5
 const header=document.createElement('div');
 header.style.cssText='padding:12px 15px;background:#2c3e50;color:white;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;flex-shrink:0;';
 
-// ★ 權限鎖定：批量按鈕只有主管看得到
+// ★ 權限鎖定：新增「打撈釋出池」專屬日期控制元件，僅主管可見
 header.innerHTML = `
     <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
         <h3 style="margin:0;font-size:15px;color:white;">名單管理面板</h3>
@@ -312,6 +312,13 @@ header.innerHTML = `
             <button id="sync-all-new-btn" style="padding:4px 10px;cursor:pointer;border-radius:4px;border:none;background:#8e44ad;color:white;font-weight:bold;">同步名單細節</button>
             <button id="sync-demo-btn" style="padding:4px 10px;cursor:pointer;border-radius:4px;border:none;background:#e67e22;color:white;font-weight:bold;">同步Demo</button>
             <button id="batch-release-btn" style="padding:4px 10px;cursor:pointer;border-radius:4px;border:none;background:#c0392b;color:white;font-weight:bold;display:none;">批量處理 (0)</button>
+            <div style="display:inline-flex;align-items:center;gap:4px;background:rgba(255,255,255,0.1);padding:3px 8px;border-radius:6px;border:1px solid rgba(255,255,255,0.2);margin-left:4px;">
+                <span style="font-size:11px;color:#2ecc71;font-weight:bold;">池:</span>
+                <input type="date" id="pool-start-date" style="padding:2px 4px;border-radius:4px;border:none;font-size:11px;width:115px;height:22px;line-height:22px;box-sizing:border-box;">
+                <span style="font-size:11px;color:#fff;">~</span>
+                <input type="date" id="pool-end-date" style="padding:2px 4px;border-radius:4px;border:none;font-size:11px;width:115px;height:22px;line-height:22px;box-sizing:border-box;">
+                <button id="sync-pool-btn" style="padding:2px 10px;cursor:pointer;border-radius:4px;border:none;background:#2ecc71;color:white;font-weight:bold;font-size:11px;height:22px;line-height:18px;">更新釋出池</button>
+            </div>
         ` : '<span style="font-size:12px;color:#bdc3c7;">我的名單</span>'}
         <select id="t-type-filter" style="padding:4px;border-radius:4px;border:none;">
             <option value="-1">所有種類</option><option value="1">新單</option><option value="2">常態名單</option><option value="3">Demo過名單</option><option value="4">釋出名單</option>
@@ -395,14 +402,14 @@ releaseModal.innerHTML=`
             <option value="2-3 無效號碼 - 非本人">2-3 無效號碼 - 非本人</option>
             <option value="2-4 無效號碼 - 外國人">2-4 無效號碼 - 外國人</option>
             <option value="2-5 無效號碼 - 沒留過資料">2-5 無效號碼 - 沒留過資料</option>
-            <option value="3-1 費用問題 - 認為費用太高">3-1 費用問題 - 認為費用太高</option>
+            <option value="3-1 費用問題 - 認為費用太高">3-1 費用問題 - 認爲費用太高</option>
             <option value="3-2 費用問題 - 無付款主導權">3-2 費用問題 - 無付款主導權</option>
             <option value="4-1 需求不符 - 針對多益">4-1 需求不符 - 針對多益</option>
             <option value="4-2 需求不符 - 針對雅思">4-2 需求不符 - 針對雅思</option>
             <option value="4-3 需求不符 - 針對托福">4-3 需求不符 - 針對托福</option>
             <option value="4-4 需求不符 - 上課時間無法配合">4-4 需求不符 - 上課時間無法配合</option>
             <option value="4-5 需求不符 - 要短期課程">4-5 需求不符 - 要短期課程</option>
-            <option value="4-6 需求不符 - 要短期課程">4-6 需求不符 - 找實體補習班</option>
+            <option value="4-6 需求不符 - 找實體補習班">4-6 需求不符 - 找實體補習班</option>
             <option value="4-7 需求不符 - 體驗後不喜歡上課方式">4-7 需求不符 - 體驗後不喜歡上課方式</option>
             <option value="5-1 已報名其他機構 - 機構名稱(自填)">5-1 已報名其他機構 - 機構名稱(自填)</option>
             <option value="6-1 無需求 - 無需求">6-1 無需求 - 無需求</option>
@@ -882,7 +889,7 @@ document.getElementById('modal-submit').onclick=()=>{
     },1000);
 };
 
-// ★ 新增：頂部批量按鈕呼叫邏輯
+// ★ 新增：頂部批量處理按鈕呼叫邏輯
 const batchBtnObj = document.getElementById('batch-release-btn');
 if (batchBtnObj) {
     batchBtnObj.onclick = () => {
@@ -894,9 +901,6 @@ if (batchBtnObj) {
         document.getElementById('release-modal').style.display = 'block';
     };
 }
-
-// 釋出 Modal 的取消與送出邏輯
-document.getElementById('release-cancel').onclick=()=>{ document.getElementById('release-modal').style.display='none'; };
 
 // 釋出 Modal 的取消與送出邏輯
 document.getElementById('release-cancel').onclick=()=>{ document.getElementById('release-modal').style.display='none'; };
@@ -965,14 +969,13 @@ document.getElementById('release-submit').onclick = async () => {
                 failCount++;
             }
 
-            // 🌟 關鍵修正：單與單之間的間隔處理
             if(i < memberIds.length - 1) {
-                // 不管有沒有轉派，只要是批次處理，每一筆釋出之間都強制等待 2~3 秒，完美模擬人工一筆一筆點擊的節奏
+                // 每筆釋出之間強制等待 2~3 秒，完美模擬人工操作節奏
                 await randomDelay(2000, 3000);
             }
         }
 
-        // 單筆與多筆提示訊息自動判斷
+        // 提示訊息自動判斷
         if (memberIds.length > 1) {
             alert(`✅ 批量執行完畢！\n成功: ${successCount} 筆\n失敗: ${failCount} 筆`);
         } else if (targetSalesId !== '-1') {
@@ -1002,6 +1005,72 @@ document.getElementById('refresh-btn').onclick=fetchData;
 document.getElementById('t-type-filter').onchange=renderList;
 
 if(isManager){
+    // ★ 核心擴充：初始化主管專屬的釋出池日期與同步事件
+    const todayStr = new Date().toISOString().split('T')[0];
+    const poolStartInput = document.getElementById('pool-start-date');
+    const poolEndInput = document.getElementById('pool-end-date');
+    if(poolStartInput) poolStartInput.value = todayStr;
+    if(poolEndInput) poolEndInput.value = todayStr;
+
+    const syncPoolBtn = document.getElementById('sync-pool-btn');
+    if(syncPoolBtn) {
+        syncPoolBtn.onclick = async () => {
+            const start = poolStartInput.value;
+            const end = poolEndInput.value;
+            if(!start || !end) return alert('⚠️ 請選擇完整的日期區間！');
+            
+            const statusLabel = document.getElementById('loading-status');
+            syncPoolBtn.disabled = true;
+            syncPoolBtn.style.background = '#95a5a6';
+            syncPoolBtn.innerText = '撈取中...';
+            statusLabel.innerText = '🔄 正在打撈系統釋出池...';
+            
+            try {
+                const protocol = window.connector?.protocol || 'https://';
+                const serverIP = window.connector?.serverIP || 'www.etalkingonline.com';
+                const url = `${protocol}${serverIP}/release_list/v4?startdate=${start}&enddate=${end}`;
+                
+                const res = await fetch(url);
+                const data = await res.json();
+                const list = data.list || [];
+                
+                if(list.length === 0) {
+                    alert('➔ 該日期區間內，系統釋出池中沒有任何名單。');
+                    return;
+                }
+                
+                statusLabel.innerText = `🔄 撈到 ${list.length} 筆，正在寫入中表...`;
+                
+                // 格式化為後端接收的規格
+                const releaseList = list.map(item => ({
+                    member_id: item.id,
+                    member_name: item.member_name,
+                    mobile: item.mobile,
+                    source: item.source || '未知',
+                    next_time: item.cdate || '無紀錄'
+                }));
+                
+                // 一包倒入 Google Sheet
+                const gasRes = await gasPost({ action: 'syncReleasePool', releaseList });
+                if(gasRes.success) {
+                    statusLabel.innerText = `✅ 成功寫入 ${gasRes.addedCount} 筆資料！`;
+                    alert(`🎉 搬家成功！\n系統總共撈到: ${list.length} 筆\n新成功寫入 Sheet: ${gasRes.addedCount} 筆\n(重複的單已為您自動過濾)`);
+                } else {
+                    throw new Error(gasRes.error || 'GAS 端寫入失敗');
+                }
+            } catch(err) {
+                alert('❌ 同步失敗！請檢查 Console 或 GAS 權限部署。');
+                console.error(err);
+                statusLabel.innerText = '❌ 同步失敗';
+            } finally {
+                syncPoolBtn.disabled = false;
+                syncPoolBtn.style.background = '#2ecc71';
+                syncPoolBtn.innerText = '更新釋出池';
+                setTimeout(() => { if(statusLabel.innerText.includes('成功')) statusLabel.innerText = ''; }, 3000);
+            }
+        };
+    }
+
     document.getElementById('source-filter').onchange = renderList;
     document.getElementById('consultant-filter').onchange=function(){
         renderList();
