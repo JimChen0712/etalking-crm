@@ -302,7 +302,25 @@ panel.style.cssText='position:fixed;top:50%;left:50%;transform:translate(-50%,-5
 const header=document.createElement('div');
 header.style.cssText='padding:12px 15px;background:#2c3e50;color:white;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;flex-shrink:0;';
 
-header.innerHTML='<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;"><h3 style="margin:0;font-size:15px;color:white;">名單管理面板</h3>'+(isManager?'<select id="consultant-filter" style="padding:4px;border-radius:4px;border:none;max-width:150px;"><option value="-1">所有業務</option></select><select id="source-filter" style="padding:4px;border-radius:4px;border:none;max-width:100px;"><option value="-1">所有來源</option></select><button id="sync-all-new-btn" style="padding:4px 10px;cursor:pointer;border-radius:4px;border:none;background:#8e44ad;color:white;font-weight:bold;">同步名單細節</button><button id="sync-demo-btn" style="padding:4px 10px;cursor:pointer;border-radius:4px;border:none;background:#e67e22;color:white;font-weight:bold;">同步Demo</button>':'<span style="font-size:12px;color:#bdc3c7;">我的名單</span>')+'<select id="t-type-filter" style="padding:4px;border-radius:4px;border:none;"><option value="-1">所有種類</option><option value="1">新單</option><option value="2">常態名單</option><option value="3">Demo過名單</option><option value="4">釋出名單</option></select><button id="refresh-btn" style="padding:4px 10px;cursor:pointer;border-radius:4px;border:none;background:#3498db;color:white;">重新整理</button><span id="loading-status" style="font-size:11px;color:#f1c40f;font-weight:bold;"></span></div><button id="close-btn" style="background:transparent;border:none;color:white;font-size:20px;cursor:pointer;">×</button>';
+// ★ 權限鎖定：批量按鈕只有主管看得到
+header.innerHTML = `
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+        <h3 style="margin:0;font-size:15px;color:white;">名單管理面板</h3>
+        ${isManager ? `
+            <select id="consultant-filter" style="padding:4px;border-radius:4px;border:none;max-width:150px;"><option value="-1">所有業務</option></select>
+            <select id="source-filter" style="padding:4px;border-radius:4px;border:none;max-width:100px;"><option value="-1">所有來源</option></select>
+            <button id="sync-all-new-btn" style="padding:4px 10px;cursor:pointer;border-radius:4px;border:none;background:#8e44ad;color:white;font-weight:bold;">同步名單細節</button>
+            <button id="sync-demo-btn" style="padding:4px 10px;cursor:pointer;border-radius:4px;border:none;background:#e67e22;color:white;font-weight:bold;">同步Demo</button>
+            <button id="batch-release-btn" style="padding:4px 10px;cursor:pointer;border-radius:4px;border:none;background:#c0392b;color:white;font-weight:bold;display:none;">批量處理 (0)</button>
+        ` : '<span style="font-size:12px;color:#bdc3c7;">我的名單</span>'}
+        <select id="t-type-filter" style="padding:4px;border-radius:4px;border:none;">
+            <option value="-1">所有種類</option><option value="1">新單</option><option value="2">常態名單</option><option value="3">Demo過名單</option><option value="4">釋出名單</option>
+        </select>
+        <button id="refresh-btn" style="padding:4px 10px;cursor:pointer;border-radius:4px;border:none;background:#3498db;color:white;">重新整理</button>
+        <span id="loading-status" style="font-size:11px;color:#f1c40f;font-weight:bold;"></span>
+    </div>
+    <button id="close-btn" style="background:transparent;border:none;color:white;font-size:20px;cursor:pointer;">×</button>
+`;
 
 const content=document.createElement('div');
 content.style.cssText='flex:1;overflow-y:auto;padding:12px;background:#f8f9fa;';
@@ -641,8 +659,12 @@ function renderList(){
     
     const typeStyles={'1':{label:'新單',bg:'#1a6fc4'},'2':{label:'常態',bg:'#27ae60'},'3':{label:'Demo',bg:'#8e44ad'},'4':{label:'釋出',bg:'#e67e22'}};
     const sourceHeader=isManager?'<th style="padding:6px;width:7%;">來源</th>':'';
+    
+    // ★ 權限鎖定：只有主管才顯示表頭的勾選框
+    const batchHeader = isManager ? '<th style="padding:6px;width:30px;text-align:center;"><input type="checkbox" id="select-all-cb" style="cursor:pointer;"></th>' : '';
+
     let html='<table style="width:100%;border-collapse:collapse;font-size:12px;">';
-    html+='<tr style="background:#e9ecef;text-align:left;position:sticky;top:0;z-index:10;"><th style="padding:6px;">姓名/狀態</th><th style="padding:6px;">電話</th><th style="padding:6px;width:10%;">等級</th><th style="padding:6px;width:22%;">備註</th><th style="padding:6px;width:16%;">下次聯繫 & 預警</th>'+sourceHeader+'<th style="padding:6px;">業務</th><th style="padding:6px;width:9%;">操作</th></tr>';
+    html+='<tr style="background:#e9ecef;text-align:left;position:sticky;top:0;z-index:10;">' + batchHeader + '<th style="padding:6px;">姓名/狀態</th><th style="padding:6px;">電話</th><th style="padding:6px;width:10%;">等級</th><th style="padding:6px;width:22%;">備註</th><th style="padding:6px;width:16%;">下次聯繫 & 預警</th>'+sourceHeader+'<th style="padding:6px;">業務</th><th style="padding:6px;width:9%;">操作</th></tr>';
 
     filteredData.slice(0,150).forEach(item=>{
         const id=item.member_id||item.id||'';
@@ -714,13 +736,42 @@ function renderList(){
                 '</div>';
         }
 
+        // ★ 權限鎖定：只有主管才顯示每一行的勾選框
+        const batchCell = isManager ? '<td style="padding:6px;text-align:center;vertical-align:top;"><input type="checkbox" class="row-cb" value="'+id+'" style="cursor:pointer;"></td>' : '';
+
         // 包含釋出按鈕的操作欄
-        html+='<tr style="border-bottom:1px solid #dee2e6;border-left:4px solid '+rowBorderColor+';"><td style="padding:6px;vertical-align:top;"><b>'+(item.member_name||'未知')+'</b><br><span style="background:'+ts.bg+';color:white;padding:1px 5px;border-radius:3px;font-size:10px;">'+ts.label+'</span>'+reInquireHtml+progressHtml+'</td><td style="padding:6px;vertical-align:top;">'+(item.mobile||'-')+'</td><td style="padding:6px;vertical-align:top;">'+gradeHtml+'</td><td style="padding:6px;vertical-align:top;">'+memoHtml+'</td><td style="padding:6px;vertical-align:top;"><span style="color:#d35400;">'+(item.type==2 && d ? (d.lastLogNextTime || d.normalDate || '無紀錄') : (item.next_time&&!item.next_time.includes('0000')?item.next_time.split(' ')[0]:'無紀錄'))+'</span>'+warningHtml+'</td>'+sourceCell+'<td style="padding:6px;color:#7f8c8d;vertical-align:top;font-size:11px;">'+displayUserName+'</td><td style="padding:6px;vertical-align:top;"><button class="quick-record-btn" data-id="'+id+'" style="padding:4px 8px;background:'+btnBg+';color:white;border:none;border-radius:4px;cursor:pointer;font-size:11px;font-weight:bold;width:100%;">壓紀錄</button><button class="quick-release-btn" data-id="'+id+'" style="margin-top:4px;padding:4px 8px;background:#c0392b;color:white;border:none;border-radius:4px;cursor:pointer;font-size:11px;font-weight:bold;width:100%;">釋出</button></td></tr>';
+        html+='<tr style="border-bottom:1px solid #dee2e6;border-left:4px solid '+rowBorderColor+';">' + batchCell + '<td style="padding:6px;vertical-align:top;"><b>'+(item.member_name||'未知')+'</b><br><span style="background:'+ts.bg+';color:white;padding:1px 5px;border-radius:3px;font-size:10px;">'+ts.label+'</span>'+reInquireHtml+progressHtml+'</td><td style="padding:6px;vertical-align:top;">'+(item.mobile||'-')+'</td><td style="padding:6px;vertical-align:top;">'+gradeHtml+'</td><td style="padding:6px;vertical-align:top;">'+memoHtml+'</td><td style="padding:6px;vertical-align:top;"><span style="color:#d35400;">'+(item.type==2 && d ? (d.lastLogNextTime || d.normalDate || '無紀錄') : (item.next_time&&!item.next_time.includes('0000')?item.next_time.split(' ')[0]:'無紀錄'))+'</span>'+warningHtml+'</td>'+sourceCell+'<td style="padding:6px;color:#7f8c8d;vertical-align:top;font-size:11px;">'+displayUserName+'</td><td style="padding:6px;vertical-align:top;"><button class="quick-record-btn" data-id="'+id+'" style="padding:4px 8px;background:'+btnBg+';color:white;border:none;border-radius:4px;cursor:pointer;font-size:11px;font-weight:bold;width:100%;">壓紀錄</button><button class="quick-release-btn" data-id="'+id+'" style="margin-top:4px;padding:4px 8px;background:#c0392b;color:white;border:none;border-radius:4px;cursor:pointer;font-size:11px;font-weight:bold;width:100%;">釋出</button></td></tr>';
     });
 
     html+='</table>';
     if(filteredData.length>150)html+='<div style="text-align:center;padding:10px;color:#888;">(共 '+filteredData.length+' 筆，顯示前 150 筆)</div>';
     content.innerHTML=html;
+
+    // ★ 批量勾選邏輯 (鎖定權限)
+    if (isManager) {
+        const batchBtn = document.getElementById('batch-release-btn');
+        const updateBatchBtn = () => {
+            const checkedCount = document.querySelectorAll('.row-cb:checked').length;
+            if(batchBtn) {
+                if(checkedCount > 0) {
+                    batchBtn.style.display = 'inline-block';
+                    batchBtn.innerText = '批量處理 (' + checkedCount + ')';
+                } else {
+                    batchBtn.style.display = 'none';
+                }
+            }
+        };
+        
+        const selectAllCb = document.getElementById('select-all-cb');
+        if(selectAllCb) {
+            selectAllCb.onchange = e => {
+                document.querySelectorAll('.row-cb').forEach(cb => cb.checked = e.target.checked);
+                updateBatchBtn();
+            };
+        }
+        document.querySelectorAll('.row-cb').forEach(cb => cb.onchange = updateBatchBtn);
+        updateBatchBtn(); // 初始隱藏
+    }
 
     // 綁定各項按鈕事件
     document.querySelectorAll('.reinquire-btn').forEach(btn=>{
@@ -793,7 +844,7 @@ function renderList(){
         };
     });
 
-    // ★ 新增：釋出按鈕呼叫邏輯
+    // 單筆釋出按鈕呼叫邏輯
     document.querySelectorAll('.quick-release-btn').forEach(btn=>{
         btn.onclick=e=>{
             const memberId=e.target.getAttribute('data-id');
@@ -831,11 +882,24 @@ document.getElementById('modal-submit').onclick=()=>{
     },1000);
 };
 
-// ★ 新增：釋出 Modal 的取消與送出邏輯
+// ★ 新增：頂部批量按鈕呼叫邏輯
+const batchBtnObj = document.getElementById('batch-release-btn');
+if (batchBtnObj) {
+    batchBtnObj.onclick = () => {
+        const checkedCbs = document.querySelectorAll('.row-cb:checked');
+        if(checkedCbs.length === 0) return;
+        const ids = Array.from(checkedCbs).map(cb => cb.value); // 收集所有打勾的 ID
+        document.getElementById('release-member-id').value = ids.join(','); // 用逗號串接
+        document.getElementById('release-memo').value = '';
+        document.getElementById('release-modal').style.display = 'block';
+    };
+}
+
+// 釋出 Modal 的取消與送出邏輯
 document.getElementById('release-cancel').onclick=()=>{ document.getElementById('release-modal').style.display='none'; };
 
 document.getElementById('release-submit').onclick = async () => {
-    const memberId = document.getElementById('release-member-id').value;
+    const memberIdsStr = document.getElementById('release-member-id').value;
     const reason = document.getElementById('release-reason').value;
     const memo = document.getElementById('release-memo').value.trim();
     const btn = document.getElementById('release-submit');
@@ -843,53 +907,80 @@ document.getElementById('release-submit').onclick = async () => {
     const reassignSelect = document.getElementById('release-reassign');
     const targetSalesId = reassignSelect ? reassignSelect.value : '-1';
     
+    if (!memberIdsStr) return;
+    const memberIds = memberIdsStr.split(','); // 把逗號隔開的字串變回陣列
+
     btn.innerText = '處理中...';
     btn.disabled = true;
 
-    // 定義一個隨機延遲函數 (模擬人類思考與點擊的間隔，1.5秒到3秒之間)
+    // 擬人化隨機延遲
     const randomDelay = (min, max) => new Promise(res => setTimeout(res, Math.random() * (max - min) + min));
+
+    let successCount = 0;
+    let failCount = 0;
 
     try {
         const adminNameStr = getWriterName();
         const accountStr = adminNameStr.split(' ')[0] || adminNameStr;
         const finalReason = memo ? reason + '，' + memo : reason + '，';
 
-        // 步驟一：釋出 API
-        const releaseUrl = `https://www.etalkingonline.com/admin/sys/api_member_release_member.php?id=${memberId}&reason=${encodeURIComponent(finalReason)}&uid=${crmUid}&account=${encodeURIComponent(accountStr)}&admin_name=${encodeURIComponent(adminNameStr)}`;
-        const releaseRes = await fetch(releaseUrl);
-        if (!releaseRes.ok) throw new Error('釋出 API 錯誤');
+        // 迴圈處理每一個被勾選的名單
+        for (let i = 0; i < memberIds.length; i++) {
+            const mId = memberIds[i];
+            btn.innerText = `處理中 (${i+1}/${memberIds.length})...`;
 
-        // 步驟二：如果有點轉派，則加入「人性化」隨機延遲
-        if (targetSalesId !== '-1') {
-            btn.innerText = '稍作等待...';
-            // 隨機等待 1500ms 到 3000ms，讓操作紀錄出現自然的秒數差
-            await randomDelay(1500, 3000); 
-            
-            btn.innerText = '轉派中...';
-            const reassignUrl = `https://www.etalkingonline.com/admin/sys/api_release_appoint.php?uid=${crmUid}&account=${encodeURIComponent(accountStr)}&admin_name=${encodeURIComponent(adminNameStr)}`;
-            
-            const formData = new URLSearchParams();
-            formData.append('sales', targetSalesId);
-            formData.append('checked[]', memberId);
+            try {
+                // 步驟一：釋出 API
+                const releaseUrl = `https://www.etalkingonline.com/admin/sys/api_member_release_member.php?id=${mId}&reason=${encodeURIComponent(finalReason)}&uid=${crmUid}&account=${encodeURIComponent(accountStr)}&admin_name=${encodeURIComponent(adminNameStr)}`;
+                const releaseRes = await fetch(releaseUrl);
+                if (!releaseRes.ok) throw new Error('釋出 API 錯誤');
 
-            const reassignRes = await fetch(reassignUrl, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                body: formData.toString()
-            });
-            if (!reassignRes.ok) throw new Error('轉派 API 錯誤');
-            
+                // 步驟二：如果有點轉派，則打轉派 API
+                if (targetSalesId !== '-1') {
+                    await randomDelay(800, 1500); // 隨機延遲 0.8~1.5 秒
+                    const reassignUrl = `https://www.etalkingonline.com/admin/sys/api_release_appoint.php?uid=${crmUid}&account=${encodeURIComponent(accountStr)}&admin_name=${encodeURIComponent(adminNameStr)}`;
+                    
+                    const formData = new URLSearchParams();
+                    formData.append('sales', targetSalesId);
+                    formData.append('checked[]', mId);
+
+                    const reassignRes = await fetch(reassignUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                        body: formData.toString()
+                    });
+                    if (!reassignRes.ok) throw new Error('轉派 API 錯誤');
+                }
+                
+                successCount++;
+                // 成功後將該筆名單從前端資料中移除
+                allData = allData.filter(m => (m.member_id || m.id) != mId);
+                
+            } catch(err) {
+                console.error(`名單 ${mId} 處理失敗:`, err);
+                failCount++;
+            }
+
+            // 單與單之間也加入一點隨機延遲，保護伺服器不報警 (最後一筆不延遲)
+            if(i < memberIds.length - 1) {
+                await randomDelay(500, 1000);
+            }
+        }
+
+        // 單筆與多筆提示訊息自動判斷
+        if (memberIds.length > 1) {
+            alert(`✅ 批量執行完畢！\n成功: ${successCount} 筆\n失敗: ${failCount} 筆`);
+        } else if (targetSalesId !== '-1') {
             alert('✅ 釋出並轉派成功！');
         } else {
             alert('✅ 名單已成功釋出！');
         }
 
         document.getElementById('release-modal').style.display = 'none';
-        allData = allData.filter(m => (m.member_id || m.id) != memberId);
-        renderList();
+        renderList(); // 更新畫面
         
     } catch(e) {
-        alert('❌ 操作失敗！請確認網路狀態或重整頁面再試。');
+        alert('❌ 發生預期外錯誤！');
         console.error(e);
     } finally {
         btn.innerText = '確定送出';
