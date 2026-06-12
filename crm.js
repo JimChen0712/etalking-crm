@@ -2246,10 +2246,8 @@ if(isManager){
         // 收集來源前綴（從已載入的資料）
 
         const prefixes = [...new Set(
-
-            poolData.map(item => item.source.trim().substring(0,2).toUpperCase()).filter(Boolean)
-
-        )].sort();
+    allData.map(item => (item.source||'').trim().substring(0,2).toUpperCase()).filter(Boolean)
+)].sort();
 
 
 
