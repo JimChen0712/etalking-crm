@@ -1,2694 +1,1339 @@
 (function(){
-
 /* ══ 安全防線：只允許在 etalking 網域執行 ══ */
-
 const host=window.location.hostname;
-
 if(!['www.etalkingonline.com','admin.etalkingonline.com'].includes(host)){
-
     alert('❌ 此工具僅限在 etalking 後台使用\n\n請先登入後台再點擊書籤！');
-
     return;
-
 }
-
-
 
 const path=window.location.pathname;
 
-
-
 if(host==='www.etalkingonline.com'&&!path.includes('request_develop')){
-
     alert('⚠️ 通道已失效！\n\n① 點確定返回後台\n② 進入名單管理頁面\n③ 點開任一張單的「編輯」\n④ 再點一次書籤');
-
     window.location.href='https://admin.etalkingonline.com/etalking2.0/#/request_list';
-
     return;
-
 }
-
-
 
 if(host==='admin.etalkingonline.com'){
-
     if(confirm('需要切換至專屬通道\n\n點確定後跳轉，再點一次書籤即可載入！\n\n💡 若跳轉失敗，請先點開任一張單的「編輯」再試。')){
-
         const uid=localStorage.getItem('uid')||'';
-
         const tUrl='https://www.etalkingonline.com/admin/request_develop?member_id=232821&hide_layout=true'+(uid?'&crm_uid='+uid:'');
-
         const f=document.createElement('iframe');f.style.display='none';f.src=tUrl;
-
         document.body.appendChild(f);
-
         setTimeout(()=>{f.remove();window.location.href=tUrl;},2000);
-
     }
-
     return;
-
 }
-
-
 
 const urlParams=new URLSearchParams(window.location.search);
-
 const crmUid=urlParams.get('crm_uid')||'';
-
 if(!crmUid){alert('❌ 無法識別身份！\n\n請從 etalking 後台點擊書籤來啟動工具。');return;}
 
-
-
 /* ══ 設定 ══ */
-
 const MANAGER_UID='424';
-
 const APPS_SCRIPT_URL='https://script.google.com/macros/s/AKfycbxSPDlyiL8Mvx77Jcj0nUuiqjmhWuC9GS4_ZLbpfwGwaMRjL2vfdVvlYFpVmww076elMw/exec';
 
-
-
 const INTERVIEW_TEMPLATE = `【英文名字】
-
 【體驗時間】
-
 【年齡職業】
-
 【學習動機】
-
 【希望加強能力】
-
 【學習經驗】
-
 【英文程度】
-
 【痛點】
-
 【近期有打算學習嗎】
-
 【未開始原因】
-
 【10-15分鐘基本的對話】
-
 【希望學習頻率】
-
 【設備/系統版本】
-
 【其他備註】`;
 
-
-
 const USER_DICT = {
-
     '69': 'TEST test0504', '162': 'Joy 洪淑慧', '240': 'Minzing 程銘靜', '60': 'johnny 謝愷澤', 
-
     '424': 'Jim 陳昕謨', '279': 'test3 test3', '452': 'Rita 侯宛余', '433': 'Wynn 吳昱瑩', 
-
     '464': 'ori 孫逸亭', '443': 'Hele 徐睿彣', '463': 'Sumika 李玉善', '455': 'Hazel 林孜瑩', 
-
     '449': 'Evan 林逸華', '432': 'Elsie 林采庭', '445': 'Luke 楊博竣', '457': 'Alan 楊碩頫', 
-
     '438': 'Lily 楊若莉', '451': 'Kyle 江宗翰', '454': 'Andy 沈祐頡', '462': 'homer 許瀚方', 
-
     '461': 'hanfang 許瀚方', '456': 'Tony 謝廷翊', '458': 'Josie 陳品妤', '431': 'Elijah 陳家寬', 
-
     '459': 'An 陳怡安', '450': 'Val 陳芊螢', '409': 'Joyce 魏良伃', '453': 'Wolf 黃詳淵', 
-
     '368': 'Jordan 李睿峰', '130': 'Jeremy testjeremy', '283': 'Ash 俞任鴻', '465': 'Lily 李昱萱', 
-
     '248': 'Luka 林冠宇', '434': 'Nina 林怡欣', '358': 'amiee 林琬倩', '410': 'Claire 葉芷羽', 
-
     '241': 'Paris 黃雅琪', '180': 'Rooney 邱于峰'
-
 };
 
-
-
 const isManager=crmUid===MANAGER_UID;
-
 const fetchUrl='https://server.etalkingonline.com/name_list/new_list/'+(isManager?'-1':crmUid);
 
-
-
 /* ══ Apps Script API ══ */
-
 async function gasGet(params){
-
     const url=APPS_SCRIPT_URL+'?'+new URLSearchParams(params).toString();
-
     const res=await fetch(url);
-
     return res.json();
-
 }
-
 async function gasPost(data){
-
     const res=await fetch(APPS_SCRIPT_URL,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify(data)});
-
     return res.json();
-
 }
-
 async function initSheet(){ await gasGet({action:'init'}); }
-
 async function readSheet(){ return gasGet({action:'read'}); }
-
 async function appendRow(values){ return gasPost({action:'append',values}); }
-
 async function updateRow(rowNum,values){ return gasPost({action:'update',rowNum,values}); }
-
 async function deleteRow(rowNum){ return gasPost({action:'delete',rowNum}); }
 
-
-
 /* ══ 全局變數 ══ */
-
 let sheetData={}, sheetRowMap={};
-
 let allData=[], detailData={}, currentItem=null;
-
 let maxKnownRow = 1;
 
-
+// ★ 修復 Bug：將釋出池與切換頁籤的相關變數提昇至全局，避免釋出按鈕找不到變數而當機
+let currentTab = 'crm';
+let poolData = [];
+let poolSourceFilter = '-1';
+let poolFilterStart  = '';
+let poolFilterEnd    = '';
+let renderPoolList = () => {}; // 預設為空函式，給非主管防呆用
 
 /* ══════════════════════════════════════════════════════
-
    ★ Global Promise Queue（全域單線程排隊鎖）
-
 ══════════════════════════════════════════════════════ */
-
 let globalSheetWriteLock = Promise.resolve();
 
-
-
 async function ensureMemberInSheet(memberId, item, assignDate) {
-
     const id = String(memberId);
-
-
 
     if (typeof sheetRowMap[id] === 'number') return;
 
-
-
     let releaseLock;
-
     const waitMyTurn = new Promise(r => releaseLock = r);
-
     const previousLock = globalSheetWriteLock;
-
     globalSheetWriteLock = waitMyTurn;
-
-
 
     await previousLock;
 
-
-
     try {
-
         if (typeof sheetRowMap[id] === 'number') return;
 
-
-
         const now = new Date();
-
         const month = now.getFullYear() + '/' + String(now.getMonth() + 1).padStart(2, '0');
-
         const dateStr = assignDate || now.toISOString().split('T')[0];
-
         const ownerName = (item.user_name && item.user_name.trim())
-
             ? item.user_name.trim() : getWriterName();
 
-
-
         const res = await appendRow([
-
             id, item.member_name || '', item.mobile || '',
-
             item.source || '無', ownerName, crmUid, dateStr, month,
-
             item.type == 1 ? '新單' : '', '', '', now.toLocaleString('zh-TW')
-
         ]);
 
-
-
         if (res && typeof res.rowNum === 'number' && res.rowNum > 0) {
-
             sheetRowMap[id] = res.rowNum;
-
             if (res.rowNum > maxKnownRow) maxKnownRow = res.rowNum;
-
         } else {
-
             throw new Error('appendRow 回傳異常，拒絕盲猜: ' + JSON.stringify(res));
-
         }
-
     } catch(e) {
-
         throw e;
-
     } finally {
-
         releaseLock(); 
-
     }
-
 }
-
-
 
 /* ══ 防抖儲存佇列 ══ */
-
 const saveTimers = {};
-
 const saveStatus = {};
 
-
-
 function setSaveStatus(memberId, status) {
-
     saveStatus[memberId] = status;
-
     const el = document.getElementById('save-status-'+memberId);
-
     if(!el) return;
-
     if(status === 'pending') { el.textContent = '⏳ 待儲存'; el.style.color = '#e67e22'; }
-
     else if(status === 'saving') { el.textContent = '🔄 儲存中...'; el.style.color = '#3498db'; }
-
     else if(status === 'saved') { el.textContent = '✅ 已儲存'; el.style.color = '#27ae60'; setTimeout(()=>{ const e=document.getElementById('save-status-'+memberId); if(e)e.textContent=''; }, 2000); }
-
     else if(status === 'error') { el.textContent = '❌ 失敗'; el.style.color = '#e74c3c'; }
-
 }
-
-
 
 function debounceSaveMemo(memberId, grade, memo, item) {
-
     setSaveStatus(memberId, 'pending');
-
     if(saveTimers[memberId]) clearTimeout(saveTimers[memberId]); 
-
     
-
     saveTimers[memberId] = setTimeout(async () => {
-
         setSaveStatus(memberId, 'saving');
-
         try {
-
             await globalSheetWriteLock;
 
-
-
             const sd = sheetData[String(memberId)] || {status:'', grade:'', memo:''};
-
             
-
             if (item.type == 4 && sd.status !== '再次留單') {
-
                 sd.grade = '';
-
                 sd.memo = '';
-
             }
-
             
-
             let statusToSave = sd.status || '';
-
             let gradeToSave = sd.grade || '';
-
             let memoToSave = sd.memo || '';
-
             if(item.type == 1) statusToSave = '新單';
 
-
-
             let rowNum = sheetRowMap[String(memberId)];
-
             const isEmpty = (statusToSave === '' && !gradeToSave && !memoToSave);
 
-
-
             if (item.type != 1 && isEmpty && typeof rowNum === 'number') {
-
                 await sheetsDeleteRow(rowNum);
-
                 delete sheetData[String(memberId)];
-
                 delete sheetRowMap[String(memberId)];
-
                 
-
                 for (let id in sheetRowMap) {
-
                     if (typeof sheetRowMap[id] === 'number' && sheetRowMap[id] > rowNum) {
-
                         sheetRowMap[id]--;
-
                     }
-
                 }
-
                 if(maxKnownRow >= rowNum) maxKnownRow--;
-
             } 
-
             else if (!isEmpty || item.type == 1) {
-
                 await updateSheetMemo(memberId, statusToSave, gradeToSave, memoToSave, item);
-
             }
-
             
-
             setSaveStatus(memberId, 'saved');
-
         } catch(e) {
-
             console.error(e);
-
             setSaveStatus(memberId, 'error');
-
         }
-
         delete saveTimers[memberId];
-
     }, 800); 
-
 }
-
-
 
 async function loadSheetData(){
-
     try{
-
         await initSheet();
-
         const data=await readSheet();
-
         sheetData={}; sheetRowMap={}; maxKnownRow=1;
-
         if(data.values){
-
             data.values.forEach((row,idx)=>{
-
                 if(idx===0)return;
-
                 const memberId=row[0];
-
                 if(memberId){
-
                     sheetData[memberId]={status:row[8]||'',grade:row[9]||'',memo:row[10]||''};
-
                     sheetRowMap[memberId]=idx+1;
-
                     if((idx+1) > maxKnownRow) maxKnownRow = idx+1;
-
                 }
-
             });
-
         }
-
     }catch(e){console.log('Sheet載入失敗:',e);}
-
 }
-
-
 
 function getWriterName(){ return USER_DICT[crmUid]||crmUid; }
 
-
-
 async function syncNewMemberToSheet(item, assignDate){
-
     await ensureMemberInSheet(item.member_id, item, assignDate);
-
 }
-
-
 
 async function updateSheetMemo(memberId, status, grade, memo, item){
-
     const id = String(memberId);
-
     if (typeof sheetRowMap[id] !== 'number') {
-
         await ensureMemberInSheet(memberId, item, null);
-
     }
-
     const rowNum = sheetRowMap[id];
-
     if (typeof rowNum !== 'number') {
-
         throw new Error('updateSheetMemo: 無法取得有效 rowNum，memberId=' + id);
-
     }
-
     const now = new Date();
-
     const timeStr = now.toLocaleString('zh-TW');
-
     await updateRow(rowNum, [status, grade, memo, timeStr]);
 
-
-
     if(!sheetData[id]) sheetData[id] = {status:'', grade:'', memo:''};
-
     sheetData[id].status = status;
-
     sheetData[id].grade  = grade;
-
     sheetData[id].memo   = memo;
-
 }
-
-
 
 async function sheetsDeleteRow(rowNum){ await deleteRow(rowNum); }
 
-
-
 /* ══ Demo 同步 ══ */
-
 async function syncDemoRawData(){
-
     const statusLabel=document.getElementById('loading-status');
-
     statusLabel.innerText='🔄 準備同步 Demo 名單...';
-
     const demoTargets=allData.filter(item=>String(item.type)==='3');
-
     if(demoTargets.length===0){statusLabel.innerText='✅ 目前沒有 Demo 名單';setTimeout(()=>statusLabel.innerText='',2000);return;}
-
     for(let i=0;i<demoTargets.length;i+=5){
-
         const batch=demoTargets.slice(i,i+5);
-
         statusLabel.innerText='🔄 抓取 Demo 軌跡 '+Math.min(i+5,demoTargets.length)+'/'+demoTargets.length+'...';
-
         await Promise.all(batch.map(async m=>{
-
             try{
-
                 const res=await fetch('/admin/request_develop?member_id='+(m.member_id||m.id)+'&hide_layout=true');
-
                 const html=await res.text();
-
                 const doc=new DOMParser().parseFromString(html,'text/html');
-
                 const rows=doc.querySelectorAll('table tbody tr');
-
                 let leadDate='',demoDate='';
-
                 rows.forEach(r=>{
-
                     const cells=r.querySelectorAll('td');
-
                     if(cells.length<4)return;
-
                     const logType=cells[3].innerText.trim();
-
                     const logContent=cells[4]?cells[4].innerText:'';
-
                     const dateVal=cells[1].innerText.split(' ')[0];
-
                     if(logType.includes('名單移動')){
-
                         if(logContent.includes('移動到新名單')&&!leadDate)leadDate=dateVal;
-
                         if(logContent.includes('移動到DEMO過名單')&&!demoDate)demoDate=dateVal;
-
                     }
-
                 });
-
                 m.leadDate=leadDate;m.demoDate=demoDate;
-
             }catch(e){}
-
         }));
-
     }
-
     statusLabel.innerText='🔄 傳送資料至試算表...';
-
     const demoList=demoTargets.map(item=>({
-
         member_id:item.member_id||item.id,member_name:item.member_name,mobile:item.mobile,
-
         source:item.source,user_name:item.user_name,
-
         next_time:(item.next_time&&!item.next_time.includes('0000'))?item.next_time.split(' ')[0]:'無紀錄',
-
         leadDate:item.leadDate||'',demoDate:item.demoDate||''
-
     }));
-
     try{
-
         const res=await gasPost({action:'syncDemoRaw',demoList});
-
         if(res.success){
-
             statusLabel.innerText=res.addedCount>0?'✅ 成功新增 '+res.addedCount+' 筆 Demo 資料':'✅ 名單皆已存在，無須新增';
-
         }
-
         setTimeout(()=>statusLabel.innerText='',3000);
-
     }catch(e){statusLabel.innerText='❌ 同步失敗';}
-
 }
-
-
 
 /* ══ DOM UI ══ */
-
 ['custom-crm-curtain','custom-crm-panel'].forEach(id=>{const el=document.getElementById(id);if(el)el.remove();});
-
 const curtain=document.createElement('div');
-
 curtain.id='custom-crm-curtain';
-
 curtain.style.cssText='position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(236,240,241,0.85);backdrop-filter:blur(8px);z-index:999998;pointer-events:all;user-select:none;';
-
 curtain.addEventListener('click',e=>e.stopPropagation());
-
 document.body.style.overflow='hidden';
-
 document.body.appendChild(curtain);
 
-
-
 const panel=document.createElement('div');
-
 panel.id='custom-crm-panel';
-
 panel.style.cssText='position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);width:1060px;height:88vh;background:#fff;box-shadow:0 15px 50px rgba(0,0,0,0.2);border-radius:12px;z-index:999999;display:flex;flex-direction:column;overflow:hidden;font-family:sans-serif;';
 
-
-
 const header=document.createElement('div');
-
 header.style.cssText='padding:12px 15px;background:#2c3e50;color:white;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;flex-shrink:0;';
 
-
-
 header.innerHTML = `
-
     <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-
         <h3 style="margin:0;font-size:15px;color:white;">名單管理面板</h3>
-
 ${isManager ? `
-
     <button id="tab-crm" style="padding:4px 14px;cursor:pointer;border-radius:4px;border:2px solid #3498db;background:#3498db;color:white;font-weight:bold;">名單管理</button>
-
     <button id="tab-pool" style="padding:4px 14px;cursor:pointer;border-radius:4px;border:2px solid rgba(255,255,255,0.4);background:transparent;color:white;font-weight:bold;">釋出池</button>
-
 ` : ''}
-
         ${isManager ? `
-
             <select id="consultant-filter" style="padding:4px;border-radius:4px;border:none;max-width:150px;"><option value="-1">所有業務</option></select>
-
             <select id="source-filter" style="padding:4px;border-radius:4px;border:none;max-width:100px;"><option value="-1">所有來源</option></select>
-
             <button id="sync-all-new-btn" style="padding:4px 10px;cursor:pointer;border-radius:4px;border:none;background:#8e44ad;color:white;font-weight:bold;">同步名單細節</button>
-
             <button id="sync-demo-btn" style="padding:4px 10px;cursor:pointer;border-radius:4px;border:none;background:#e67e22;color:white;font-weight:bold;">同步Demo</button>
-
             <button id="batch-release-btn" style="padding:4px 10px;cursor:pointer;border-radius:4px;border:none;background:#c0392b;color:white;font-weight:bold;display:none;">批量處理 (0)</button>
-
             <div style="display:inline-flex;align-items:center;gap:4px;background:rgba(255,255,255,0.1);padding:3px 8px;border-radius:6px;border:1px solid rgba(255,255,255,0.2);margin-left:4px;">
-
                 <span style="font-size:11px;color:#2ecc71;font-weight:bold;">池:</span>
-
                 <input type="date" id="pool-start-date" style="padding:2px 4px;border-radius:4px;border:none;font-size:11px;width:115px;height:22px;line-height:22px;box-sizing:border-box;">
-
                 <span style="font-size:11px;color:#fff;">~</span>
-
                 <input type="date" id="pool-end-date" style="padding:2px 4px;border-radius:4px;border:none;font-size:11px;width:115px;height:22px;line-height:22px;box-sizing:border-box;">
-
                 <button id="sync-pool-btn" style="padding:2px 10px;cursor:pointer;border-radius:4px;border:none;background:#2ecc71;color:white;font-weight:bold;font-size:11px;height:22px;line-height:18px;">更新釋出池</button>
-
             </div>
-
         ` : '<span style="font-size:12px;color:#bdc3c7;">我的名單</span>'}
-
         <select id="t-type-filter" style="padding:4px;border-radius:4px;border:none;">
-
             <option value="-1">所有種類</option><option value="1">新單</option><option value="2">常態名單</option><option value="3">Demo過名單</option><option value="4">釋出名單</option>
-
         </select>
-
         <button id="refresh-btn" style="padding:4px 10px;cursor:pointer;border-radius:4px;border:none;background:#3498db;color:white;">重新整理</button>
-
         <span id="loading-status" style="font-size:11px;color:#f1c40f;font-weight:bold;"></span>
-
     </div>
-
     <button id="close-btn" style="background:transparent;border:none;color:white;font-size:20px;cursor:pointer;">×</button>
-
 `;
-
-
 
 const content=document.createElement('div');
-
 content.style.cssText='flex:1;overflow-y:auto;padding:12px;background:#f8f9fa;';
 
-
-
 /* ══ 壓紀錄 Modal ══ */
-
 const recordModal=document.createElement('div');
-
 recordModal.id='record-modal';
-
 recordModal.style.cssText='display:none;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:480px;max-height:85vh;overflow-y:auto;background:white;padding:20px;border-radius:8px;box-shadow:0 4px 15px rgba(0,0,0,0.2);z-index:1000000;';
-
 recordModal.innerHTML='<h4 style="margin-top:0;">新增聯絡紀錄</h4><input type="hidden" id="modal-member-id"><div id="modal-info-text" style="font-size:11px;color:#e67e22;margin-bottom:10px;font-weight:bold;"></div><div style="margin-bottom:10px;"><label>聯絡類型:</label><select id="modal-status" style="width:100%;padding:5px;margin-top:5px;"><option value="3">未接</option><option value="1">已接聽</option><option value="2">非本人</option><option value="4">關機</option></select></div><div style="margin-bottom:10px;"><label>聯絡內容:</label><textarea id="modal-content" style="width:100%;padding:5px;margin-top:5px;min-height:60px;font-family:sans-serif;font-size:13px;border:1px solid #ddd;border-radius:4px;resize:vertical;">未接 *1</textarea></div><div style="margin-bottom:10px;"><label>下次聯繫日期:</label><input type="date" id="modal-date" style="width:100%;padding:5px;margin-top:5px;"></div><div style="display:flex;justify-content:space-between;margin-top:15px;"><button id="modal-cancel" style="padding:5px 15px;cursor:pointer;">取消</button><button id="modal-submit" style="padding:5px 15px;background:#27ae60;color:white;border:none;cursor:pointer;border-radius:4px;">送出紀錄</button></div>';
 
-
-
 /* ══ 釋出名單 Modal ══ */
-
 const releaseModal=document.createElement('div');
-
 releaseModal.id='release-modal';
-
 releaseModal.style.cssText='display:none;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:420px;background:white;padding:20px;border-radius:8px;box-shadow:0 4px 15px rgba(0,0,0,0.2);z-index:1000000;';
 
-
-
 const reassignHtml = isManager ? `
-
     <div style="margin-top:15px; border-top:1px dashed #ccc; padding-top:15px;">
-
         <label style="font-size:13px;font-weight:bold;color:#1a6fc4;">👑 主管專屬：轉派人員 (選填)</label>
-
         <select id="release-reassign" style="width:100%;height:auto;min-height:36px;line-height:normal;box-sizing:border-box;padding:8px;margin-top:8px;border-radius:4px;border:2px solid #1a6fc4;font-size:13px;color:#333;background:#f0f8ff;appearance:auto;">
-
             <option value="-1">單純釋出 (不轉派)</option>
-
             <option value="130">Jeremy testjeremy [IT&CS]</option>
-
             <option value="283">Ash 俞任鴻 [IT&CS]</option>
-
             <option value="465">Lily 李昱萱 [IT&CS]</option>
-
             <option value="248">Luka 林冠宇 [IT&CS]</option>
-
             <option value="434">Nina 林怡欣 [IT&CS]</option>
-
             <option value="358">amiee 林琬倩 [IT&CS]</option>
-
             <option value="469">Lara 王品儒 [IT&CS]</option>
-
             <option value="410">Claire 葉芷羽 [IT&CS]</option>
-
             <option value="241">Paris 黃雅琪 [IT&CS]</option>
-
             <option value="279">test3 test3 [業務部]</option>
-
             <option value="467">Anna 余可芳 [業務部]</option>
-
             <option value="452">Rita 侯宛余 [業務部]</option>
-
             <option value="433">Wynn 吳昱瑩 [業務部]</option>
-
             <option value="464">ori 孫逸亭 [業務部]</option>
-
             <option value="468">Ria 廖沐琳 [業務部]</option>
-
             <option value="432">Elsie 林采庭 [業務部]</option>
-
             <option value="445">Luke 楊博竣 [業務部]</option>
-
             <option value="457">Alan 楊碩頫 [業務部]</option>
-
             <option value="438">Lily 楊若莉 [業務部]</option>
-
             <option value="451">Kyle 江宗翰 [業務部]</option>
-
             <option value="454">Andy 沈祐頡 [業務部]</option>
-
             <option value="206">Connie 游婷瑛 [業務部]</option>
-
             <option value="462">homer 許瀚方 [業務部]</option>
-
             <option value="458">Josie 陳品妤 [業務部]</option>
-
             <option value="459">An 陳怡安 [業務部]</option>
-
             <option value="409">Joyce 魏良伃 [業務部]</option>
-
             <option value="453">Wolf 黃詳淵 [業務部]</option>
-
             <option value="368">Jordan 李睿峰 [業務部()]</option>
-
             <option value="69">TEST test0504 [業務部(主管)]</option>
-
             <option value="162">Joy 洪淑慧 [業務部(主管)]</option>
-
             <option value="240">Minzing 程銘靜 [業務部(主管)]</option>
-
             <option value="60">johnny 謝愷澤 [業務部(主管)]</option>
-
             <option value="424">Jim 陳昕謨 [業務部(主管)]</option>
-
         </select>
-
     </div>
-
 ` : '';
 
-
-
 releaseModal.innerHTML=`
-
     <h4 style="margin-top:0;color:#c0392b;">釋出名單</h4>
-
     <input type="hidden" id="release-member-id">
-
     <div>
-
         <label style="font-size:13px;font-weight:bold;color:#333;">請選擇釋出原因:</label>
-
         <select id="release-reason" style="width:100%;height:auto;min-height:36px;line-height:normal;box-sizing:border-box;padding:8px;margin-top:8px;border-radius:4px;border:1px solid #ccc;font-size:13px;color:#333;background:#fff;appearance:auto;">
-
             <option value="1-1 聯繫不上 - 多次未接">1-1 聯繫不上 - 多次未接</option>
-
             <option value="1-2 聯繫不上 - 多次語音">1-2 聯繫不上 - 多次語音</option>
-
             <option value="1-3 聯繫不上 - 直接掛斷">1-3 聯繫不上 - 直接掛斷</option>
-
             <option value="1-4 聯繫不上 - 關機">1-4 聯繫不上 - 關機</option>
-
             <option value="1-5 聯繫不上 - 出國">1-5 聯繫不上 - 出國</option>
-
             <option value="2-1 無效號碼 - 空號">2-1 無效號碼 - 空號</option>
-
             <option value="2-2 無效號碼 - 暫停使用">2-2 無效號碼 - 暫停使用</option>
-
             <option value="2-3 無效號碼 - 非本人">2-3 無效號碼 - 非本人</option>
-
             <option value="2-4 無效號碼 - 外國人">2-4 無效號碼 - 外國人</option>
-
             <option value="2-5 無效號碼 - 沒留過資料">2-5 無效號碼 - 沒留過資料</option>
-
             <option value="3-1 費用問題 - 認為費用太高">3-1 費用問題 - 認爲費用太高</option>
-
             <option value="3-2 費用問題 - 無付款主導權">3-2 費用問題 - 無付款主導權</option>
-
             <option value="4-1 需求不符 - 針對多益">4-1 需求不符 - 針對多益</option>
-
             <option value="4-2 需求不符 - 針對雅思">4-2 需求不符 - 針對雅思</option>
-
             <option value="4-3 需求不符 - 針對托福">4-3 需求不符 - 針對托福</option>
-
             <option value="4-4 需求不符 - 上課時間無法配合">4-4 需求不符 - 上課時間無法配合</option>
-
             <option value="4-5 需求不符 - 要短期課程">4-5 需求不符 - 要短期課程</option>
-
             <option value="4-6 需求不符 - 找實體補習班">4-6 需求不符 - 找實體補習班</option>
-
             <option value="4-7 需求不符 - 體驗後不喜歡上課方式">4-7 需求不符 - 體驗後不喜歡上課方式</option>
-
             <option value="5-1 已報名其他機構 - 機構名稱(自填)">5-1 已報名其他機構 - 機構名稱(自填)</option>
-
             <option value="6-1 無需求 - 無需求">6-1 無需求 - 無需求</option>
-
             <option value="6-2 無需求 - 近期無學習計畫">6-2 無需求 - 近期無學習計畫</option>
-
             <option value="7-1 遊留學 - 即將出國遊留學">7-1 遊留學 - 即將出國遊留學</option>
-
             <option value="7-2 遊留學 - 國外遊留學回來">7-2 遊留學 - 國外遊留學回來</option>
-
             <option value="7-3 遊留學 - 目前正在國外遊留學">7-3 遊留學 - 目前正在國外遊留學</option>
-
             <option value="7-4 遊留學 - 打工度假">7-4 遊留學 - 打工度假</option>
-
             <option value="8-1 其他 - 學習觀念無法溝通">8-1 其他 - 學習觀念無法溝通</option>
-
             <option value="8-2 其他 - 純體驗/只想要贈品">8-2 其他 - 純體驗/只想要贈品</option>
-
             <option value="8-3 其他 - 網路設備問題">8-3 其他 - 網路設備問題</option>
-
             <option value="8-4 其他 - 沒決心無法堅持">8-4 其他 - 沒決心無法堅持</option>
-
             <option value="8-5 其他 - 資料已留很久">8-5 其他 - 資料已留很久</option>
-
             <option value="8-6 其他 - 顧問自填">8-6 其他 - 顧問自填</option>
-
         </select>
-
     </div>
-
     <div style="margin-top:15px;">
-
         <label style="font-size:13px;font-weight:bold;color:#333;">備註說明 (自填):</label>
-
         <textarea id="release-memo" rows="2" style="width:100%;line-height:1.5;box-sizing:border-box;padding:8px;margin-top:8px;border-radius:4px;border:1px solid #ccc;font-size:13px;color:#333;background:#fff;resize:none;font-family:sans-serif;" placeholder="輸入補充說明..."></textarea>
-
     </div>
-
     ${reassignHtml}
-
     <div style="display:flex;justify-content:space-between;margin-top:20px;">
-
         <button id="release-cancel" style="padding:6px 15px;cursor:pointer;border:1px solid #ddd;background:#f5f5f5;border-radius:4px;color:#333;">取消</button>
-
         <button id="release-submit" style="padding:6px 15px;background:#c0392b;color:white;border:none;cursor:pointer;border-radius:4px;font-weight:bold;">確定送出</button>
-
     </div>
-
 `;
 
-
-
 panel.appendChild(header);
-
 panel.appendChild(content);
-
 panel.appendChild(recordModal);
-
 panel.appendChild(releaseModal);
-
 document.body.appendChild(panel);
 
-
-
 /* ══ 聯絡類型切換 ══ */
-
 document.getElementById('modal-status').onchange=function(){
-
     const contentEl=document.getElementById('modal-content');
-
     if(this.value==='1'){
-
         contentEl.value=INTERVIEW_TEMPLATE;
-
         contentEl.style.minHeight='280px';
-
     }else{
-
         const m={'2':'非本人 *1','3':'未接 *1','4':'關機 *1'};
-
         contentEl.value=m[this.value]||'聯絡 *1';
-
         contentEl.style.minHeight='60px';
-
     }
-
 };
 
-
-
 function updateConsultantDropdown(){
-
     if(!isManager)return;
-
     const select=document.getElementById('consultant-filter');
-
     const names=[...new Set(allData.map(m=>m.user_name?m.user_name.trim():'未指派'))].sort();
-
     let html='<option value="-1">所有業務</option>';
-
     names.forEach(n=>{html+='<option value="'+n+'">'+n+'</option>';});
-
     select.innerHTML=html;select.value='-1';
-
 }
-
-
 
 function updateSourceDropdown() {
-
     if(!isManager) return; 
-
     const select = document.getElementById('source-filter');
-
     if(!select) return;
-
     const currentVal = select.value;
-
     const prefixes = new Set();
-
     allData.forEach(item => {
-
         if(item.source && item.source.trim().length >= 2) {
-
             prefixes.add(item.source.trim().substring(0, 2).toUpperCase());
-
         }
-
     });
-
     const sortedPrefixes = [...prefixes].sort();
-
     let html = '<option value="-1">所有來源</option>';
-
     sortedPrefixes.forEach(p => {
-
         html += '<option value="' + p + '">' + p + '</option>';
-
     });
-
     select.innerHTML = html;
-
     if(sortedPrefixes.includes(currentVal)) {
-
         select.value = currentVal;
-
     } else {
-
         select.value = '-1';
-
     }
-
 }
-
-
 
 async function fetchData(){
-
     detailData = {}; 
-
     const statusLabel=document.getElementById('loading-status');
-
     content.innerHTML='<div style="text-align:center;padding:20px;">資料載入中...</div>';
-
     statusLabel.innerText='🔄 連接 Google Sheet...';
-
     await loadSheetData();
-
     statusLabel.innerText='🔄 載入名單...';
-
     try{
-
         const res=await fetch(fetchUrl);
-
         const data=await res.json();
-
         allData=data.list||[];
-
         if(!isManager&&allData.length>0){
-
             try{
-
                 const resAll=await fetch('https://server.etalkingonline.com/name_list/new_list/-1');
-
                 const dataAll=await resAll.json();
-
                 const allList=dataAll.list||[];
-
                 allList.forEach(m=>{
-
                     const mId=m.member_id||m.id;
-
                     const target=allData.find(x=>(x.member_id||x.id)==mId);
-
                     if(target&&m.source)target.source=m.source;
-
                 });
-
             }catch(e){}
-
         }
-
         updateConsultantDropdown();
-
         updateSourceDropdown(); 
-
         renderList();
-
         if(!isManager){
-
             statusLabel.innerText='🔄 載入名單細節...';
-
             await loadDetailsForAll();
-
         }
-
         statusLabel.innerText='✅ 載入完成';
-
         setTimeout(()=>statusLabel.innerText='',2000);
-
     }catch(err){
-
         content.innerHTML='<div style="color:red;text-align:center;">載入失敗: '+err.message+'</div>';
-
         statusLabel.innerText='❌ 載入失敗';
-
     }
-
 }
-
-
 
 async function fetchMemberDetail(m) {
-
     const memberId = m.member_id || m.id;
-
     let assignDate = null, normalDate = null, contactCount = 0;
-
     let lastLogNextTime = null;
-
     let reachedNormal = false;
 
-
-
     try {
-
         const res = await fetch('/admin/request_develop?member_id=' + memberId + '&hide_layout=true');
-
         if (!res.ok) throw new Error('Fetch API Failed');
-
         
-
         const html = await res.text();
-
         const doc = new DOMParser().parseFromString(html, 'text/html');
-
         const rows = doc.querySelectorAll('table tbody tr');
-
         
-
         rows.forEach(r => {
-
             const cells = r.querySelectorAll('td');
-
             if (cells.length < 4) return;
-
             const logType = cells[3].innerText.trim();
-
             const logContent = cells[4] ? cells[4].innerText : '';
-
             const dateVal = cells[1].innerText.split(' ')[0];
-
             const nextTimeVal = cells[2] ? cells[2].innerText.trim().split(' ')[0] : '';
-
             
-
             if (logType.includes('名單移動')) {
-
                 if (logContent.includes('移動到新名單') && !assignDate) assignDate = dateVal;
-
                 if (logContent.includes('移動到常態名單') && !normalDate) {
-
                     normalDate = dateVal;
-
                     reachedNormal = true;
-
                 }
-
             }
-
             if (logType.includes('聯絡')) {
-
                 contactCount++;
-
                 if (!reachedNormal && !lastLogNextTime && nextTimeVal && !nextTimeVal.includes('0000')) {
-
                     lastLogNextTime = nextTimeVal;
-
                 }
-
             }
-
         });
 
-
-
         if (m.type == 1 && !assignDate) {
-
             assignDate = new Date().toISOString().split('T')[0];
-
         }
-
-
 
         detailData[memberId] = { assignDate, normalDate, contactCount, lastLogNextTime };
-
         renderList(); 
 
-
-
     } catch(e) {
-
         delete detailData[memberId];
-
         console.error("抓取日誌失敗，已移除快取準備重試", memberId, e);
-
         return; 
-
     }
-
-
 
     if (m.type == 1) {
-
         try {
-
             await syncNewMemberToSheet(m, assignDate);
-
         } catch(e) {
-
             console.error("Sheet 寫入失敗", memberId, e);
-
         }
-
     }
-
 }
-
-
 
 async function loadDetailsForAll(){
-
     const targets = allData.filter(m => (m.type == 1 || m.type == 2) && !detailData[m.member_id]);
-
     if (!targets.length) return;
-
     const statusLabel = document.getElementById('loading-status');
-
     for (let i = 0; i < targets.length; i += 5) {
-
         const batch = targets.slice(i, i + 5);
-
         await Promise.all(batch.map(m => fetchMemberDetail(m)));
-
         statusLabel.innerText = '🔄 名單細節 ' + Math.min(i + 5, targets.length) + '/' + targets.length;
-
         renderList();
-
     }
-
 }
-
-
 
 async function loadDetailsForConsultant(consultantName){
-
     const targets = allData.filter(m =>
-
         (m.type == 1 || m.type == 2) &&
-
         (m.user_name || '').trim() === consultantName &&
-
         !detailData[m.member_id]
-
     );
-
     if (!targets.length) return;
-
     const statusLabel = document.getElementById('loading-status');
-
     statusLabel.innerText = '🔄 同步 ' + consultantName + ' 的名單...';
-
     for (let i = 0; i < targets.length; i += 5) {
-
         const batch = targets.slice(i, i + 5);
-
         await Promise.all(batch.map(m => fetchMemberDetail(m)));
-
         statusLabel.innerText = '🔄 ' + consultantName + ' 名單細節 ' + Math.min(i + 5, targets.length) + '/' + targets.length;
-
         renderList();
-
     }
-
     statusLabel.innerText = '✅ ' + consultantName + ' 同步完成';
-
     setTimeout(() => statusLabel.innerText = '', 2000);
-
 }
-
-
 
 /* ══ 噴單天數計算 ══ */
-
 function getDropDaysLeft(item, detail){
-
     const today = new Date(); today.setHours(0,0,0,0);
 
-
-
     if (item.type == 1) {
-
         if (!detail || !detail.assignDate) return null;
-
         const assign = new Date(detail.assignDate); assign.setHours(0,0,0,0);
-
         const dropDate = new Date(assign); dropDate.setDate(dropDate.getDate() + 3);
-
         return Math.ceil((dropDate - today) / 86400000);
-
     }
-
-
 
     if (item.type == 2) {
-
         if (!detail) return null;
-
         const base = detail.lastLogNextTime || detail.normalDate;
-
         if (!base) return null;
-
         const baseD = new Date(base); baseD.setHours(0,0,0,0);
-
         const dropDate = new Date(baseD); dropDate.setDate(baseD.getDate() + 4);
-
         return Math.ceil((dropDate - today) / 86400000);
-
     }
 
-
-
     if (!item.next_time || item.next_time.includes('0000-00-00')) return null;
-
     const nextT = new Date(item.next_time.split(' ')[0]); nextT.setHours(0,0,0,0);
-
     const dropDate = new Date(nextT); dropDate.setDate(nextT.getDate() + 4);
-
     return Math.ceil((dropDate - today) / 86400000);
-
 }
 
-
-
 function renderList(){
-
     const selectedConsultant=isManager?document.getElementById('consultant-filter').value:'-1';
-
     const selectedTType=document.getElementById('t-type-filter').value;
-
     const selectedSource = (isManager && document.getElementById('source-filter')) ? document.getElementById('source-filter').value : '-1';
-
     
-
     let filteredData=allData.filter(item=>{
-
         const cMatch=isManager?(selectedConsultant=='-1'||(item.user_name||'').trim()===selectedConsultant):true;
-
         const tMatch=selectedTType=='-1'||String(item.type)===selectedTType;
-
         const sMatch = selectedSource === '-1' || (item.source && item.source.trim().substring(0, 2).toUpperCase() === selectedSource);
-
         return cMatch && tMatch && sMatch;
-
     });
-
     filteredData.sort((a,b)=>(getDropDaysLeft(a,detailData[a.member_id])??999)-(getDropDaysLeft(b,detailData[b.member_id])??999));
-
     if(!filteredData.length){content.innerHTML='<div style="text-align:center;padding:20px;color:#666;">找不到符合條件的名單。</div>';return;}
-
     
-
     const typeStyles={'1':{label:'新單',bg:'#1a6fc4'},'2':{label:'常態',bg:'#27ae60'},'3':{label:'Demo',bg:'#8e44ad'},'4':{label:'釋出',bg:'#e67e22'}};
-
     const sourceHeader=isManager?'<th style="padding:6px;width:7%;">來源</th>':'';
-
     const batchHeader = isManager ? '<th style="padding:6px;width:30px;text-align:center;"><input type="checkbox" id="select-all-cb" style="cursor:pointer;"></th>' : '';
 
-
-
     let html='<table style="width:100%;border-collapse:collapse;font-size:12px;">';
-
     html+='<tr style="background:#e9ecef;text-align:left;position:sticky;top:0;z-index:10;">' + batchHeader + '<th style="padding:6px;">姓名/狀態</th><th style="padding:6px;">電話</th><th style="padding:6px;width:10%;">等級</th><th style="padding:6px;width:22%;">備註</th><th style="padding:6px;width:16%;">下次聯繫 & 預警</th>'+sourceHeader+'<th style="padding:6px;">業務</th><th style="padding:6px;width:9%;">操作</th></tr>';
 
-
-
     filteredData.slice(0,150).forEach(item=>{
-
         const id=item.member_id||item.id||'';
-
         const d=detailData[id];
-
         const sd=sheetData[String(id)]||{};
-
         const dropDays=getDropDaysLeft(item,d);
-
         const ts=typeStyles[String(item.type)]||{label:'其他',bg:'#95a5a6'};
-
         const rowBorderColor=dropDays!==null&&dropDays<=0?'#e74c3c':dropDays!==null&&dropDays<=2?'#e67e22':ts.bg;
 
-
-
         let warningHtml='';
-
         if(dropDays!==null){
-
             if(dropDays<0)warningHtml='<br><span style="color:#c0392b;font-weight:bold;">🔥 已噴單(過期'+Math.abs(dropDays)+'天)</span>';
-
             else if(dropDays===0)warningHtml='<br><span style="color:#d35400;font-weight:bold;">🔥 今日噴單</span>';
-
             else if(dropDays<=2)warningHtml='<br><span style="color:#e67e22;font-weight:bold;">⚠️ 剩 '+dropDays+' 天</span>';
-
             else warningHtml='<br><span style="color:#16a085;">距噴單 '+dropDays+' 天</span>';
-
         } else if((item.type==1 || item.type==2) && !d){
-
             warningHtml=isManager&&selectedConsultant=='-1'?'<br><span style="color:#95a5a6;">請選取業務載入</span>':'<br><span style="color:#95a5a6;">載入中...</span>';
-
         }
-
-
 
         let progressHtml='';
-
         if(item.type==1){
-
             const count=d?d.contactCount:0;
-
             const pct=Math.min(100,(count/6)*100);
-
             const assignStr=(d&&d.assignDate)?d.assignDate:'待載入';
-
             progressHtml='<div style="font-size:10px;color:#1a6fc4;margin-top:3px;">進單:'+assignStr+' 進度:'+count+'/6</div><div style="width:100%;height:3px;background:#ddd;border-radius:2px;margin-top:2px;"><div style="width:'+pct+'%;height:100%;background:'+(pct<100?'#3498db':'#27ae60')+';border-radius:2px;"></div></div>';
-
         }
-
-
 
         if(item.type==2){
-
             const normalStr=(d&&d.normalDate)?d.normalDate:'待載入';
-
             progressHtml='<div style="font-size:10px;color:#27ae60;margin-top:3px;">轉常態時間:'+normalStr+'</div>';
-
         }
-
-
 
         const isReInquire = (sd.status === '再次留單');
-
         const reInquireHtml = isReInquire ? '<span style="background:#c0392b;color:white;padding:1px 5px;border-radius:3px;font-size:10px;margin-left:5px;">再次留單</span>' : '';
-
         const btnBg=dropDays!==null&&dropDays<=0?'#e74c3c':ts.bg;
-
         const sourceCell=isManager?'<td style="padding:6px;color:#8e44ad;font-size:11px;vertical-align:top;">S:'+(item.source||'-')+'</td>':'';
-
         const displayUserName=(item.user_name&&item.user_name.trim())?item.user_name.trim():getWriterName();
 
-
-
         let gradeHtml = '';
-
         let memoHtml = '';
 
-
-
         if (item.type == 4 && !isReInquire) {
-
             gradeHtml = '<span style="color:#bdc3c7;font-size:11px;">無須評等</span>';
-
             memoHtml = '<button class="reinquire-btn" data-id="'+id+'" style="padding:6px 12px;border:1px solid #c0392b;border-radius:4px;background:#fff;color:#c0392b;cursor:pointer;font-size:12px;font-weight:bold;width:100%;">🚩 標記為「再次留單」</button><span id="save-status-'+id+'" style="font-size:10px;margin-left:6px;"></span>';
-
         } else {
-
             const gradeA = sd.grade==='A';
-
             const gradeC = sd.grade==='C';
-
             gradeHtml =
-
                 '<div style="display:flex;gap:4px;align-items:center;flex-wrap:wrap;">' +
-
                 '<button class="grade-inline-btn" data-id="'+id+'" data-val="A" style="padding:2px 10px;border:2px solid '+(gradeA?'#1a6fc4':'#ddd')+';border-radius:4px;cursor:pointer;font-weight:bold;font-size:12px;background:'+(gradeA?'#1a6fc4':'#fff')+';color:'+(gradeA?'white':'#333')+';">A</button>' +
-
                 '<button class="grade-inline-btn" data-id="'+id+'" data-val="C" style="padding:2px 10px;border:2px solid '+(gradeC?'#e67e22':'#ddd')+';border-radius:4px;cursor:pointer;font-weight:bold;font-size:12px;background:'+(gradeC?'#e67e22':'#fff')+';color:'+(gradeC?'white':'#333')+';">C</button>' +
-
                 (sd.grade?'<button class="grade-inline-btn" data-id="'+id+'" data-val="" style="padding:2px 6px;border:1px solid #ddd;border-radius:4px;cursor:pointer;font-size:10px;background:#f5f5f5;color:#999;">✕</button>':'') +
-
                 '</div>';
-
-
 
             let reInqToggle = '';
-
             if (item.type != 1) { 
-
                 if (isReInquire) {
-
                     reInqToggle = '<button class="reinquire-btn" data-id="'+id+'" style="margin-bottom:4px;padding:2px 6px;border:none;border-radius:4px;background:#c0392b;color:#fff;cursor:pointer;font-size:10px;font-weight:bold;">✅ 已標記再次留單 (點擊取消)</button><br>';
-
                 } else if (item.type != 4) { 
-
                     reInqToggle = '<button class="reinquire-btn" data-id="'+id+'" style="margin-bottom:4px;padding:2px 6px;border:1px solid #c0392b;border-radius:4px;background:#fff;color:#c0392b;cursor:pointer;font-size:10px;font-weight:bold;">🚩 標記為再次留單</button><br>';
-
                 }
-
             }
 
-
-
             memoHtml =
-
                 '<div style="position:relative;">' +
-
                 reInqToggle +
-
                 '<textarea class="memo-inline-input" data-id="'+id+'" rows="2" style="width:100%;padding:4px 6px;border:1px solid #ddd;border-radius:4px;font-size:11px;font-family:sans-serif;resize:none;background:#fafafa;" placeholder="輸入備註...">'+( sd.memo||'' )+'</textarea>' +
-
                 '<span id="save-status-'+id+'" style="font-size:10px;position:absolute;bottom:2px;right:4px;"></span>' +
-
                 '</div>';
-
         }
-
-
 
         const batchCell = isManager ? '<td style="padding:6px;text-align:center;vertical-align:top;"><input type="checkbox" class="row-cb" value="'+id+'" style="cursor:pointer;"></td>' : '';
 
-
-
         html+='<tr style="border-bottom:1px solid #dee2e6;border-left:4px solid '+rowBorderColor+';">' + batchCell + '<td style="padding:6px;vertical-align:top;"><b>'+(item.member_name||'未知')+'</b><br><span style="background:'+ts.bg+';color:white;padding:1px 5px;border-radius:3px;font-size:10px;">'+ts.label+'</span>'+reInquireHtml+progressHtml+'</td><td style="padding:6px;vertical-align:top;">'+(item.mobile||'-')+'</td><td style="padding:6px;vertical-align:top;">'+gradeHtml+'</td><td style="padding:6px;vertical-align:top;">'+memoHtml+'</td><td style="padding:6px;vertical-align:top;"><span style="color:#d35400;">'+(item.type==2 && d ? (d.lastLogNextTime || d.normalDate || '無紀錄') : (item.next_time&&!item.next_time.includes('0000')?item.next_time.split(' ')[0]:'無紀錄'))+'</span>'+warningHtml+'</td>'+sourceCell+'<td style="padding:6px;color:#7f8c8d;vertical-align:top;font-size:11px;">'+displayUserName+'</td><td style="padding:6px;vertical-align:top;"><button class="quick-record-btn" data-id="'+id+'" style="padding:4px 8px;background:'+btnBg+';color:white;border:none;border-radius:4px;cursor:pointer;font-size:11px;font-weight:bold;width:100%;">壓紀錄</button><button class="quick-release-btn" data-id="'+id+'" style="margin-top:4px;padding:4px 8px;background:#c0392b;color:white;border:none;border-radius:4px;cursor:pointer;font-size:11px;font-weight:bold;width:100%;">釋出</button></td></tr>';
-
     });
-
-
 
     html+='</table>';
-
     if(filteredData.length>150)html+='<div style="text-align:center;padding:10px;color:#888;">(共 '+filteredData.length+' 筆，顯示前 150 筆)</div>';
-
     content.innerHTML=html;
 
-
-
     if (isManager) {
-
         const batchBtn = document.getElementById('batch-release-btn');
-
         const updateBatchBtn = () => {
-
             const checkedCount = document.querySelectorAll('.row-cb:checked').length;
-
             if(batchBtn) {
-
                 if(checkedCount > 0) {
-
                     batchBtn.style.display = 'inline-block';
-
                     batchBtn.innerText = '批量處理 (' + checkedCount + ')';
-
                 } else {
-
                     batchBtn.style.display = 'none';
-
                 }
-
             }
-
         };
-
         
-
         const selectAllCb = document.getElementById('select-all-cb');
-
         if(selectAllCb) {
-
             selectAllCb.onchange = e => {
-
                 document.querySelectorAll('.row-cb').forEach(cb => cb.checked = e.target.checked);
-
                 updateBatchBtn();
-
             };
-
         }
-
         document.querySelectorAll('.row-cb').forEach(cb => cb.onchange = updateBatchBtn);
-
         updateBatchBtn();
-
     }
 
-
-
     document.querySelectorAll('.reinquire-btn').forEach(btn=>{
-
         btn.onclick=e=>{
-
             const memberId=e.target.getAttribute('data-id');
-
             const item=allData.find(m=>(m.member_id||m.id)==memberId);
-
             if(!sheetData[String(memberId)])sheetData[String(memberId)]={status:'',grade:'',memo:''};
-
             const sd=sheetData[String(memberId)];
-
             sd.status = (sd.status === '再次留單') ? '' : '再次留單';
-
             renderList(); 
-
             debounceSaveMemo(memberId, sd.grade, sd.memo, item); 
-
         };
-
     });
-
-
 
     document.querySelectorAll('.grade-inline-btn').forEach(btn=>{
-
         btn.onclick=e=>{
-
             const memberId=e.target.getAttribute('data-id');
-
             const val=e.target.getAttribute('data-val');
-
             const item=allData.find(m=>(m.member_id||m.id)==memberId);
-
             if(!sheetData[String(memberId)])sheetData[String(memberId)]={status:'',grade:'',memo:''};
-
             sheetData[String(memberId)].grade=val;
-
             renderList(); 
-
             const sd=sheetData[String(memberId)];
-
             debounceSaveMemo(memberId, sd.grade, sd.memo, item); 
-
         };
-
     });
-
-
 
     document.querySelectorAll('.memo-inline-input').forEach(input=>{
-
         input.addEventListener('input', e=>{
-
             const memberId=e.target.getAttribute('data-id');
-
             const memo=e.target.value;
-
             const item=allData.find(m=>(m.member_id||m.id)==memberId);
-
             if(!sheetData[String(memberId)])sheetData[String(memberId)]={status:'',grade:'',memo:''};
-
             sheetData[String(memberId)].memo=memo;
-
             const sd=sheetData[String(memberId)];
-
             debounceSaveMemo(memberId, sd.grade, sd.memo, item); 
-
         });
-
     });
-
-
 
     document.querySelectorAll('.quick-record-btn').forEach(btn=>{
-
         btn.onclick=e=>{
-
             const memberId=e.target.getAttribute('data-id');
-
             const item=allData.find(m=>(m.member_id||m.id)==memberId);
-
             currentItem=item;
-
             document.getElementById('modal-member-id').value=memberId;
-
             const formatDate=(date)=>{
-
                 const y=date.getFullYear();
-
                 const mo=String(date.getMonth()+1).padStart(2,'0');
-
                 const d=String(date.getDate()).padStart(2,'0');
-
                 return y+'-'+mo+'-'+d;
-
             };
-
             const today=new Date();
-
             const nextTarget=new Date(today);
-
             nextTarget.setDate(today.getDate()+(item.type==1?1:3));
-
             const dateInput=document.getElementById('modal-date');
-
             dateInput.value=formatDate(nextTarget);
-
             const maxDate=new Date(today);
-
             maxDate.setDate(today.getDate()+14);
-
             dateInput.min=formatDate(today);
-
             dateInput.max=formatDate(maxDate);
-
             const d=detailData[memberId];
-
             document.getElementById('modal-info-text').innerText=item.type==1&&d?'【新單】已壓 '+d.contactCount+' 次，目標 6 次，還需 '+Math.max(0,6-d.contactCount)+' 次':'';
-
             const statusSel=document.getElementById('modal-status');
-
             statusSel.value='3';
-
             const contentEl=document.getElementById('modal-content');
-
             contentEl.value='未接 *1';
-
             contentEl.style.minHeight='60px';
-
             recordModal.style.display='block';
-
         };
-
     });
-
-
 
     document.querySelectorAll('.quick-release-btn').forEach(btn=>{
-
         btn.onclick=e=>{
-
             const memberId=e.target.getAttribute('data-id');
-
             document.getElementById('release-member-id').value=memberId;
-
             document.getElementById('release-memo').value='';
-
             document.getElementById('release-modal').style.display='block';
-
         };
-
     });
-
 }
-
-
 
 document.getElementById('modal-submit').onclick=()=>{
-
     if(!currentItem)return;
-
     const memberId=document.getElementById('modal-member-id').value;
-
     const btn=document.getElementById('modal-submit');btn.innerText='送出中...';
-
     let iframe=document.getElementById('hidden-save-frame')||document.createElement('iframe');
-
     iframe.name='hidden-save-frame';iframe.id='hidden-save-frame';iframe.style.display='none';iframe.sandbox='allow-forms allow-same-origin';
-
     document.body.appendChild(iframe);
-
     const form=document.createElement('form');form.target='hidden-save-frame';form.method='POST';
-
     form.action='https://www.etalkingonline.com/admin/request_develop/save';
-
     const params={'current_member_id':memberId,'contact_status':document.getElementById('modal-status').value,'content':document.getElementById('modal-content').value,'sub_content':'','search_begin':document.getElementById('modal-date').value,'time':'12:00:00','consultant_type':'10','type':'20'};
-
     for(let k in params){let i=document.createElement('input');i.type='hidden';i.name=k;i.value=params[k];form.appendChild(i);}
-
     document.body.appendChild(form);form.submit();
-
     setTimeout(()=>{
-
         alert('✅ 紀錄已成功送出！');
-
         recordModal.style.display='none';btn.innerText='送出紀錄';
-
         if(currentItem.type==1&&detailData[memberId])detailData[memberId].contactCount++;
-
         if(detailData[memberId]) {
-
             detailData[memberId].lastLogNextTime = params['search_begin'];
-
         }
-
         currentItem.next_time=params['search_begin']+' 11:59:59';
-
         renderList();
-
     },1000);
-
 };
 
-
-
 const batchBtnObj = document.getElementById('batch-release-btn');
-
 if (batchBtnObj) {
-
     batchBtnObj.onclick = () => {
-
         const checkedCbs = document.querySelectorAll('.row-cb:checked');
-
         if(checkedCbs.length === 0) return;
-
         const ids = Array.from(checkedCbs).map(cb => cb.value);
-
         document.getElementById('release-member-id').value = ids.join(',');
-
         document.getElementById('release-memo').value = '';
-
         document.getElementById('release-modal').style.display = 'block';
-
     };
-
 }
-
-
 
 document.getElementById('release-cancel').onclick=()=>{ document.getElementById('release-modal').style.display='none'; };
 
-
-
 document.getElementById('release-submit').onclick = async () => {
-
     const memberIdsStr = document.getElementById('release-member-id').value;
-
     const reason = document.getElementById('release-reason').value;
-
     const memo = document.getElementById('release-memo').value.trim();
-
     const btn = document.getElementById('release-submit');
-
     
-
     const reassignSelect = document.getElementById('release-reassign');
-
     const targetSalesId = reassignSelect ? reassignSelect.value : '-1';
-
     
-
     if (!memberIdsStr) return;
-
     const memberIds = memberIdsStr.split(',');
 
-
-
     btn.innerText = '處理中...';
-
     btn.disabled = true;
-
-
 
     const randomDelay = (min, max) => new Promise(res => setTimeout(res, Math.random() * (max - min) + min));
 
-
-
     let successCount = 0;
-
     let failCount = 0;
 
-
-
     try {
-
         const adminNameStr = getWriterName();
-
         const accountStr = adminNameStr.split(' ')[0] || adminNameStr;
-
         const finalReason = memo ? reason + '，' + memo : reason + '，';
 
-
-
         for (let i = 0; i < memberIds.length; i++) {
-
             const mId = memberIds[i];
-
             btn.innerText = `處理中 (${i+1}/${memberIds.length})...`;
 
-
-
             try {
-
                 const releaseUrl = `https://www.etalkingonline.com/admin/sys/api_member_release_member.php?id=${mId}&reason=${encodeURIComponent(finalReason)}&uid=${crmUid}&account=${encodeURIComponent(accountStr)}&admin_name=${encodeURIComponent(adminNameStr)}`;
-
                 const releaseRes = await fetch(releaseUrl);
-
                 if (!releaseRes.ok) throw new Error('釋出 API 錯誤');
 
-
-
                 if (targetSalesId !== '-1') {
-
                     await randomDelay(1500, 2500); 
-
                     const reassignUrl = `https://www.etalkingonline.com/admin/sys/api_release_appoint.php?uid=${crmUid}&account=${encodeURIComponent(accountStr)}&admin_name=${encodeURIComponent(adminNameStr)}`;
-
                     
-
                     const formData = new URLSearchParams();
-
                     formData.append('sales', targetSalesId);
-
                     formData.append('checked[]', mId);
 
-
-
                     const reassignRes = await fetch(reassignUrl, {
-
                         method: 'POST',
-
                         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-
                         body: formData.toString()
-
                     });
-
                     if (!reassignRes.ok) throw new Error('轉派 API 錯誤');
-
                 }
-
                 
-
                 successCount++;
-
                 allData = allData.filter(m => (m.member_id || m.id) != mId);
-
                 
-
             } catch(err) {
-
                 console.error(`名單 ${mId} 處理失敗:`, err);
-
                 failCount++;
-
             }
-
-
 
             if(i < memberIds.length - 1) {
-
                 await randomDelay(2000, 3000);
-
             }
-
         }
-
-
 
         if (memberIds.length > 1) {
-
             alert(`✅ 批量執行完畢！\n成功: ${successCount} 筆\n失敗: ${failCount} 筆`);
-
         } else if (targetSalesId !== '-1') {
-
             alert('✅ 釋出並轉派成功！');
-
         } else {
-
             alert('✅ 名單已成功釋出！');
-
         }
-
-
 
         document.getElementById('release-modal').style.display = 'none';
-
-        if(currentTab === 'pool') {
-
-            const dispatchedIds = new Set(memberIds);
-
-            poolData = poolData.filter(item => !dispatchedIds.has(item.member_id));
-
-            renderPoolList();
-
-        } else {
-
-            renderList();
-
-        }
-
         
-
+        // ★ 修復 Bug：現在這段判斷完全正常運作了！
+        if(currentTab === 'pool') {
+            const dispatchedIds = new Set(memberIds);
+            poolData = poolData.filter(item => !dispatchedIds.has(item.member_id));
+            if(typeof renderPoolList === 'function') renderPoolList();
+        } else {
+            renderList();
+        }
+        
     } catch(e) {
-
         alert('❌ 發生預期外錯誤！');
-
         console.error(e);
-
     } finally {
-
         btn.innerText = '確定送出';
-
         btn.disabled = false;
-
         if(reassignSelect) reassignSelect.value = '-1';
-
     }
-
 };
-
-
 
 document.getElementById('close-btn').onclick=()=>{
-
     panel.remove();curtain.remove();document.body.style.overflow='';
-
     setTimeout(()=>{window.location.href='https://admin.etalkingonline.com/etalking2.0/#/kpi';},300);
-
 };
-
 document.getElementById('refresh-btn').onclick=fetchData;
-
 document.getElementById('t-type-filter').onchange=renderList;
 
-
-
 if(isManager){
-
-    let currentTab = 'crm';
-
-    let poolData = [];
-
-    // ★ 釋出池篩選狀態
-    let poolSourceFilter = '-1';
-    let poolFilterStart  = '';
-    let poolFilterEnd    = '';
-
-
-
     function switchTab(tab) {
-
         currentTab = tab;
-
         const tabCrm = document.getElementById('tab-crm');
-
         const tabPool = document.getElementById('tab-pool');
-
         if(tab === 'crm') {
-
             tabCrm.style.background = '#3498db';
-
             tabCrm.style.border = '2px solid #3498db';
-
             tabPool.style.background = 'transparent';
-
             tabPool.style.border = '2px solid rgba(255,255,255,0.4)';
-
             ['consultant-filter','source-filter','sync-all-new-btn','sync-demo-btn','t-type-filter','refresh-btn'].forEach(id => {
-
                 const el = document.getElementById(id);
-
                 if(el) el.style.display = '';
-
             });
-
             renderList();
-
         } else {
-
             tabCrm.style.background = 'transparent';
-
             tabCrm.style.border = '2px solid rgba(255,255,255,0.4)';
-
             tabPool.style.background = '#2ecc71';
-
             tabPool.style.border = '2px solid #2ecc71';
-
             ['consultant-filter','source-filter','sync-all-new-btn','sync-demo-btn','t-type-filter','refresh-btn'].forEach(id => {
-
                 const el = document.getElementById(id);
-
                 if(el) el.style.display = 'none';
-
             });
-
-            // ★ 改成先顯示篩選設定畫面，不自動載入
-
             renderPoolEmptyState();
-
         }
-
     }
 
-
-
     document.getElementById('tab-crm').onclick = () => switchTab('crm');
-
     document.getElementById('tab-pool').onclick = () => switchTab('pool');
 
-
-
-    /* ══════════════════════════════════════════════════════
-       ★ 釋出池：初始畫面（先選條件，不自動載入）
-    ══════════════════════════════════════════════════════ */
-
     function renderPoolEmptyState() {
-
         if(currentTab !== 'pool') return;
 
-
-
         const prefixesGuess = [...new Set(
-
             allData.map(item => (item.source||'').trim().substring(0,2).toUpperCase()).filter(Boolean)
-
         )].sort();
 
-
-
         const filterHtml = `
-
             <div style="padding:30px;text-align:center;">
-
                 <h4 style="margin-top:0;color:#2c3e50;">📂 釋出池查詢設定</h4>
-
                 <p style="color:#888;font-size:13px;">請先選擇日期區間與來源，再點擊「載入資料」</p>
-
                 <div style="display:flex;gap:8px;justify-content:center;align-items:center;flex-wrap:wrap;margin-top:15px;">
-
                     <select id="pool-source-filter" style="padding:6px 10px;border-radius:4px;border:1px solid #ddd;font-size:13px;">
-
                         <option value="-1">所有來源</option>
-
                         ${prefixesGuess.map(p => `<option value="${p}">${p}</option>`).join('')}
-
                     </select>
-
                     <input type="date" id="pool-filter-start" style="padding:6px 10px;border-radius:4px;border:1px solid #ddd;font-size:13px;">
-
                     <span style="color:#666;">~</span>
-
                     <input type="date" id="pool-filter-end" style="padding:6px 10px;border-radius:4px;border:1px solid #ddd;font-size:13px;">
-
                     <button id="pool-load-btn" style="padding:6px 16px;background:#1a6fc4;color:white;border:none;border-radius:4px;cursor:pointer;font-size:13px;font-weight:bold;">
-
                         🔍 載入資料
-
                     </button>
-
                 </div>
-
             </div>`;
-
-
 
         content.innerHTML = filterHtml;
 
-
-
         document.getElementById('pool-load-btn').onclick = () => {
-
             poolSourceFilter = document.getElementById('pool-source-filter').value;
-
             poolFilterStart  = document.getElementById('pool-filter-start').value;
-
             poolFilterEnd    = document.getElementById('pool-filter-end').value;
-
             poolData = [];
-
             loadPoolData();
-
         };
-
     }
 
-
-
-    /* ══════════════════════════════════════════════════════
-       ★ 釋出池：分批載入 + GAS 端篩選
-    ══════════════════════════════════════════════════════ */
-
     async function loadPoolData() {
-
         const statusLabel = document.getElementById('loading-status');
-
         statusLabel.innerText = '🔄 載入釋出池...';
-
         poolData = [];
-
         content.innerHTML = '<div style="text-align:center;padding:30px;color:#666;">🔄 載入中，請稍候...</div>';
 
-
-
         const LIMIT = 500;
-
         let offset = 0;
-
         let total  = null;
 
-
-
         try {
-
             while (true) {
-
                 const res = await gasGet({
-
                     action:    'readPool',
-
                     offset:    offset,
-
                     limit:     LIMIT,
-
                     source:    poolSourceFilter,
-
                     startDate: poolFilterStart,
-
                     endDate:   poolFilterEnd
-
                 });
-
-
 
                 if (res.error) throw new Error(res.error);
 
-
-
                 if (total === null) total = res.total || 0;
-
                 if (!res.values || res.values.length === 0) break;
 
-
-
                 const batch = res.values.map(row => ({
-
                     member_id:    String(row[0] || ''),
-
                     member_name:  row[1] || '',
-
                     mobile:       row[2] || '',
-
                     source:       row[3] || '',
-
                     release_time: String(row[4] || '').substring(0, 10),
-
                     sync_time:    String(row[5] || '').substring(0, 10)
-
                 }));
 
-
-
                 poolData = poolData.concat(batch);
-
                 offset  += LIMIT;
 
-
-
                 statusLabel.innerText = `🔄 載入中 ${poolData.length} / ${total} 筆...`;
-
                 renderPoolList();
 
-
-
                 if (poolData.length >= total) break;
-
             }
 
-
-
             statusLabel.innerText = `✅ 釋出池共 ${poolData.length} 筆`;
-
             setTimeout(() => statusLabel.innerText = '', 3000);
-
             renderPoolList();
 
-
-
         } catch(e) {
-
             statusLabel.innerText = '❌ 釋出池載入失敗';
-
             content.innerHTML = '<div style="text-align:center;padding:20px;color:#e74c3c;">❌ 載入失敗，請重試</div>';
-
             console.error(e);
-
         }
-
     }
 
-
-
-    /* ══ 釋出池：渲染 ══ */
-
-    function renderPoolList() {
-
+    renderPoolList = function() {
         if(currentTab !== 'pool') return;
 
-
-
-        // 收集來源前綴（從已載入的資料）
-
         const prefixes = [...new Set(
-    allData.map(item => (item.source||'').trim().substring(0,2).toUpperCase()).filter(Boolean)
-)].sort();
-
-
-
-        // 篩選列 HTML（含來源、日期區間、篩選按鈕）
+            allData.map(item => (item.source||'').trim().substring(0,2).toUpperCase()).filter(Boolean)
+        )].sort();
 
         const filterHtml = `
-
             <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:8px 0;border-bottom:1px solid #dee2e6;margin-bottom:8px;">
-
                 <select id="pool-source-filter" style="padding:5px 8px;border-radius:4px;border:1px solid #ddd;font-size:12px;">
-
                     <option value="-1">所有來源</option>
-
                     ${prefixes.map(p => `<option value="${p}" ${poolSourceFilter===p?'selected':''}>${p}</option>`).join('')}
-
                 </select>
-
                 <input type="date" id="pool-filter-start" value="${poolFilterStart}"
-
                     style="padding:5px 8px;border-radius:4px;border:1px solid #ddd;font-size:12px;">
-
                 <span style="font-size:12px;color:#666;">~</span>
-
                 <input type="date" id="pool-filter-end" value="${poolFilterEnd}"
-
                     style="padding:5px 8px;border-radius:4px;border:1px solid #ddd;font-size:12px;">
-
                 <button id="pool-filter-btn"
-
                     style="padding:5px 14px;background:#1a6fc4;color:white;border:none;border-radius:4px;cursor:pointer;font-size:12px;font-weight:bold;">
-
                     🔍 篩選
-
                 </button>
-
                 <button id="pool-filter-clear-btn"
-
                     style="padding:5px 10px;background:#95a5a6;color:white;border:none;border-radius:4px;cursor:pointer;font-size:12px;">
-
                     清除篩選
-
                 </button>
-
                 <span style="font-size:12px;color:#666;margin-left:4px;">
-
                     顯示 <b>${poolData.length}</b> 筆
-
                     ${(poolFilterStart||poolFilterEnd||poolSourceFilter!=='-1') ? '<span style="color:#e67e22;">（已篩選）</span>' : ''}
-
                 </span>
-
                 <button id="pool-batch-btn"
-
                     style="display:none;padding:5px 14px;background:#27ae60;color:white;border:none;border-radius:4px;cursor:pointer;font-weight:bold;font-size:12px;margin-left:auto;">
-
                     批次派發 (0)
-
                 </button>
-
                 <button id="pool-reload-btn"
-
                     style="padding:5px 10px;background:#7f8c8d;color:white;border:none;border-radius:4px;cursor:pointer;font-size:12px;">
-
                     🔄 重新載入
-
                 </button>
-
             </div>`;
 
-
-
-        // 表格 HTML
-
         let tableHtml = '<table style="width:100%;border-collapse:collapse;font-size:12px;">';
-
         tableHtml += `
-
             <tr style="background:#e9ecef;text-align:left;position:sticky;top:0;z-index:10;">
-
                 <th style="padding:6px;width:30px;text-align:center;">
-
                     <input type="checkbox" id="pool-select-all" style="cursor:pointer;">
-
                 </th>
-
                 <th style="padding:6px;">姓名</th>
-
                 <th style="padding:6px;">電話</th>
-
                 <th style="padding:6px;width:8%;">來源</th>
-
                 <th style="padding:6px;width:14%;">釋出時間</th>
-
                 <th style="padding:6px;width:14%;">同步時間</th>
-
             </tr>`;
 
-
-
         if (poolData.length === 0) {
-
             tableHtml += '<tr><td colspan="6" style="text-align:center;padding:30px;color:#999;">目前沒有符合條件的資料</td></tr>';
-
         } else {
-
             poolData.slice(0, 300).forEach(item => {
-
                 tableHtml += `
-
                     <tr style="border-bottom:1px solid #dee2e6;">
-
                         <td style="padding:6px;text-align:center;vertical-align:top;">
-
                             <input type="checkbox" class="pool-cb" value="${item.member_id}" style="cursor:pointer;">
-
                         </td>
-
                         <td style="padding:6px;vertical-align:top;"><b>${item.member_name || '未知'}</b></td>
-
                         <td style="padding:6px;vertical-align:top;">${item.mobile || '-'}</td>
-
                         <td style="padding:6px;vertical-align:top;color:#8e44ad;font-size:11px;">${item.source || '-'}</td>
-
                         <td style="padding:6px;vertical-align:top;font-size:11px;color:#d35400;">${item.release_time || '-'}</td>
-
                         <td style="padding:6px;vertical-align:top;font-size:11px;color:#95a5a6;">${item.sync_time || '-'}</td>
-
                     </tr>`;
-
             });
-
         }
-
         tableHtml += '</table>';
-
         if (poolData.length > 300) {
-
             tableHtml += `<div style="text-align:center;padding:10px;color:#888;">(共 ${poolData.length} 筆，顯示前 300 筆)</div>`;
-
         }
-
-
 
         content.innerHTML = filterHtml + tableHtml;
 
-
-
-        /* ── 篩選按鈕事件 ── */
-
         document.getElementById('pool-filter-btn').onclick = () => {
-
             poolSourceFilter = document.getElementById('pool-source-filter').value;
-
             poolFilterStart  = document.getElementById('pool-filter-start').value;
-
             poolFilterEnd    = document.getElementById('pool-filter-end').value;
-
             poolData = [];
-
             loadPoolData();
-
         };
-
-
 
         document.getElementById('pool-filter-clear-btn').onclick = () => {
-
             poolSourceFilter = '-1';
-
             poolFilterStart  = '';
-
             poolFilterEnd    = '';
-
             poolData = [];
-
-            // ★ 改成回到設定畫面，不自動載入全部
-
             renderPoolEmptyState();
-
         };
-
-
-
-        /* ── 重新載入 ── */
 
         document.getElementById('pool-reload-btn').onclick = () => {
-
             poolData = [];
-
             loadPoolData();
-
         };
-
-
-
-        /* ── 全選 / 批次派發 ── */
 
         const poolBatchBtn = document.getElementById('pool-batch-btn');
-
         const updatePoolBatchBtn = () => {
-
             const count = document.querySelectorAll('.pool-cb:checked').length;
-
             poolBatchBtn.style.display = count > 0 ? 'inline-block' : 'none';
-
             poolBatchBtn.innerText = `批次派發 (${count})`;
-
         };
-
-
 
         document.getElementById('pool-select-all').onchange = e => {
-
             document.querySelectorAll('.pool-cb').forEach(cb => cb.checked = e.target.checked);
-
             updatePoolBatchBtn();
-
         };
-
         document.querySelectorAll('.pool-cb').forEach(cb => cb.onchange = updatePoolBatchBtn);
 
-
-
         poolBatchBtn.onclick = () => {
-
             const checkedIds = Array.from(document.querySelectorAll('.pool-cb:checked')).map(cb => cb.value);
-
             if(!checkedIds.length) return;
-
             document.getElementById('release-member-id').value = checkedIds.join(',');
-
             document.getElementById('release-memo').value = '';
-
             document.getElementById('release-reason').value = '8-6 其他 - 顧問自填';
-
             document.getElementById('release-modal').style.display = 'block';
-
         };
-
-    }
-
-
-
-    /* ══ 釋出池同步（更新釋出池按鈕）══ */
-
-    const todayStr = new Date().toISOString().split('T')[0];
-
-    const poolStartInput = document.getElementById('pool-start-date');
-
-    const poolEndInput   = document.getElementById('pool-end-date');
-
-    if(poolStartInput) poolStartInput.value = todayStr;
-
-    if(poolEndInput)   poolEndInput.value   = todayStr;
-
-
-
-    const syncPoolBtn = document.getElementById('sync-pool-btn');
-
-    if(syncPoolBtn) {
-
-        syncPoolBtn.onclick = async () => {
-
-            const start = poolStartInput.value;
-
-            const end   = poolEndInput.value;
-
-            if (!start || !end) return alert('⚠️ 請選擇完整的日期區間！');
-
-
-
-            const statusLabel = document.getElementById('loading-status');
-
-            syncPoolBtn.disabled = true;
-
-            syncPoolBtn.style.background = '#95a5a6';
-
-            syncPoolBtn.innerText = '撈取中...';
-
-
-
-            try {
-
-                const url = `https://server.etalkingonline.com/release_list/v4?startdate=${start}&enddate=${end}`;
-
-                statusLabel.innerText = `🔄 正在打撈 ${start} ~ ${end} 的釋出池...`;
-
-                const res  = await fetch(url);
-
-                const data = await res.json();
-
-                const list = data.list || [];
-
-
-
-                if (list.length === 0) {
-
-                    alert('➔ 該日期區間內，系統釋出池中沒有任何名單。');
-
-                    return;
-
-                }
-
-
-
-                const BATCH_SIZE = 200;
-
-                let totalAdded = 0;
-
-
-
-                for (let i = 0; i < list.length; i += BATCH_SIZE) {
-
-                    const batch = list.slice(i, i + BATCH_SIZE);
-
-                    statusLabel.innerText = `🔄 寫入中 ${Math.min(i + BATCH_SIZE, list.length)} / ${list.length} 筆...`;
-
-
-
-                    const releaseList = batch.map(item => ({
-
-                        member_id:   item.id,
-
-                        member_name: item.member_name,
-
-                        mobile:      item.mobile,
-
-                        source:      item.source || '未知',
-
-                        next_time:   item.cdate   || '無紀錄'
-
-                    }));
-
-
-
-                    const gasRes = await gasPost({ action: 'syncReleasePool', releaseList });
-
-                    if (gasRes.success) {
-
-                        totalAdded += gasRes.addedCount;
-
-                    } else {
-
-                        throw new Error(gasRes.error || 'GAS 端寫入失敗');
-
-                    }
-
-                }
-
-
-
-                statusLabel.innerText = `✅ 成功寫入 ${totalAdded} 筆！`;
-
-                alert(`🎉 搬家成功！\n系統總共撈到: ${list.length} 筆\n新成功寫入 Sheet: ${totalAdded} 筆\n(重複的單已為您自動過濾)`);
-
-
-
-            } catch (err) {
-
-                alert('❌ 同步失敗！請檢查 Console 或確認 API 是否可存取。');
-
-                console.error(err);
-
-                statusLabel.innerText = '❌ 同步失敗';
-
-            } finally {
-
-                syncPoolBtn.disabled = false;
-
-                syncPoolBtn.style.background = '#2ecc71';
-
-                syncPoolBtn.innerText = '更新釋出池';
-
-                setTimeout(() => { if (statusLabel.innerText.includes('成功')) statusLabel.innerText = ''; }, 3000);
-
-            }
-
-        };
-
-    }
-
-
-
-    document.getElementById('source-filter').onchange = renderList;
-
-    document.getElementById('consultant-filter').onchange=function(){
-
-        renderList();
-
-        if(this.value!=='-1')loadDetailsForConsultant(this.value);
-
     };
 
+    const todayStr = new Date().toISOString().split('T')[0];
+    const poolStartInput = document.getElementById('pool-start-date');
+    const poolEndInput   = document.getElementById('pool-end-date');
+    if(poolStartInput) poolStartInput.value = todayStr;
+    if(poolEndInput)   poolEndInput.value   = todayStr;
 
+    const syncPoolBtn = document.getElementById('sync-pool-btn');
+    if(syncPoolBtn) {
+        syncPoolBtn.onclick = async () => {
+            const start = poolStartInput.value;
+            const end   = poolEndInput.value;
+            if (!start || !end) return alert('⚠️ 請選擇完整的日期區間！');
+
+            const statusLabel = document.getElementById('loading-status');
+            syncPoolBtn.disabled = true;
+            syncPoolBtn.style.background = '#95a5a6';
+            syncPoolBtn.innerText = '撈取中...';
+
+            try {
+                const url = `https://server.etalkingonline.com/release_list/v4?startdate=${start}&enddate=${end}`;
+                statusLabel.innerText = `🔄 正在打撈 ${start} ~ ${end} 的釋出池...`;
+                const res  = await fetch(url);
+                const data = await res.json();
+                const list = data.list || [];
+
+                if (list.length === 0) {
+                    alert('➔ 該日期區間內，系統釋出池中沒有任何名單。');
+                    return;
+                }
+
+                const BATCH_SIZE = 200;
+                let totalAdded = 0;
+
+                for (let i = 0; i < list.length; i += BATCH_SIZE) {
+                    const batch = list.slice(i, i + BATCH_SIZE);
+                    statusLabel.innerText = `🔄 寫入中 ${Math.min(i + BATCH_SIZE, list.length)} / ${list.length} 筆...`;
+
+                    const releaseList = batch.map(item => ({
+                        member_id:   item.id,
+                        member_name: item.member_name,
+                        mobile:      item.mobile,
+                        source:      item.source || '未知',
+                        next_time:   item.cdate  || '無紀錄'
+                    }));
+
+                    const gasRes = await gasPost({ action: 'syncReleasePool', releaseList });
+                    if (gasRes.success) {
+                        totalAdded += gasRes.addedCount;
+                    } else {
+                        throw new Error(gasRes.error || 'GAS 端寫入失敗');
+                    }
+                }
+
+                statusLabel.innerText = `✅ 成功寫入 ${totalAdded} 筆！`;
+                alert(`🎉 搬家成功！\n系統總共撈到: ${list.length} 筆\n新成功寫入 Sheet: ${totalAdded} 筆\n(重複的單已為您自動過濾)`);
+
+            } catch (err) {
+                alert('❌ 同步失敗！請檢查 Console 或確認 API 是否可存取。');
+                console.error(err);
+                statusLabel.innerText = '❌ 同步失敗';
+            } finally {
+                syncPoolBtn.disabled = false;
+                syncPoolBtn.style.background = '#2ecc71';
+                syncPoolBtn.innerText = '更新釋出池';
+                setTimeout(() => { if (statusLabel.innerText.includes('成功')) statusLabel.innerText = ''; }, 3000);
+            }
+        };
+    }
+
+    document.getElementById('source-filter').onchange = renderList;
+    document.getElementById('consultant-filter').onchange=function(){
+        renderList();
+        if(this.value!=='-1')loadDetailsForConsultant(this.value);
+    };
 
     const syncNewBtn=document.getElementById('sync-all-new-btn');
-
     if(syncNewBtn){
-
         syncNewBtn.onclick=async()=>{
-
             const statusLabel=document.getElementById('loading-status');
-
             syncNewBtn.disabled=true;syncNewBtn.style.background='#95a5a6';syncNewBtn.innerText='同步中...';
-
             await loadDetailsForAll();
-
             syncNewBtn.disabled=false;syncNewBtn.style.background='#8e44ad';syncNewBtn.innerText='同步名單細節';
-
             statusLabel.innerText='✅ 細節同步完成';
-
             setTimeout(()=>statusLabel.innerText='',3000);
-
             renderList();
-
         };
-
     }
-
-
 
     const syncDemoBtn=document.getElementById('sync-demo-btn');
-
     if(syncDemoBtn){
-
         syncDemoBtn.onclick=async()=>{
-
             syncDemoBtn.disabled=true;syncDemoBtn.style.background='#95a5a6';syncDemoBtn.innerText='同步中...';
-
             await syncDemoRawData();
-
             syncDemoBtn.disabled=false;syncDemoBtn.style.background='#e67e22';syncDemoBtn.innerText='同步Demo';
-
             renderList();
-
         };
-
     }
-
 }
-
 fetchData();
-
 })();
