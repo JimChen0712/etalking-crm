@@ -313,9 +313,35 @@ recordModal.id='record-modal';
 recordModal.style.cssText='display:none;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:480px;max-height:85vh;overflow-y:auto;background:white;padding:20px;border-radius:8px;box-shadow:0 4px 15px rgba(0,0,0,0.2);z-index:1000000;';
 recordModal.innerHTML='<h4 style="margin-top:0;">新增聯絡紀錄</h4><input type="hidden" id="modal-member-id"><div id="modal-info-text" style="font-size:11px;color:#e67e22;margin-bottom:10px;font-weight:bold;"></div><div style="margin-bottom:10px;"><label>聯絡類型:</label><select id="modal-status" style="width:100%;padding:5px;margin-top:5px;"><option value="3">未接</option><option value="1">已接聽</option><option value="2">非本人</option><option value="4">關機</option></select></div><div style="margin-bottom:10px;"><label>聯絡內容:</label><textarea id="modal-content" style="width:100%;padding:5px;margin-top:5px;min-height:60px;font-family:sans-serif;font-size:13px;border:1px solid #ddd;border-radius:4px;resize:vertical;">未接 *1</textarea></div><div style="margin-bottom:10px;"><label>下次聯繫日期:</label><input type="date" id="modal-date" style="width:100%;padding:5px;margin-top:5px;"></div><div style="display:flex;justify-content:space-between;margin-top:15px;"><button id="modal-cancel" style="padding:5px 15px;cursor:pointer;">取消</button><button id="modal-submit" style="padding:5px 15px;background:#27ae60;color:white;border:none;cursor:pointer;border-radius:4px;">送出紀錄</button></div>';
 
+/* ══ 釋出名單 Modal ══ */
+const releaseModal=document.createElement('div');
+releaseModal.id='release-modal';
+releaseModal.style.cssText='display:none;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:400px;background:white;padding:20px;border-radius:8px;box-shadow:0 4px 15px rgba(0,0,0,0.2);z-index:1000000;';
+releaseModal.innerHTML=`
+    <h4 style="margin-top:0;color:#c0392b;">釋出名單</h4>
+    <input type="hidden" id="release-member-id">
+    <div style="margin-bottom:15px;">
+        <label style="font-size:13px;font-weight:bold;">請選擇釋出原因:</label>
+        <select id="release-reason" style="width:100%;padding:8px;margin-top:8px;border-radius:4px;border:1px solid #ddd;font-size:13px;">
+            <option value="1-1 聯繫不上 - 多次未接">1-1 聯繫不上 - 多次未接</option>
+            <option value="1-2 聯繫不上 - 空號/錯號/非本人">1-2 聯繫不上 - 空號/錯號/非本人</option>
+            <option value="2-1 無意願 - 費用考量">2-1 無意願 - 費用考量</option>
+            <option value="2-2 無意願 - 沒時間">2-2 無意願 - 沒時間</option>
+            <option value="2-3 無意願 - 已有其他安排">2-3 無意願 - 已有其他安排</option>
+            <option value="2-4 無意願 - 距離考量">2-4 無意願 - 距離考量</option>
+            <option value="3-1 其他原因">3-1 其他原因</option>
+        </select>
+    </div>
+    <div style="display:flex;justify-content:space-between;margin-top:20px;">
+        <button id="release-cancel" style="padding:6px 15px;cursor:pointer;border:1px solid #ddd;background:#f5f5f5;border-radius:4px;">取消</button>
+        <button id="release-submit" style="padding:6px 15px;background:#c0392b;color:white;border:none;cursor:pointer;border-radius:4px;font-weight:bold;">確定釋出</button>
+    </div>
+`;
+
 panel.appendChild(header);
 panel.appendChild(content);
 panel.appendChild(recordModal);
+panel.appendChild(releaseModal);
 document.body.appendChild(panel);
 
 /* ══ 聯絡類型切換：已接聽時填入訪談模板 ══ */
@@ -464,7 +490,6 @@ async function fetchMemberDetail(m) {
             await syncNewMemberToSheet(m, assignDate);
         } catch(e) {
             console.error("Sheet 寫入失敗，下次重整或壓紀錄時會自我修復", memberId, e);
-            // 這裡「故意」不 delete detailData[memberId]，因為畫面要保持顯示正常！
         }
     }
 }
@@ -615,13 +640,15 @@ function renderList(){
                 '</div>';
         }
 
-        html+='<tr style="border-bottom:1px solid #dee2e6;border-left:4px solid '+rowBorderColor+';"><td style="padding:6px;vertical-align:top;"><b>'+(item.member_name||'未知')+'</b><br><span style="background:'+ts.bg+';color:white;padding:1px 5px;border-radius:3px;font-size:10px;">'+ts.label+'</span>'+reInquireHtml+progressHtml+'</td><td style="padding:6px;vertical-align:top;">'+(item.mobile||'-')+'</td><td style="padding:6px;vertical-align:top;">'+gradeHtml+'</td><td style="padding:6px;vertical-align:top;">'+memoHtml+'</td><td style="padding:6px;vertical-align:top;"><span style="color:#d35400;">'+(item.type==2 && d ? (d.lastLogNextTime || d.normalDate || '無紀錄') : (item.next_time&&!item.next_time.includes('0000')?item.next_time.split(' ')[0]:'無紀錄'))+'</span>'+warningHtml+'</td>'+sourceCell+'<td style="padding:6px;color:#7f8c8d;vertical-align:top;font-size:11px;">'+displayUserName+'</td><td style="padding:6px;vertical-align:top;"><button class="quick-record-btn" data-id="'+id+'" style="padding:4px 8px;background:'+btnBg+';color:white;border:none;border-radius:4px;cursor:pointer;font-size:11px;font-weight:bold;width:100%;">壓紀錄</button></td></tr>';
+        // 包含釋出按鈕的操作欄
+        html+='<tr style="border-bottom:1px solid #dee2e6;border-left:4px solid '+rowBorderColor+';"><td style="padding:6px;vertical-align:top;"><b>'+(item.member_name||'未知')+'</b><br><span style="background:'+ts.bg+';color:white;padding:1px 5px;border-radius:3px;font-size:10px;">'+ts.label+'</span>'+reInquireHtml+progressHtml+'</td><td style="padding:6px;vertical-align:top;">'+(item.mobile||'-')+'</td><td style="padding:6px;vertical-align:top;">'+gradeHtml+'</td><td style="padding:6px;vertical-align:top;">'+memoHtml+'</td><td style="padding:6px;vertical-align:top;"><span style="color:#d35400;">'+(item.type==2 && d ? (d.lastLogNextTime || d.normalDate || '無紀錄') : (item.next_time&&!item.next_time.includes('0000')?item.next_time.split(' ')[0]:'無紀錄'))+'</span>'+warningHtml+'</td>'+sourceCell+'<td style="padding:6px;color:#7f8c8d;vertical-align:top;font-size:11px;">'+displayUserName+'</td><td style="padding:6px;vertical-align:top;"><button class="quick-record-btn" data-id="'+id+'" style="padding:4px 8px;background:'+btnBg+';color:white;border:none;border-radius:4px;cursor:pointer;font-size:11px;font-weight:bold;width:100%;">壓紀錄</button><button class="quick-release-btn" data-id="'+id+'" style="margin-top:4px;padding:4px 8px;background:#c0392b;color:white;border:none;border-radius:4px;cursor:pointer;font-size:11px;font-weight:bold;width:100%;">釋出</button></td></tr>';
     });
 
     html+='</table>';
     if(filteredData.length>150)html+='<div style="text-align:center;padding:10px;color:#888;">(共 '+filteredData.length+' 筆，顯示前 150 筆)</div>';
     content.innerHTML=html;
 
+    // 綁定各項按鈕事件
     document.querySelectorAll('.reinquire-btn').forEach(btn=>{
         btn.onclick=e=>{
             const memberId=e.target.getAttribute('data-id');
@@ -659,6 +686,7 @@ function renderList(){
         });
     });
 
+    // 壓紀錄按鈕
     document.querySelectorAll('.quick-record-btn').forEach(btn=>{
         btn.onclick=e=>{
             const memberId=e.target.getAttribute('data-id');
@@ -690,8 +718,18 @@ function renderList(){
             recordModal.style.display='block';
         };
     });
+
+    // ★ 新增：釋出按鈕呼叫邏輯
+    document.querySelectorAll('.quick-release-btn').forEach(btn=>{
+        btn.onclick=e=>{
+            const memberId=e.target.getAttribute('data-id');
+            document.getElementById('release-member-id').value=memberId;
+            document.getElementById('release-modal').style.display='block';
+        };
+    });
 }
 
+// 壓紀錄送出邏輯
 document.getElementById('modal-submit').onclick=()=>{
     if(!currentItem)return;
     const memberId=document.getElementById('modal-member-id').value;
@@ -709,7 +747,6 @@ document.getElementById('modal-submit').onclick=()=>{
         recordModal.style.display='none';btn.innerText='送出紀錄';
         if(currentItem.type==1&&detailData[memberId])detailData[memberId].contactCount++;
         
-        // ★ 當送出紀錄後，同步將畫面的最新聯繫日期指為剛剛壓的日期，觸發 getDropDaysLeft 重算噴單日
         if(detailData[memberId]) {
             detailData[memberId].lastLogNextTime = params['search_begin'];
         }
@@ -719,7 +756,44 @@ document.getElementById('modal-submit').onclick=()=>{
     },1000);
 };
 
-document.getElementById('modal-cancel').onclick=()=>{ recordModal.style.display='none'; };
+// ★ 新增：釋出 Modal 的取消與送出邏輯
+document.getElementById('release-cancel').onclick=()=>{ document.getElementById('release-modal').style.display='none'; };
+
+document.getElementById('release-submit').onclick = async () => {
+    const memberId = document.getElementById('release-member-id').value;
+    const reason = document.getElementById('release-reason').value;
+    const btn = document.getElementById('release-submit');
+    
+    btn.innerText = '釋出中...';
+    btn.disabled = true;
+
+    try {
+        // 從目前的 CRM UID 和姓名建構參數
+        const adminNameStr = getWriterName();
+        const accountStr = adminNameStr.split(' ')[0] || adminNameStr; // 取英文名部分
+
+        // ★ 這裡更新為你剛剛抓到的正確 API 網址與路徑
+        const url = `https://www.etalkingonline.com/admin/sys/api_member_release_member.php?id=${memberId}&reason=${encodeURIComponent(reason)}&uid=${crmUid}&account=${encodeURIComponent(accountStr)}&admin_name=${encodeURIComponent(adminNameStr)}`;
+        
+        const response = await fetch(url);
+        
+        if (!response.ok) throw new Error('API 錯誤');
+
+        alert('✅ 名單已成功釋出！');
+        document.getElementById('release-modal').style.display = 'none';
+        
+        // 將該筆名單從前端資料中移除，並重新渲染畫面
+        allData = allData.filter(m => (m.member_id || m.id) != memberId);
+        renderList();
+        
+    } catch(e) {
+        alert('❌ 釋出失敗！請確認網路狀態或重整頁面再試。');
+        console.error(e);
+    } finally {
+        btn.innerText = '確定釋出';
+        btn.disabled = false;
+    }
+};
 
 document.getElementById('close-btn').onclick=()=>{
     panel.remove();curtain.remove();document.body.style.overflow='';
