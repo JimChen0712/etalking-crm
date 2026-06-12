@@ -316,13 +316,13 @@ recordModal.innerHTML='<h4 style="margin-top:0;">新增聯絡紀錄</h4><input t
 /* ══ 釋出名單 Modal ══ */
 const releaseModal=document.createElement('div');
 releaseModal.id='release-modal';
-releaseModal.style.cssText='display:none;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:400px;background:white;padding:20px;border-radius:8px;box-shadow:0 4px 15px rgba(0,0,0,0.2);z-index:1000000;';
+releaseModal.style.cssText='display:none;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:420px;background:white;padding:20px;border-radius:8px;box-shadow:0 4px 15px rgba(0,0,0,0.2);z-index:1000000;';
 releaseModal.innerHTML=`
     <h4 style="margin-top:0;color:#c0392b;">釋出名單</h4>
     <input type="hidden" id="release-member-id">
     <div style="margin-bottom:15px;">
-        <label style="font-size:13px;font-weight:bold;">請選擇釋出原因:</label>
-        <select id="release-reason" style="width:100%;padding:8px;margin-top:8px;border-radius:4px;border:1px solid #ddd;font-size:13px;">
+        <label style="font-size:13px;font-weight:bold;color:#333;">請選擇釋出原因:</label>
+        <select id="release-reason" style="width:100%;padding:8px;margin-top:8px;border-radius:4px;border:1px solid #ccc;font-size:13px;color:#333;background:#fff;appearance:auto;">
             <option value="1-1 聯繫不上 - 多次未接">1-1 聯繫不上 - 多次未接</option>
             <option value="1-2 聯繫不上 - 多次語音">1-2 聯繫不上 - 多次語音</option>
             <option value="1-3 聯繫不上 - 直接掛斷">1-3 聯繫不上 - 直接掛斷</option>
@@ -357,8 +357,12 @@ releaseModal.innerHTML=`
             <option value="8-6 其他 - 顧問自填">8-6 其他 - 顧問自填</option>
         </select>
     </div>
+    <div style="margin-bottom:15px;">
+        <label style="font-size:13px;font-weight:bold;color:#333;">備註說明 (自填):</label>
+        <textarea id="release-memo" rows="2" style="width:100%;padding:8px;margin-top:8px;border-radius:4px;border:1px solid #ccc;font-size:13px;color:#333;background:#fff;resize:none;font-family:sans-serif;" placeholder="輸入補充說明..."></textarea>
+    </div>
     <div style="display:flex;justify-content:space-between;margin-top:20px;">
-        <button id="release-cancel" style="padding:6px 15px;cursor:pointer;border:1px solid #ddd;background:#f5f5f5;border-radius:4px;">取消</button>
+        <button id="release-cancel" style="padding:6px 15px;cursor:pointer;border:1px solid #ddd;background:#f5f5f5;border-radius:4px;color:#333;">取消</button>
         <button id="release-submit" style="padding:6px 15px;background:#c0392b;color:white;border:none;cursor:pointer;border-radius:4px;font-weight:bold;">確定釋出</button>
     </div>
 `;
@@ -749,6 +753,7 @@ function renderList(){
         btn.onclick=e=>{
             const memberId=e.target.getAttribute('data-id');
             document.getElementById('release-member-id').value=memberId;
+            document.getElementById('release-memo').value=''; // 清空上次打的字
             document.getElementById('release-modal').style.display='block';
         };
     });
@@ -787,18 +792,20 @@ document.getElementById('release-cancel').onclick=()=>{ document.getElementById(
 document.getElementById('release-submit').onclick = async () => {
     const memberId = document.getElementById('release-member-id').value;
     const reason = document.getElementById('release-reason').value;
+    const memo = document.getElementById('release-memo').value.trim();
     const btn = document.getElementById('release-submit');
     
     btn.innerText = '釋出中...';
     btn.disabled = true;
 
     try {
-        // 從目前的 CRM UID 和姓名建構參數
         const adminNameStr = getWriterName();
-        const accountStr = adminNameStr.split(' ')[0] || adminNameStr; // 取英文名部分
+        const accountStr = adminNameStr.split(' ')[0] || adminNameStr;
 
-        // ★ 這裡更新為你剛剛抓到的正確 API 網址與路徑
-        const url = `https://www.etalkingonline.com/admin/sys/api_member_release_member.php?id=${memberId}&reason=${encodeURIComponent(reason)}&uid=${crmUid}&account=${encodeURIComponent(accountStr)}&admin_name=${encodeURIComponent(adminNameStr)}`;
+        // ★ 組合原因與備註：如果有打備註，用全形逗號隔開（符合原廠格式）
+        const finalReason = memo ? reason + '，' + memo : reason + '，';
+
+        const url = `https://www.etalkingonline.com/admin/sys/api_member_release_member.php?id=${memberId}&reason=${encodeURIComponent(finalReason)}&uid=${crmUid}&account=${encodeURIComponent(accountStr)}&admin_name=${encodeURIComponent(adminNameStr)}`;
         
         const response = await fetch(url);
         
@@ -807,7 +814,6 @@ document.getElementById('release-submit').onclick = async () => {
         alert('✅ 名單已成功釋出！');
         document.getElementById('release-modal').style.display = 'none';
         
-        // 將該筆名單從前端資料中移除，並重新渲染畫面
         allData = allData.filter(m => (m.member_id || m.id) != memberId);
         renderList();
         
