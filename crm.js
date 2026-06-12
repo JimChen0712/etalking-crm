@@ -2029,7 +2029,9 @@ if(isManager){
 
             });
 
-            loadPoolData();
+            // ★ 改成先顯示篩選設定畫面，不自動載入
+
+            renderPoolEmptyState();
 
         }
 
@@ -2040,6 +2042,82 @@ if(isManager){
     document.getElementById('tab-crm').onclick = () => switchTab('crm');
 
     document.getElementById('tab-pool').onclick = () => switchTab('pool');
+
+
+
+    /* ══════════════════════════════════════════════════════
+       ★ 釋出池：初始畫面（先選條件，不自動載入）
+    ══════════════════════════════════════════════════════ */
+
+    function renderPoolEmptyState() {
+
+        if(currentTab !== 'pool') return;
+
+
+
+        const prefixesGuess = [...new Set(
+
+            allData.map(item => (item.source||'').trim().substring(0,2).toUpperCase()).filter(Boolean)
+
+        )].sort();
+
+
+
+        const filterHtml = `
+
+            <div style="padding:30px;text-align:center;">
+
+                <h4 style="margin-top:0;color:#2c3e50;">📂 釋出池查詢設定</h4>
+
+                <p style="color:#888;font-size:13px;">請先選擇日期區間與來源，再點擊「載入資料」</p>
+
+                <div style="display:flex;gap:8px;justify-content:center;align-items:center;flex-wrap:wrap;margin-top:15px;">
+
+                    <select id="pool-source-filter" style="padding:6px 10px;border-radius:4px;border:1px solid #ddd;font-size:13px;">
+
+                        <option value="-1">所有來源</option>
+
+                        ${prefixesGuess.map(p => `<option value="${p}">${p}</option>`).join('')}
+
+                    </select>
+
+                    <input type="date" id="pool-filter-start" style="padding:6px 10px;border-radius:4px;border:1px solid #ddd;font-size:13px;">
+
+                    <span style="color:#666;">~</span>
+
+                    <input type="date" id="pool-filter-end" style="padding:6px 10px;border-radius:4px;border:1px solid #ddd;font-size:13px;">
+
+                    <button id="pool-load-btn" style="padding:6px 16px;background:#1a6fc4;color:white;border:none;border-radius:4px;cursor:pointer;font-size:13px;font-weight:bold;">
+
+                        🔍 載入資料
+
+                    </button>
+
+                </div>
+
+            </div>`;
+
+
+
+        content.innerHTML = filterHtml;
+
+
+
+        document.getElementById('pool-load-btn').onclick = () => {
+
+            poolSourceFilter = document.getElementById('pool-source-filter').value;
+
+            poolFilterStart  = document.getElementById('pool-filter-start').value;
+
+            poolFilterEnd    = document.getElementById('pool-filter-end').value;
+
+            poolData = [];
+
+            loadPoolData();
+
+        };
+
+    }
 
 
 
@@ -2347,7 +2425,9 @@ if(isManager){
 
             poolData = [];
 
-            loadPoolData();
+            // ★ 改成回到設定畫面，不自動載入全部
+
+            renderPoolEmptyState();
 
         };
 
