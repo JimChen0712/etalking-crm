@@ -2109,9 +2109,9 @@ if(isManager){
 
                     source:       row[3] || '',
 
-                    release_time: row[4] || '',
+                    release_time: String(row[4] || '').substring(0, 10),
 
-                    sync_time:    row[5] || ''
+                    sync_time:    String(row[5] || '').substring(0, 10)
 
                 }));
 
