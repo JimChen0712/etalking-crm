@@ -317,10 +317,54 @@ recordModal.innerHTML='<h4 style="margin-top:0;">新增聯絡紀錄</h4><input t
 const releaseModal=document.createElement('div');
 releaseModal.id='release-modal';
 releaseModal.style.cssText='display:none;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:420px;background:white;padding:20px;border-radius:8px;box-shadow:0 4px 15px rgba(0,0,0,0.2);z-index:1000000;';
+
+// 主管專屬的轉派下拉選單
+const reassignHtml = isManager ? `
+    <div style="margin-top:15px; border-top:1px dashed #ccc; padding-top:15px;">
+        <label style="font-size:13px;font-weight:bold;color:#1a6fc4;">👑 主管專屬：轉派人員 (選填)</label>
+        <select id="release-reassign" style="width:100%;height:auto;min-height:36px;line-height:normal;box-sizing:border-box;padding:8px;margin-top:8px;border-radius:4px;border:2px solid #1a6fc4;font-size:13px;color:#333;background:#f0f8ff;appearance:auto;">
+            <option value="-1">單純釋出 (不轉派)</option>
+            <option value="130">Jeremy testjeremy [IT&CS]</option>
+            <option value="283">Ash 俞任鴻 [IT&CS]</option>
+            <option value="465">Lily 李昱萱 [IT&CS]</option>
+            <option value="248">Luka 林冠宇 [IT&CS]</option>
+            <option value="434">Nina 林怡欣 [IT&CS]</option>
+            <option value="358">amiee 林琬倩 [IT&CS]</option>
+            <option value="469">Lara 王品儒 [IT&CS]</option>
+            <option value="410">Claire 葉芷羽 [IT&CS]</option>
+            <option value="241">Paris 黃雅琪 [IT&CS]</option>
+            <option value="279">test3 test3 [業務部]</option>
+            <option value="467">Anna 余可芳 [業務部]</option>
+            <option value="452">Rita 侯宛余 [業務部]</option>
+            <option value="433">Wynn 吳昱瑩 [業務部]</option>
+            <option value="464">ori 孫逸亭 [業務部]</option>
+            <option value="468">Ria 廖沐琳 [業務部]</option>
+            <option value="432">Elsie 林采庭 [業務部]</option>
+            <option value="445">Luke 楊博竣 [業務部]</option>
+            <option value="457">Alan 楊碩頫 [業務部]</option>
+            <option value="438">Lily 楊若莉 [業務部]</option>
+            <option value="451">Kyle 江宗翰 [業務部]</option>
+            <option value="454">Andy 沈祐頡 [業務部]</option>
+            <option value="206">Connie 游婷瑛 [業務部]</option>
+            <option value="462">homer 許瀚方 [業務部]</option>
+            <option value="458">Josie 陳品妤 [業務部]</option>
+            <option value="459">An 陳怡安 [業務部]</option>
+            <option value="409">Joyce 魏良伃 [業務部]</option>
+            <option value="453">Wolf 黃詳淵 [業務部]</option>
+            <option value="368">Jordan 李睿峰 [業務部()]</option>
+            <option value="69">TEST test0504 [業務部(主管)]</option>
+            <option value="162">Joy 洪淑慧 [業務部(主管)]</option>
+            <option value="240">Minzing 程銘靜 [業務部(主管)]</option>
+            <option value="60">johnny 謝愷澤 [業務部(主管)]</option>
+            <option value="424">Jim 陳昕謨 [業務部(主管)]</option>
+        </select>
+    </div>
+` : '';
+
 releaseModal.innerHTML=`
     <h4 style="margin-top:0;color:#c0392b;">釋出名單</h4>
     <input type="hidden" id="release-member-id">
-    <div style="margin-bottom:15px;">
+    <div>
         <label style="font-size:13px;font-weight:bold;color:#333;">請選擇釋出原因:</label>
         <select id="release-reason" style="width:100%;height:auto;min-height:36px;line-height:normal;box-sizing:border-box;padding:8px;margin-top:8px;border-radius:4px;border:1px solid #ccc;font-size:13px;color:#333;background:#fff;appearance:auto;">
             <option value="1-1 聯繫不上 - 多次未接">1-1 聯繫不上 - 多次未接</option>
@@ -357,13 +401,14 @@ releaseModal.innerHTML=`
             <option value="8-6 其他 - 顧問自填">8-6 其他 - 顧問自填</option>
         </select>
     </div>
-    <div style="margin-bottom:15px;">
+    <div style="margin-top:15px;">
         <label style="font-size:13px;font-weight:bold;color:#333;">備註說明 (自填):</label>
         <textarea id="release-memo" rows="2" style="width:100%;line-height:1.5;box-sizing:border-box;padding:8px;margin-top:8px;border-radius:4px;border:1px solid #ccc;font-size:13px;color:#333;background:#fff;resize:none;font-family:sans-serif;" placeholder="輸入補充說明..."></textarea>
     </div>
+    ${reassignHtml}
     <div style="display:flex;justify-content:space-between;margin-top:20px;">
         <button id="release-cancel" style="padding:6px 15px;cursor:pointer;border:1px solid #ddd;background:#f5f5f5;border-radius:4px;color:#333;">取消</button>
-        <button id="release-submit" style="padding:6px 15px;background:#c0392b;color:white;border:none;cursor:pointer;border-radius:4px;font-weight:bold;">確定釋出</button>
+        <button id="release-submit" style="padding:6px 15px;background:#c0392b;color:white;border:none;cursor:pointer;border-radius:4px;font-weight:bold;">確定送出</button>
     </div>
 `;
 
@@ -795,34 +840,58 @@ document.getElementById('release-submit').onclick = async () => {
     const memo = document.getElementById('release-memo').value.trim();
     const btn = document.getElementById('release-submit');
     
-    btn.innerText = '釋出中...';
+    // 檢查是否有轉派選項 (主管才有)
+    const reassignSelect = document.getElementById('release-reassign');
+    const targetSalesId = reassignSelect ? reassignSelect.value : '-1';
+    
+    btn.innerText = '處理中...';
     btn.disabled = true;
 
     try {
         const adminNameStr = getWriterName();
         const accountStr = adminNameStr.split(' ')[0] || adminNameStr;
-
-        // ★ 組合原因與備註：如果有打備註，用全形逗號隔開（符合原廠格式）
         const finalReason = memo ? reason + '，' + memo : reason + '，';
 
-        const url = `https://www.etalkingonline.com/admin/sys/api_member_release_member.php?id=${memberId}&reason=${encodeURIComponent(finalReason)}&uid=${crmUid}&account=${encodeURIComponent(accountStr)}&admin_name=${encodeURIComponent(adminNameStr)}`;
-        
-        const response = await fetch(url);
-        
-        if (!response.ok) throw new Error('API 錯誤');
+        // 步驟一：先打釋出 API (把名單丟回池子)
+        const releaseUrl = `https://www.etalkingonline.com/admin/sys/api_member_release_member.php?id=${memberId}&reason=${encodeURIComponent(finalReason)}&uid=${crmUid}&account=${encodeURIComponent(accountStr)}&admin_name=${encodeURIComponent(adminNameStr)}`;
+        const releaseRes = await fetch(releaseUrl);
+        if (!releaseRes.ok) throw new Error('釋出 API 錯誤');
 
-        alert('✅ 名單已成功釋出！');
+        // 步驟二：如果有選人，接著打轉派 API (從池子撈給特定業務)
+        if (targetSalesId !== '-1') {
+            btn.innerText = '轉派中...';
+            const reassignUrl = `https://www.etalkingonline.com/admin/sys/api_release_appoint.php?uid=${crmUid}&account=${encodeURIComponent(accountStr)}&admin_name=${encodeURIComponent(adminNameStr)}`;
+            
+            // 系統期待的陣列參數格式 checked[]
+            const formData = new URLSearchParams();
+            formData.append('sales', targetSalesId);
+            formData.append('checked[]', memberId);
+
+            const reassignRes = await fetch(reassignUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: formData.toString()
+            });
+            if (!reassignRes.ok) throw new Error('轉派 API 錯誤');
+            
+            alert('✅ 釋出並轉派成功！');
+        } else {
+            alert('✅ 名單已成功釋出！');
+        }
+
         document.getElementById('release-modal').style.display = 'none';
         
+        // 將該筆名單從前端資料中移除，並重新渲染畫面
         allData = allData.filter(m => (m.member_id || m.id) != memberId);
         renderList();
         
     } catch(e) {
-        alert('❌ 釋出失敗！請確認網路狀態或重整頁面再試。');
+        alert('❌ 操作失敗！請確認網路狀態或重整頁面再試。');
         console.error(e);
     } finally {
-        btn.innerText = '確定釋出';
+        btn.innerText = '確定送出';
         btn.disabled = false;
+        if(reassignSelect) reassignSelect.value = '-1'; // 重置選單
     }
 };
 
