@@ -913,7 +913,7 @@ document.getElementById('release-submit').onclick = async () => {
     btn.innerText = '處理中...';
     btn.disabled = true;
 
-    // 擬人化隨機延遲
+    // 擬人化隨機延遲函數
     const randomDelay = (min, max) => new Promise(res => setTimeout(res, Math.random() * (max - min) + min));
 
     let successCount = 0;
@@ -937,7 +937,8 @@ document.getElementById('release-submit').onclick = async () => {
 
                 // 步驟二：如果有點轉派，則打轉派 API
                 if (targetSalesId !== '-1') {
-                    await randomDelay(800, 1500); // 隨機延遲 0.8~1.5 秒
+                    // 🌟 擬人化加長版：模擬人類在下拉選單找名字的時間 (2秒 ~ 4秒)
+                    await randomDelay(2000, 4000); 
                     const reassignUrl = `https://www.etalkingonline.com/admin/sys/api_release_appoint.php?uid=${crmUid}&account=${encodeURIComponent(accountStr)}&admin_name=${encodeURIComponent(adminNameStr)}`;
                     
                     const formData = new URLSearchParams();
@@ -961,9 +962,9 @@ document.getElementById('release-submit').onclick = async () => {
                 failCount++;
             }
 
-            // 單與單之間也加入一點隨機延遲，保護伺服器不報警 (最後一筆不延遲)
+            // 🌟 擬人化加長版：單與單之間的間隔，模擬人類點擊下一筆的時間 (1.5秒 ~ 3秒)
             if(i < memberIds.length - 1) {
-                await randomDelay(500, 1000);
+                await randomDelay(1500, 3000);
             }
         }
 
