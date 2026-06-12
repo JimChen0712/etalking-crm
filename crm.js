@@ -306,6 +306,10 @@ header.style.cssText='padding:12px 15px;background:#2c3e50;color:white;display:f
 header.innerHTML = `
     <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
         <h3 style="margin:0;font-size:15px;color:white;">名單管理面板</h3>
+${isManager ? `
+    <button id="tab-crm" style="padding:4px 14px;cursor:pointer;border-radius:4px;border:2px solid #3498db;background:#3498db;color:white;font-weight:bold;">名單管理</button>
+    <button id="tab-pool" style="padding:4px 14px;cursor:pointer;border-radius:4px;border:2px solid rgba(255,255,255,0.4);background:transparent;color:white;font-weight:bold;">釋出池</button>
+` : ''}
         ${isManager ? `
             <select id="consultant-filter" style="padding:4px;border-radius:4px;border:none;max-width:150px;"><option value="-1">所有業務</option></select>
             <select id="source-filter" style="padding:4px;border-radius:4px;border:none;max-width:100px;"><option value="-1">所有來源</option></select>
@@ -985,7 +989,14 @@ document.getElementById('release-submit').onclick = async () => {
         }
 
         document.getElementById('release-modal').style.display = 'none';
-        renderList(); // 更新畫面
+        if(currentTab === 'pool') {
+            // 從釋出池派發成功後，把已派發的從本地資料移除
+            const dispatchedIds = new Set(memberIds);
+            poolData = poolData.filter(item => !dispatchedIds.has(item.member_id));
+            renderPoolList();
+        } else {
+            renderList();
+        }
         
     } catch(e) {
         alert('❌ 發生預期外錯誤！');
@@ -1005,6 +1016,149 @@ document.getElementById('refresh-btn').onclick=fetchData;
 document.getElementById('t-type-filter').onchange=renderList;
 
 if(isManager){
+    // ══ Tab 狀態 ══
+    let currentTab = 'crm';
+    let poolData = [];
+    let poolSourceFilter = '-1';
+
+    function switchTab(tab) {
+        currentTab = tab;
+        const tabCrm = document.getElementById('tab-crm');
+        const tabPool = document.getElementById('tab-pool');
+        if(tab === 'crm') {
+            tabCrm.style.background = '#3498db';
+            tabCrm.style.border = '2px solid #3498db';
+            tabPool.style.background = 'transparent';
+            tabPool.style.border = '2px solid rgba(255,255,255,0.4)';
+            // 顯示 CRM 相關控件
+            ['consultant-filter','source-filter','sync-all-new-btn','sync-demo-btn','t-type-filter','refresh-btn'].forEach(id => {
+                const el = document.getElementById(id);
+                if(el) el.style.display = '';
+            });
+            renderList();
+        } else {
+            tabCrm.style.background = 'transparent';
+            tabCrm.style.border = '2px solid rgba(255,255,255,0.4)';
+            tabPool.style.background = '#2ecc71';
+            tabPool.style.border = '2px solid #2ecc71';
+            // 隱藏 CRM 相關控件
+            ['consultant-filter','source-filter','sync-all-new-btn','sync-demo-btn','t-type-filter','refresh-btn'].forEach(id => {
+                const el = document.getElementById(id);
+                if(el) el.style.display = 'none';
+            });
+            loadPoolData();
+        }
+    }
+
+    document.getElementById('tab-crm').onclick = () => switchTab('crm');
+    document.getElementById('tab-pool').onclick = () => switchTab('pool');
+
+    // ══ 釋出池：從 GAS 讀取 ══
+    async function loadPoolData() {
+        const statusLabel = document.getElementById('loading-status');
+        statusLabel.innerText = '🔄 載入釋出池...';
+        try {
+            const res = await gasGet({ action: 'readPool' });
+            if(res.values && res.values.length > 1) {
+                poolData = res.values.slice(1).map(row => ({
+                    member_id: String(row[0] || ''),
+                    member_name: row[1] || '',
+                    mobile: row[2] || '',
+                    source: row[3] || '',
+                    release_time: row[4] || '',
+                    sync_time: row[5] || ''
+                }));
+                statusLabel.innerText = `✅ 釋出池共 ${poolData.length} 筆`;
+            } else {
+                poolData = [];
+                statusLabel.innerText = '✅ 釋出池目前沒有資料';
+            }
+            setTimeout(() => statusLabel.innerText = '', 2000);
+            renderPoolList();
+        } catch(e) {
+            statusLabel.innerText = '❌ 釋出池載入失敗';
+            console.error(e);
+        }
+    }
+
+    // ══ 釋出池：渲染 ══
+    function renderPoolList() {
+        if(currentTab !== 'pool') return;
+
+        // 來源篩選選單
+        const prefixes = [...new Set(poolData.map(item => item.source.trim().substring(0,2).toUpperCase()).filter(Boolean))].sort();
+        let filterHtml = '<select id="pool-source-filter" style="padding:4px;border-radius:4px;border:1px solid #ddd;font-size:12px;"><option value="-1">所有來源</option>';
+        prefixes.forEach(p => { filterHtml += `<option value="${p}" ${poolSourceFilter===p?'selected':''}>${p}</option>`; });
+        filterHtml += '</select>';
+
+        let filtered = poolSourceFilter === '-1' ? poolData : poolData.filter(item => item.source.trim().substring(0,2).toUpperCase() === poolSourceFilter);
+
+        let html = `<div style="padding:8px 0;display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+            ${filterHtml}
+            <span style="font-size:12px;color:#666;">顯示 ${filtered.length} / ${poolData.length} 筆</span>
+            <button id="pool-batch-btn" style="display:none;padding:4px 12px;background:#1a6fc4;color:white;border:none;border-radius:4px;cursor:pointer;font-weight:bold;font-size:12px;">批次派發 (0)</button>
+            <button id="pool-reload-btn" style="padding:4px 10px;background:#95a5a6;color:white;border:none;border-radius:4px;cursor:pointer;font-size:12px;">🔄 重新載入</button>
+        </div>`;
+
+        html += '<table style="width:100%;border-collapse:collapse;font-size:12px;">';
+        html += '<tr style="background:#e9ecef;text-align:left;position:sticky;top:0;z-index:10;">';
+        html += '<th style="padding:6px;width:30px;text-align:center;"><input type="checkbox" id="pool-select-all" style="cursor:pointer;"></th>';
+        html += '<th style="padding:6px;">姓名</th>';
+        html += '<th style="padding:6px;">電話</th>';
+        html += '<th style="padding:6px;width:8%;">來源</th>';
+        html += '<th style="padding:6px;width:14%;">釋出時間</th>';
+        html += '<th style="padding:6px;width:14%;">同步時間</th>';
+        html += '</tr>';
+
+        filtered.slice(0, 300).forEach(item => {
+            html += `<tr style="border-bottom:1px solid #dee2e6;">
+                <td style="padding:6px;text-align:center;vertical-align:top;"><input type="checkbox" class="pool-cb" value="${item.member_id}" style="cursor:pointer;"></td>
+                <td style="padding:6px;vertical-align:top;"><b>${item.member_name || '未知'}</b></td>
+                <td style="padding:6px;vertical-align:top;">${item.mobile || '-'}</td>
+                <td style="padding:6px;vertical-align:top;color:#8e44ad;font-size:11px;">${item.source || '-'}</td>
+                <td style="padding:6px;vertical-align:top;font-size:11px;color:#d35400;">${item.release_time || '-'}</td>
+                <td style="padding:6px;vertical-align:top;font-size:11px;color:#95a5a6;">${item.sync_time || '-'}</td>
+            </tr>`;
+        });
+
+        html += '</table>';
+        if(filtered.length > 300) html += `<div style="text-align:center;padding:10px;color:#888;">(共 ${filtered.length} 筆，顯示前 300 筆)</div>`;
+        content.innerHTML = html;
+
+        // 來源篩選事件
+        document.getElementById('pool-source-filter').onchange = function() {
+            poolSourceFilter = this.value;
+            renderPoolList();
+        };
+
+        // 重新載入
+        document.getElementById('pool-reload-btn').onclick = loadPoolData;
+
+        // 全選邏輯
+        const poolBatchBtn = document.getElementById('pool-batch-btn');
+        const updatePoolBatchBtn = () => {
+            const count = document.querySelectorAll('.pool-cb:checked').length;
+            poolBatchBtn.style.display = count > 0 ? 'inline-block' : 'none';
+            poolBatchBtn.innerText = `批次派發 (${count})`;
+        };
+
+        document.getElementById('pool-select-all').onchange = e => {
+            document.querySelectorAll('.pool-cb').forEach(cb => cb.checked = e.target.checked);
+            updatePoolBatchBtn();
+        };
+        document.querySelectorAll('.pool-cb').forEach(cb => cb.onchange = updatePoolBatchBtn);
+
+        // 批次派發：複用現有 release modal，但只顯示轉派區塊
+        poolBatchBtn.onclick = () => {
+            const checkedIds = Array.from(document.querySelectorAll('.pool-cb:checked')).map(cb => cb.value);
+            if(!checkedIds.length) return;
+            document.getElementById('release-member-id').value = checkedIds.join(',');
+            document.getElementById('release-memo').value = '';
+            // 釋出原因對釋出池派發沒意義，預設填入
+            document.getElementById('release-reason').value = '8-6 其他 - 顧問自填';
+            document.getElementById('release-modal').style.display = 'block';
+        };
+    }
     // ★ 核心擴充：初始化主管專屬的釋出池日期與同步事件
     const todayStr = new Date().toISOString().split('T')[0];
     const poolStartInput = document.getElementById('pool-start-date');
