@@ -840,29 +840,34 @@ document.getElementById('release-submit').onclick = async () => {
     const memo = document.getElementById('release-memo').value.trim();
     const btn = document.getElementById('release-submit');
     
-    // 檢查是否有轉派選項 (主管才有)
     const reassignSelect = document.getElementById('release-reassign');
     const targetSalesId = reassignSelect ? reassignSelect.value : '-1';
     
     btn.innerText = '處理中...';
     btn.disabled = true;
 
+    // 定義一個隨機延遲函數 (模擬人類思考與點擊的間隔，1.5秒到3秒之間)
+    const randomDelay = (min, max) => new Promise(res => setTimeout(res, Math.random() * (max - min) + min));
+
     try {
         const adminNameStr = getWriterName();
         const accountStr = adminNameStr.split(' ')[0] || adminNameStr;
         const finalReason = memo ? reason + '，' + memo : reason + '，';
 
-        // 步驟一：先打釋出 API (把名單丟回池子)
+        // 步驟一：釋出 API
         const releaseUrl = `https://www.etalkingonline.com/admin/sys/api_member_release_member.php?id=${memberId}&reason=${encodeURIComponent(finalReason)}&uid=${crmUid}&account=${encodeURIComponent(accountStr)}&admin_name=${encodeURIComponent(adminNameStr)}`;
         const releaseRes = await fetch(releaseUrl);
         if (!releaseRes.ok) throw new Error('釋出 API 錯誤');
 
-        // 步驟二：如果有選人，接著打轉派 API (從池子撈給特定業務)
+        // 步驟二：如果有點轉派，則加入「人性化」隨機延遲
         if (targetSalesId !== '-1') {
+            btn.innerText = '稍作等待...';
+            // 隨機等待 1500ms 到 3000ms，讓操作紀錄出現自然的秒數差
+            await randomDelay(1500, 3000); 
+            
             btn.innerText = '轉派中...';
             const reassignUrl = `https://www.etalkingonline.com/admin/sys/api_release_appoint.php?uid=${crmUid}&account=${encodeURIComponent(accountStr)}&admin_name=${encodeURIComponent(adminNameStr)}`;
             
-            // 系統期待的陣列參數格式 checked[]
             const formData = new URLSearchParams();
             formData.append('sales', targetSalesId);
             formData.append('checked[]', memberId);
@@ -880,8 +885,6 @@ document.getElementById('release-submit').onclick = async () => {
         }
 
         document.getElementById('release-modal').style.display = 'none';
-        
-        // 將該筆名單從前端資料中移除，並重新渲染畫面
         allData = allData.filter(m => (m.member_id || m.id) != memberId);
         renderList();
         
@@ -891,7 +894,7 @@ document.getElementById('release-submit').onclick = async () => {
     } finally {
         btn.innerText = '確定送出';
         btn.disabled = false;
-        if(reassignSelect) reassignSelect.value = '-1'; // 重置選單
+        if(reassignSelect) reassignSelect.value = '-1';
     }
 };
 
