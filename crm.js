@@ -322,7 +322,7 @@ releaseModal.innerHTML=`
     <input type="hidden" id="release-member-id">
     <div style="margin-bottom:15px;">
         <label style="font-size:13px;font-weight:bold;color:#333;">請選擇釋出原因:</label>
-        <select id="release-reason" style="width:100%;padding:8px;margin-top:8px;border-radius:4px;border:1px solid #ccc;font-size:13px;color:#333;background:#fff;appearance:auto;">
+        <select id="release-reason" style="width:100%;height:auto;min-height:36px;line-height:normal;box-sizing:border-box;padding:8px;margin-top:8px;border-radius:4px;border:1px solid #ccc;font-size:13px;color:#333;background:#fff;appearance:auto;">
             <option value="1-1 聯繫不上 - 多次未接">1-1 聯繫不上 - 多次未接</option>
             <option value="1-2 聯繫不上 - 多次語音">1-2 聯繫不上 - 多次語音</option>
             <option value="1-3 聯繫不上 - 直接掛斷">1-3 聯繫不上 - 直接掛斷</option>
@@ -359,7 +359,7 @@ releaseModal.innerHTML=`
     </div>
     <div style="margin-bottom:15px;">
         <label style="font-size:13px;font-weight:bold;color:#333;">備註說明 (自填):</label>
-        <textarea id="release-memo" rows="2" style="width:100%;padding:8px;margin-top:8px;border-radius:4px;border:1px solid #ccc;font-size:13px;color:#333;background:#fff;resize:none;font-family:sans-serif;" placeholder="輸入補充說明..."></textarea>
+        <textarea id="release-memo" rows="2" style="width:100%;line-height:1.5;box-sizing:border-box;padding:8px;margin-top:8px;border-radius:4px;border:1px solid #ccc;font-size:13px;color:#333;background:#fff;resize:none;font-family:sans-serif;" placeholder="輸入補充說明..."></textarea>
     </div>
     <div style="display:flex;justify-content:space-between;margin-top:20px;">
         <button id="release-cancel" style="padding:6px 15px;cursor:pointer;border:1px solid #ddd;background:#f5f5f5;border-radius:4px;color:#333;">取消</button>
