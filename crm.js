@@ -85,13 +85,12 @@ let sheetData={}, sheetRowMap={};
 let allData=[], detailData={}, currentItem=null;
 let maxKnownRow = 1;
 
-// ★ 修復 Bug：將釋出池與切換頁籤的相關變數提昇至全局，避免釋出按鈕找不到變數而當機
 let currentTab = 'crm';
 let poolData = [];
 let poolSourceFilter = '-1';
 let poolFilterStart  = '';
 let poolFilterEnd    = '';
-let renderPoolList = () => {}; // 預設為空函式，給非主管防呆用
+let renderPoolList = () => {}; 
 
 /* ══════════════════════════════════════════════════════
    ★ Global Promise Queue（全域單線程排隊鎖）
@@ -100,7 +99,6 @@ let globalSheetWriteLock = Promise.resolve();
 
 async function ensureMemberInSheet(memberId, item, assignDate) {
     const id = String(memberId);
-
     if (typeof sheetRowMap[id] === 'number') return;
 
     let releaseLock;
@@ -310,6 +308,7 @@ panel.style.cssText='position:fixed;top:50%;left:50%;transform:translate(-50%,-5
 const header=document.createElement('div');
 header.style.cssText='padding:12px 15px;background:#2c3e50;color:white;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;flex-shrink:0;';
 
+// ★ 修復：把更新釋出池的區塊加上 ID (pool-sync-block) 並預設隱藏
 header.innerHTML = `
     <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
         <h3 style="margin:0;font-size:15px;color:white;">名單管理面板</h3>
@@ -323,8 +322,7 @@ ${isManager ? `
             <button id="sync-all-new-btn" style="padding:4px 10px;cursor:pointer;border-radius:4px;border:none;background:#8e44ad;color:white;font-weight:bold;">同步名單細節</button>
             <button id="sync-demo-btn" style="padding:4px 10px;cursor:pointer;border-radius:4px;border:none;background:#e67e22;color:white;font-weight:bold;">同步Demo</button>
             <button id="batch-release-btn" style="padding:4px 10px;cursor:pointer;border-radius:4px;border:none;background:#c0392b;color:white;font-weight:bold;display:none;">批量處理 (0)</button>
-            <div style="display:inline-flex;align-items:center;gap:4px;background:rgba(255,255,255,0.1);padding:3px 8px;border-radius:6px;border:1px solid rgba(255,255,255,0.2);margin-left:4px;">
-                <span style="font-size:11px;color:#2ecc71;font-weight:bold;">池:</span>
+            <div id="pool-sync-block" style="display:none;align-items:center;gap:4px;background:rgba(255,255,255,0.1);padding:3px 8px;border-radius:6px;border:1px solid rgba(255,255,255,0.2);margin-left:4px;">
                 <input type="date" id="pool-start-date" style="padding:2px 4px;border-radius:4px;border:none;font-size:11px;width:115px;height:22px;line-height:22px;box-sizing:border-box;">
                 <span style="font-size:11px;color:#fff;">~</span>
                 <input type="date" id="pool-end-date" style="padding:2px 4px;border-radius:4px;border:none;font-size:11px;width:115px;height:22px;line-height:22px;box-sizing:border-box;">
@@ -968,7 +966,6 @@ document.getElementById('release-submit').onclick = async () => {
 
         document.getElementById('release-modal').style.display = 'none';
         
-        // ★ 修復 Bug：現在這段判斷完全正常運作了！
         if(currentTab === 'pool') {
             const dispatchedIds = new Set(memberIds);
             poolData = poolData.filter(item => !dispatchedIds.has(item.member_id));
@@ -999,6 +996,8 @@ if(isManager){
         currentTab = tab;
         const tabCrm = document.getElementById('tab-crm');
         const tabPool = document.getElementById('tab-pool');
+        const poolSyncBlock = document.getElementById('pool-sync-block'); // 抓取釋出池更新區塊
+
         if(tab === 'crm') {
             tabCrm.style.background = '#3498db';
             tabCrm.style.border = '2px solid #3498db';
@@ -1008,6 +1007,7 @@ if(isManager){
                 const el = document.getElementById(id);
                 if(el) el.style.display = '';
             });
+            if(poolSyncBlock) poolSyncBlock.style.display = 'none'; // 在名單管理頁面隱藏
             renderList();
         } else {
             tabCrm.style.background = 'transparent';
@@ -1018,6 +1018,7 @@ if(isManager){
                 const el = document.getElementById(id);
                 if(el) el.style.display = 'none';
             });
+            if(poolSyncBlock) poolSyncBlock.style.display = 'inline-flex'; // 在釋出池頁面顯示
             renderPoolEmptyState();
         }
     }
