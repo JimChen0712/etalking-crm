@@ -898,6 +898,9 @@ if (batchBtnObj) {
 // 釋出 Modal 的取消與送出邏輯
 document.getElementById('release-cancel').onclick=()=>{ document.getElementById('release-modal').style.display='none'; };
 
+// 釋出 Modal 的取消與送出邏輯
+document.getElementById('release-cancel').onclick=()=>{ document.getElementById('release-modal').style.display='none'; };
+
 document.getElementById('release-submit').onclick = async () => {
     const memberIdsStr = document.getElementById('release-member-id').value;
     const reason = document.getElementById('release-reason').value;
@@ -937,8 +940,8 @@ document.getElementById('release-submit').onclick = async () => {
 
                 // 步驟二：如果有點轉派，則打轉派 API
                 if (targetSalesId !== '-1') {
-                    // 🌟 擬人化加長版：模擬人類在下拉選單找名字的時間 (2秒 ~ 4秒)
-                    await randomDelay(2000, 4000); 
+                    // 模擬人類在下拉選單找名字或系統反應的時間
+                    await randomDelay(1500, 2500); 
                     const reassignUrl = `https://www.etalkingonline.com/admin/sys/api_release_appoint.php?uid=${crmUid}&account=${encodeURIComponent(accountStr)}&admin_name=${encodeURIComponent(adminNameStr)}`;
                     
                     const formData = new URLSearchParams();
@@ -962,9 +965,10 @@ document.getElementById('release-submit').onclick = async () => {
                 failCount++;
             }
 
-            // 🌟 擬人化加長版：單與單之間的間隔，模擬人類點擊下一筆的時間 (1.5秒 ~ 3秒)
+            // 🌟 關鍵修正：單與單之間的間隔處理
             if(i < memberIds.length - 1) {
-                await randomDelay(1500, 3000);
+                // 不管有沒有轉派，只要是批次處理，每一筆釋出之間都強制等待 2~3 秒，完美模擬人工一筆一筆點擊的節奏
+                await randomDelay(2000, 3000);
             }
         }
 
