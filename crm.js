@@ -1017,59 +1017,63 @@ if(isManager){
         syncPoolBtn.onclick = async () => {
             const start = poolStartInput.value;
             const end = poolEndInput.value;
-            if(!start || !end) return alert('⚠️ 請選擇完整的日期區間！');
-            
+            if (!start || !end) return alert('⚠️ 請選擇完整的日期區間！');
+
             const statusLabel = document.getElementById('loading-status');
             syncPoolBtn.disabled = true;
             syncPoolBtn.style.background = '#95a5a6';
             syncPoolBtn.innerText = '撈取中...';
-            statusLabel.innerText = '🔄 正在打撈系統釋出池...';
-            
+
             try {
-                const protocol = window.connector?.protocol || 'https://';
-                const serverIP = window.connector?.serverIP || 'www.etalkingonline.com';
-                const url = `${protocol}${serverIP}/release_list/v4?startdate=${start}&enddate=${end}`;
-                
+                const url = `https://server.etalkingonline.com/release_list/v4?startdate=${start}&enddate=${end}`;
+                statusLabel.innerText = `🔄 正在打撈 ${start} ~ ${end} 的釋出池...`;
                 const res = await fetch(url);
                 const data = await res.json();
                 const list = data.list || [];
-                
-                if(list.length === 0) {
+
+                if (list.length === 0) {
                     alert('➔ 該日期區間內，系統釋出池中沒有任何名單。');
                     return;
                 }
-                
-                statusLabel.innerText = `🔄 撈到 ${list.length} 筆，正在寫入中表...`;
-                
-                // 格式化為後端接收的規格
-                const releaseList = list.map(item => ({
-                    member_id: item.id,
-                    member_name: item.member_name,
-                    mobile: item.mobile,
-                    source: item.source || '未知',
-                    next_time: item.cdate || '無紀錄'
-                }));
-                
-                // 一包倒入 Google Sheet
-                const gasRes = await gasPost({ action: 'syncReleasePool', releaseList });
-                if(gasRes.success) {
-                    statusLabel.innerText = `✅ 成功寫入 ${gasRes.addedCount} 筆資料！`;
-                    alert(`🎉 搬家成功！\n系統總共撈到: ${list.length} 筆\n新成功寫入 Sheet: ${gasRes.addedCount} 筆\n(重複的單已為您自動過濾)`);
-                } else {
-                    throw new Error(gasRes.error || 'GAS 端寫入失敗');
+
+                const BATCH_SIZE = 200;
+                let totalAdded = 0;
+
+                for (let i = 0; i < list.length; i += BATCH_SIZE) {
+                    const batch = list.slice(i, i + BATCH_SIZE);
+                    statusLabel.innerText = `🔄 寫入中 ${Math.min(i + BATCH_SIZE, list.length)} / ${list.length} 筆...`;
+
+                    const releaseList = batch.map(item => ({
+                        member_id: item.id,
+                        member_name: item.member_name,
+                        mobile: item.mobile,
+                        source: item.source || '未知',
+                        next_time: item.cdate || '無紀錄'
+                    }));
+
+                    const gasRes = await gasPost({ action: 'syncReleasePool', releaseList });
+                    if (gasRes.success) {
+                        totalAdded += gasRes.addedCount;
+                    } else {
+                        throw new Error(gasRes.error || 'GAS 端寫入失敗');
+                    }
                 }
-            } catch(err) {
-                alert('❌ 同步失敗！請檢查 Console 或 GAS 權限部署。');
+
+                statusLabel.innerText = `✅ 成功寫入 ${totalAdded} 筆！`;
+                alert(`🎉 搬家成功！\n系統總共撈到: ${list.length} 筆\n新成功寫入 Sheet: ${totalAdded} 筆\n(重複的單已為您自動過濾)`);
+
+            } catch (err) {
+                alert('❌ 同步失敗！請檢查 Console 或確認 API 是否可存取。');
                 console.error(err);
                 statusLabel.innerText = '❌ 同步失敗';
             } finally {
                 syncPoolBtn.disabled = false;
                 syncPoolBtn.style.background = '#2ecc71';
                 syncPoolBtn.innerText = '更新釋出池';
-                setTimeout(() => { if(statusLabel.innerText.includes('成功')) statusLabel.innerText = ''; }, 3000);
+                setTimeout(() => { if (statusLabel.innerText.includes('成功')) statusLabel.innerText = ''; }, 3000);
             }
         };
-    }
+    }  // ← if(syncPoolBtn) 正確關閉在這裡
 
     document.getElementById('source-filter').onchange = renderList;
     document.getElementById('consultant-filter').onchange=function(){
