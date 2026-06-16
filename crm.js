@@ -1379,6 +1379,7 @@ function dialerDestroy() {
     dialerActive = false;
     dialerPaused = false;
     if(dialerPanel) { dialerPanel.remove(); dialerPanel = null; }
+    dialerCloseHistory();
     document.removeEventListener('keydown', dialerKeyHandler);
 }
 
@@ -1598,6 +1599,7 @@ function dialerStep() {
     // 清掉上一通的計時
     if(dialerTimer)        clearTimeout(dialerTimer);
     if(dialerTickInterval) clearInterval(dialerTickInterval);
+    dialerCloseHistory();
 
     // 隱藏訪談區、恢復按鈕
     const interviewArea = document.getElementById('dialer-interview-area');
@@ -1725,6 +1727,10 @@ function dialerOnAnswer() {
         d.setDate(d.getDate() + 10);
         nextDateInput.value = d.toISOString().split('T')[0];
     }
+
+    // 展開歷史紀錄面板
+    const item = dialerQueue[dialerIndex];
+    if(item) dialerOpenHistory(item);
 }
 
 function dialerOnMiss(isManual) {
@@ -1877,6 +1883,136 @@ function dialerFinish() {
         if(cdText)   cdText.innerText   = '✔';
     }
     document.removeEventListener('keydown', dialerKeyHandler);
+}
+    function dialerCloseHistory() {
+    const old = document.getElementById('dialer-history-panel');
+    if(old) old.remove();
+}
+
+async function dialerOpenHistory(item) {
+    dialerCloseHistory();
+
+    // 計算位置：撥號面板左側
+    const dialerRect = dialerPanel.getBoundingClientRect();
+
+    const hp = document.createElement('div');
+    hp.id = 'dialer-history-panel';
+    hp.style.cssText = [
+        'position:fixed',
+        'top:' + dialerRect.top + 'px',
+        'left:' + (dialerRect.left - 420) + 'px',
+        'width:400px',
+        'max-height:' + dialerRect.height + 'px',
+        'background:#1e272e',
+        'color:#dcdde1',
+        'border-radius:14px',
+        'box-shadow:0 8px 32px rgba(0,0,0,0.45)',
+        'font-family:sans-serif',
+        'z-index:1000001',
+        'overflow:hidden',
+        'border:2px solid #2ecc71',
+        'display:flex',
+        'flex-direction:column'
+    ].join(';');
+
+    hp.innerHTML = `
+        <div style="
+            background:#2ecc71;
+            color:#1e272e;
+            padding:10px 14px;
+            display:flex;
+            justify-content:space-between;
+            align-items:center;
+            font-weight:bold;
+            font-size:14px;
+            flex-shrink:0;
+        ">
+            <span>📋 歷史紀錄 — ${item.member_name || ''}（${item.mobile || ''}）</span>
+            <button id="dialer-history-close" style="
+                background:transparent;border:none;
+                font-size:18px;cursor:pointer;
+                color:#1e272e;line-height:1;padding:0 2px;
+            ">×</button>
+        </div>
+        <div id="dialer-history-body" style="
+            flex:1;overflow-y:auto;padding:10px 12px;
+            font-size:12px;
+        ">
+            <div style="text-align:center;color:#718093;padding:20px;">🔄 載入中...</div>
+        </div>
+    `;
+
+    document.body.appendChild(hp);
+
+    document.getElementById('dialer-history-close').onclick = dialerCloseHistory;
+
+    // 抓歷史紀錄
+    try {
+        const res = await fetch('/admin/request_develop?member_id=' + item.member_id + '&hide_layout=true');
+        const html = await res.text();
+        const doc = new DOMParser().parseFromString(html, 'text/html');
+        const rows = doc.querySelectorAll('table tbody tr');
+
+        const body = document.getElementById('dialer-history-body');
+        if(!body) return;
+
+        if(!rows.length) {
+            body.innerHTML = '<div style="text-align:center;color:#718093;padding:20px;">無歷史紀錄</div>';
+            return;
+        }
+
+        let tableHtml = `
+            <table style="width:100%;border-collapse:collapse;font-size:11px;">
+                <tr style="background:#2f3640;color:#a4b0be;position:sticky;top:0;">
+                    <th style="padding:5px 6px;text-align:left;white-space:nowrap;">#</th>
+                    <th style="padding:5px 6px;text-align:left;white-space:nowrap;">時間</th>
+                    <th style="padding:5px 6px;text-align:left;white-space:nowrap;">類型</th>
+                    <th style="padding:5px 6px;text-align:left;">內容</th>
+                    <th style="padding:5px 6px;text-align:left;white-space:nowrap;">操作者</th>
+                </tr>
+        `;
+
+        rows.forEach((r, idx) => {
+            const cells = r.querySelectorAll('td');
+            if(cells.length < 4) return;
+
+            const num      = cells[0] ? cells[0].innerText.trim() : (idx + 1);
+            const time     = cells[1] ? cells[1].innerText.trim() : '';
+            const type     = cells[3] ? cells[3].innerText.trim() : '';
+            const content  = cells[4] ? cells[4].innerText.trim() : '';
+            const operator = cells[cells.length - 1] ? cells[cells.length - 1].innerText.trim() : '';
+
+            // 類型顏色
+            let typeColor = '#a4b0be';
+            if(type.includes('聯絡')) typeColor = '#f39c12';
+            if(type.includes('名單移動')) typeColor = '#3498db';
+
+            // 內容顏色（未接標紅）
+            let contentColor = '#dcdde1';
+            if(content.includes('未接')) contentColor = '#e74c3c';
+            if(content.includes('已接') || content.includes('【')) contentColor = '#2ecc71';
+
+            const rowBg = idx % 2 === 0 ? '#1e272e' : '#252f38';
+
+            tableHtml += `
+                <tr style="background:${rowBg};border-bottom:1px solid #2f3640;">
+                    <td style="padding:5px 6px;color:#636e72;white-space:nowrap;">${num}</td>
+                    <td style="padding:5px 6px;color:#718093;white-space:nowrap;font-size:10px;">${time}</td>
+                    <td style="padding:5px 6px;color:${typeColor};white-space:nowrap;">${type}</td>
+                    <td style="padding:5px 6px;color:${contentColor};word-break:break-all;line-height:1.5;">${content.replace(/\n/g, '<br>')}</td>
+                    <td style="padding:5px 6px;color:#636e72;white-space:nowrap;font-size:10px;">${operator}</td>
+                </tr>
+            `;
+        });
+
+        tableHtml += '</table>';
+        body.innerHTML = tableHtml;
+
+    } catch(e) {
+        const body = document.getElementById('dialer-history-body');
+        if(body) body.innerHTML = '<div style="text-align:center;color:#e74c3c;padding:20px;">❌ 載入失敗</div>';
+        console.error('[歷史紀錄載入失敗]', e);
+    }
 }
 
 // ── 開啟撥號按鈕（Header 上的 🚀 撥號）──
