@@ -1369,6 +1369,7 @@ let dialerPaused     = false;// 是否已暫停（接通狀態）
 let dialerExtension  = '';   // 分機號碼
 let dialerMissCount  = {};   // { member_id: 未接次數 } 方案B計數器
 let dialerTickInterval = null;
+let dialerPendingPause = false; // 這通結束後暫停旗標
 
 // ── 撥號面板 DOM ──
 let dialerPanel = null;
@@ -1378,6 +1379,7 @@ function dialerDestroy() {
     if(dialerTickInterval) clearInterval(dialerTickInterval);
     dialerActive = false;
     dialerPaused = false;
+    dialerPendingPause = false;
     if(dialerPanel) { dialerPanel.remove(); dialerPanel = null; }
     dialerCloseHistory();
     document.removeEventListener('keydown', dialerKeyHandler);
@@ -1493,6 +1495,11 @@ function dialerInit(queue) {
                 background:#636e72;color:white;font-weight:bold;font-size:12px;
                 cursor:pointer;
             ">跳過</button>
+            <button id="dialer-btn-pause" style="
+                padding:10px 8px;border:none;border-radius:8px;
+                background:#8e44ad;color:white;font-weight:bold;font-size:12px;
+                cursor:pointer;white-space:nowrap;
+            ">⏸ 暫停</button>
         </div>
 
         <!-- 接通後訪談區（預設隱藏） -->
@@ -1564,6 +1571,20 @@ function dialerInit(queue) {
     document.getElementById('dialer-btn-miss').onclick   = () => dialerOnMiss(true);
     document.getElementById('dialer-btn-skip').onclick   = dialerOnSkip;
 
+    document.getElementById('dialer-btn-pause').onclick = () => {
+        dialerPendingPause = !dialerPendingPause;
+        const btn = document.getElementById('dialer-btn-pause');
+        if(dialerPendingPause) {
+            btn.innerText = '🟣 暫停中';
+            btn.style.background = '#6c3483';
+            btn.style.outline = '2px solid #d7bde2';
+        } else {
+            btn.innerText = '⏸ 暫停';
+            btn.style.background = '#8e44ad';
+            btn.style.outline = 'none';
+        }
+    };
+
     document.getElementById('dialer-btn-next').onclick = () => {
         dialerIndex++;
         dialerStep();
@@ -1612,6 +1633,32 @@ function dialerStep() {
     if(btnSkip)       { btnSkip.style.display = ''; btnSkip.disabled = false; }
 
     dialerPaused = false;
+
+    if(dialerPendingPause) {
+        dialerPendingPause = false;
+        dialerPanel.style.border = '2px solid #8e44ad';
+        const nameEl   = document.getElementById('dialer-name');
+        const phoneEl  = document.getElementById('dialer-phone');
+        const statusEl = document.getElementById('dialer-status-label');
+        const cdText   = document.getElementById('dialer-countdown-text');
+        const pauseBtn = document.getElementById('dialer-btn-pause');
+        if(nameEl)   nameEl.innerText   = '⏸ 已暫停';
+        if(phoneEl)  phoneEl.innerText  = '點「繼續」恢復撥號';
+        if(statusEl) statusEl.innerText = '';
+        if(cdText)   cdText.innerText   = '-';
+        if(pauseBtn) {
+            pauseBtn.innerText = '▶ 繼續';
+            pauseBtn.style.background = '#27ae60';
+            pauseBtn.style.outline = 'none';
+            pauseBtn.onclick = () => {
+                dialerPendingPause = false;
+                pauseBtn.innerText = '⏸ 暫停';
+                pauseBtn.style.background = '#8e44ad';
+                dialerStep();
+            };
+        }
+        return;
+    }
 
     if(dialerIndex >= dialerQueue.length) {
         dialerFinish();
