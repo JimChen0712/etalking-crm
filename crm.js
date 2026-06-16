@@ -335,7 +335,7 @@ ${isManager ? `
         <span id="loading-status" style="font-size:11px;color:#f1c40f;font-weight:bold;"></span>
     </div>
     <div style="display:flex;align-items:center;gap:8px;">
-        <button id="open-dialer-btn" style="padding:4px 14px;cursor:pointer;border-radius:4px;border:2px solid #f39c12;background:#f39c12;color:white;font-weight:bold;font-size:13px;">🚀 撥號</button>
+        <button id="open-dialer-btn" style="padding:4px 14px;cursor:pointer;border-radius:4px;border:2px solid #f39c12;background:#f39c12;color:white;font-weight:bold;font-size:13px;">自動撥號系統</button>
         <button id="close-btn" style="background:transparent;border:none;color:white;font-size:20px;cursor:pointer;">×</button>
     </div>
 `;
@@ -1435,7 +1435,7 @@ function dialerInit(queue) {
             font-weight:bold;
             font-size:14px;
         ">
-            <span>🚀 自動撥號系統</span>
+            <span>自動撥號系統</span>
             <button id="dialer-close-btn" style="
                 background:transparent;
                 border:none;
@@ -1927,7 +1927,7 @@ async function dialerOpenHistory(item) {
             font-size:14px;
             flex-shrink:0;
         ">
-            <span>📋 歷史紀錄 — ${item.member_name || ''}（${item.mobile || ''}）</span>
+            <span>歷史紀錄 — ${item.member_name || ''}（${item.mobile || ''}）</span>
             <button id="dialer-history-close" style="
                 background:transparent;border:none;
                 font-size:18px;cursor:pointer;
