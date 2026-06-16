@@ -1583,8 +1583,8 @@ function dialerInit(queue) {
         dialerMinimized = !dialerMinimized;
 
         if(dialerMinimized) {
-            // 隱藏所有非 header 的元素
-            dialerPanel.querySelectorAll(':scope > div:not(#dialer-header)').forEach(el => el.style.display = 'none');
+            // 隱藏所有非 header、非 mini-bar 的元素
+            dialerPanel.querySelectorAll(':scope > div:not(#dialer-header):not(#dialer-mini-bar)').forEach(el => el.style.display = 'none');
 
             // 插入 mini bar（如果還沒有）
             if(!document.getElementById('dialer-mini-bar')) {
