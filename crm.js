@@ -1899,10 +1899,10 @@ async function dialerOpenHistory(item) {
     hp.id = 'dialer-history-panel';
     hp.style.cssText = [
         'position:fixed',
-        'top:' + dialerRect.top + 'px',
-        'left:' + (dialerRect.left - 420) + 'px',
-        'width:400px',
-        'max-height:' + dialerRect.height + 'px',
+        'top:' + Math.max(10, dialerRect.top) + 'px',
+        'left:' + Math.max(10, dialerRect.left - 660) + 'px',
+        'width:640px',
+        'height:80vh',
         'background:#1e272e',
         'color:#dcdde1',
         'border-radius:14px',
