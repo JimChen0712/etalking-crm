@@ -1438,6 +1438,15 @@ function dialerInit(queue) {
             font-size:14px;
         ">
             <span>自動撥號系統</span>
+            <button id="dialer-minimize-btn" style="
+                background:transparent;
+                border:none;
+                font-size:16px;
+                cursor:pointer;
+                color:#1e272e;
+                line-height:1;
+                padding:0 4px;
+            ">▬</button>
             <button id="dialer-close-btn" style="
                 background:transparent;
                 border:none;
@@ -1567,6 +1576,67 @@ function dialerInit(queue) {
         dialerDestroy();
     };
 
+    let dialerMinimized = false;
+    const dialerFullContent = () => dialerPanel.querySelectorAll(':scope > *:not(#dialer-header):not(#dialer-mini-bar)');
+
+    document.getElementById('dialer-minimize-btn').onclick = () => {
+        dialerMinimized = !dialerMinimized;
+
+        if(dialerMinimized) {
+            // 隱藏所有非 header 的元素
+            dialerPanel.querySelectorAll(':scope > div:not(#dialer-header)').forEach(el => el.style.display = 'none');
+
+            // 插入 mini bar（如果還沒有）
+            if(!document.getElementById('dialer-mini-bar')) {
+                const miniBar = document.createElement('div');
+                miniBar.id = 'dialer-mini-bar';
+                miniBar.style.cssText = 'display:flex;align-items:center;gap:8px;padding:6px 12px;background:#1e272e;';
+                miniBar.innerHTML = `
+                    <span id="mini-name" style="font-size:12px;font-weight:bold;color:#fff;white-space:nowrap;max-width:80px;overflow:hidden;text-overflow:ellipsis;">-</span>
+                    <span id="mini-phone" style="font-size:11px;color:#a4b0be;white-space:nowrap;">-</span>
+                    <span style="font-size:10px;color:#718093;white-space:nowrap;">⏱</span>
+                    <span id="mini-countdown" style="font-size:13px;font-weight:bold;color:#e74c3c;font-variant-numeric:tabular-nums;white-space:nowrap;min-width:36px;">00:20</span>
+                    <div style="display:flex;gap:4px;margin-left:4px;">
+                        <button id="mini-btn-answer" style="padding:4px 8px;border:none;border-radius:6px;background:#27ae60;color:white;font-weight:bold;font-size:12px;cursor:pointer;">✅</button>
+                        <button id="mini-btn-miss" style="padding:4px 8px;border:none;border-radius:6px;background:#e74c3c;color:white;font-weight:bold;font-size:12px;cursor:pointer;">❌</button>
+                        <button id="mini-btn-skip" style="padding:4px 8px;border:none;border-radius:6px;background:#636e72;color:white;font-weight:bold;font-size:13px;cursor:pointer;">⏭</button>
+                        <button id="mini-btn-pause" style="padding:4px 8px;border:none;border-radius:6px;background:#8e44ad;color:white;font-weight:bold;font-size:13px;cursor:pointer;">⏸</button>
+                    </div>
+                `;
+                dialerPanel.appendChild(miniBar);
+
+                // mini 按鈕綁定
+                document.getElementById('mini-btn-answer').onclick = dialerOnAnswer;
+                document.getElementById('mini-btn-miss').onclick   = () => dialerOnMiss(true);
+                document.getElementById('mini-btn-skip').onclick   = dialerOnSkip;
+                document.getElementById('mini-btn-pause').onclick  = () => {
+                    document.getElementById('dialer-btn-pause').click();
+                    const pauseBtn = document.getElementById('mini-btn-pause');
+                    pauseBtn.innerText = dialerPendingPause ? '▶' : '⏸';
+                    pauseBtn.style.background = dialerPendingPause ? '#27ae60' : '#8e44ad';
+                };
+            }
+
+            document.getElementById('dialer-mini-bar').style.display = 'flex';
+            dialerPanel.style.width = '460px';
+            document.getElementById('dialer-minimize-btn').innerText = '▣';
+
+            // 同步目前狀態
+            dialerSyncMiniBar();
+
+        } else {
+            // 展開回來
+            document.getElementById('dialer-mini-bar').style.display = 'none';
+            dialerPanel.querySelectorAll(':scope > div:not(#dialer-header):not(#dialer-mini-bar)').forEach(el => el.style.display = '');
+            // 訪談區維持原本狀態（如果是接通中就保持展開）
+            if(!dialerPaused) {
+                const interviewArea = document.getElementById('dialer-interview-area');
+                if(interviewArea) interviewArea.style.display = 'none';
+            }
+            dialerPanel.style.width = '320px';
+            document.getElementById('dialer-minimize-btn').innerText = '▬';
+        }
+    };
     document.getElementById('dialer-btn-answer').onclick = dialerOnAnswer;
     document.getElementById('dialer-btn-miss').onclick   = () => dialerOnMiss(true);
     document.getElementById('dialer-btn-skip').onclick   = dialerOnSkip;
@@ -1695,6 +1765,7 @@ function dialerStep() {
     if(nameEl)    nameEl.innerText  = item.member_name || '未知';
     if(phoneEl)   phoneEl.innerText = item.mobile || '-';
     if(sourceEl)  sourceEl.innerText = '';
+    dialerSyncMiniBar();
     if(progressEl)progressEl.innerText = (dialerIndex + 1) + ' / ' + total;
     if(barEl)     barEl.style.width = pct + '%';
     const missN = dialerMissCount[item.member_id] || 0;
@@ -1735,6 +1806,13 @@ function dialerUpdateCountdown(remaining, total) {
     barEl.style.background = remaining <= 5 ? '#c0392b' : remaining <= 10 ? '#e67e22' : '#e74c3c';
     textEl.innerText = Math.max(0, remaining);
     textEl.style.color = remaining <= 5 ? '#c0392b' : '#e74c3c';
+
+    // 同步 mini bar 倒數
+    const miniCd = document.getElementById('mini-countdown');
+    if(miniCd) {
+        miniCd.innerText = '00:' + String(Math.max(0, remaining)).padStart(2, '0');
+        miniCd.style.color = remaining <= 5 ? '#c0392b' : remaining <= 10 ? '#e67e22' : '#e74c3c';
+    }
 }
 
 async function dialerCallApi(item) {
@@ -1944,6 +2022,17 @@ function dialerFinish() {
         if(cdText)   cdText.innerText   = '✔';
     }
     document.removeEventListener('keydown', dialerKeyHandler);
+}
+    function dialerSyncMiniBar() {
+    if(!document.getElementById('dialer-mini-bar') || document.getElementById('dialer-mini-bar').style.display === 'none') return;
+    const item = dialerQueue[dialerIndex];
+    if(!item) return;
+    const nameEl = document.getElementById('mini-name');
+    const phoneEl = document.getElementById('mini-phone');
+    const cdEl = document.getElementById('mini-countdown');
+    if(nameEl)  nameEl.innerText  = item.member_name || '-';
+    if(phoneEl) phoneEl.innerText = item.mobile || '-';
+    if(cdEl)    cdEl.innerText    = '00:' + String(dialerCountdown).padStart(2, '0');
 }
     function dialerCloseHistory() {
     const old = document.getElementById('dialer-history-panel');
