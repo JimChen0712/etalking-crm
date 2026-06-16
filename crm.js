@@ -1583,10 +1583,7 @@ function dialerInit(queue) {
         dialerMinimized = !dialerMinimized;
 
         if(dialerMinimized) {
-            // 隱藏所有非 header、非 mini-bar 的元素
-            dialerPanel.querySelectorAll(':scope > div:not(#dialer-header):not(#dialer-mini-bar)').forEach(el => el.style.display = 'none');
-
-            // 插入 mini bar（如果還沒有）
+            // 先建立 mini bar（如果還沒有），再隱藏其他內容
             if(!document.getElementById('dialer-mini-bar')) {
                 const miniBar = document.createElement('div');
                 miniBar.id = 'dialer-mini-bar';
@@ -1605,7 +1602,6 @@ function dialerInit(queue) {
                 `;
                 dialerPanel.appendChild(miniBar);
 
-                // mini 按鈕綁定
                 document.getElementById('mini-btn-answer').onclick = dialerOnAnswer;
                 document.getElementById('mini-btn-miss').onclick   = () => dialerOnMiss(true);
                 document.getElementById('mini-btn-skip').onclick   = dialerOnSkip;
@@ -1617,11 +1613,12 @@ function dialerInit(queue) {
                 };
             }
 
+            // mini bar 建好之後，再隱藏其他內容
+            dialerPanel.querySelectorAll(':scope > div:not(#dialer-header):not(#dialer-mini-bar)').forEach(el => el.style.display = 'none');
+
             document.getElementById('dialer-mini-bar').style.display = 'flex';
             dialerPanel.style.width = '460px';
             document.getElementById('dialer-minimize-btn').innerText = '▣';
-
-            // 同步目前狀態
             dialerSyncMiniBar();
 
         } else {
