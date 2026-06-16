@@ -1654,6 +1654,20 @@ function dialerStep() {
                 dialerPendingPause = false;
                 pauseBtn.innerText = '⏸ 暫停';
                 pauseBtn.style.background = '#8e44ad';
+                pauseBtn.style.outline = 'none';
+                // 重新綁回原本的 toggle 邏輯
+                pauseBtn.onclick = () => {
+                    dialerPendingPause = !dialerPendingPause;
+                    if(dialerPendingPause) {
+                        pauseBtn.innerText = '🟣 暫停中';
+                        pauseBtn.style.background = '#6c3483';
+                        pauseBtn.style.outline = '2px solid #d7bde2';
+                    } else {
+                        pauseBtn.innerText = '⏸ 暫停';
+                        pauseBtn.style.background = '#8e44ad';
+                        pauseBtn.style.outline = 'none';
+                    }
+                };
                 dialerStep();
             };
         }
