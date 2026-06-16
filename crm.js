@@ -308,7 +308,6 @@ panel.style.cssText='position:fixed;top:50%;left:50%;transform:translate(-50%,-5
 const header=document.createElement('div');
 header.style.cssText='padding:12px 15px;background:#2c3e50;color:white;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;flex-shrink:0;';
 
-// ★ 修復：把更新釋出池的區塊加上 ID (pool-sync-block) 並預設隱藏
 header.innerHTML = `
     <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
         <h3 style="margin:0;font-size:15px;color:white;">名單管理面板</h3>
@@ -335,7 +334,10 @@ ${isManager ? `
         <button id="refresh-btn" style="padding:4px 10px;cursor:pointer;border-radius:4px;border:none;background:#3498db;color:white;">重新整理</button>
         <span id="loading-status" style="font-size:11px;color:#f1c40f;font-weight:bold;"></span>
     </div>
-    <button id="close-btn" style="background:transparent;border:none;color:white;font-size:20px;cursor:pointer;">×</button>
+    <div style="display:flex;align-items:center;gap:8px;">
+        <button id="open-dialer-btn" style="padding:4px 14px;cursor:pointer;border-radius:4px;border:2px solid #f39c12;background:#f39c12;color:white;font-weight:bold;font-size:13px;">🚀 撥號</button>
+        <button id="close-btn" style="background:transparent;border:none;color:white;font-size:20px;cursor:pointer;">×</button>
+    </div>
 `;
 
 const content=document.createElement('div');
@@ -985,6 +987,7 @@ document.getElementById('release-submit').onclick = async () => {
 };
 
 document.getElementById('close-btn').onclick=()=>{
+    dialerDestroy();
     panel.remove();curtain.remove();document.body.style.overflow='';
     setTimeout(()=>{window.location.href='https://admin.etalkingonline.com/etalking2.0/#/kpi';},300);
 };
@@ -996,7 +999,7 @@ if(isManager){
         currentTab = tab;
         const tabCrm = document.getElementById('tab-crm');
         const tabPool = document.getElementById('tab-pool');
-        const poolSyncBlock = document.getElementById('pool-sync-block'); // 抓取釋出池更新區塊
+        const poolSyncBlock = document.getElementById('pool-sync-block');
 
         if(tab === 'crm') {
             tabCrm.style.background = '#3498db';
@@ -1007,7 +1010,7 @@ if(isManager){
                 const el = document.getElementById(id);
                 if(el) el.style.display = '';
             });
-            if(poolSyncBlock) poolSyncBlock.style.display = 'none'; // 在名單管理頁面隱藏
+            if(poolSyncBlock) poolSyncBlock.style.display = 'none';
             renderList();
         } else {
             tabCrm.style.background = 'transparent';
@@ -1018,7 +1021,7 @@ if(isManager){
                 const el = document.getElementById(id);
                 if(el) el.style.display = 'none';
             });
-            if(poolSyncBlock) poolSyncBlock.style.display = 'inline-flex'; // 在釋出池頁面顯示
+            if(poolSyncBlock) poolSyncBlock.style.display = 'inline-flex';
             renderPoolEmptyState();
         }
     }
@@ -1151,6 +1154,10 @@ if(isManager){
                     style="display:none;padding:5px 14px;background:#27ae60;color:white;border:none;border-radius:4px;cursor:pointer;font-weight:bold;font-size:12px;margin-left:auto;">
                     批次派發 (0)
                 </button>
+                <button id="pool-start-dial-btn"
+                    style="padding:5px 14px;background:#f39c12;color:white;border:none;border-radius:4px;cursor:pointer;font-weight:bold;font-size:12px;">
+                    🚀 對此批名單撥號
+                </button>
                 <button id="pool-reload-btn"
                     style="padding:5px 10px;background:#7f8c8d;color:white;border:none;border-radius:4px;cursor:pointer;font-size:12px;">
                     🔄 重新載入
@@ -1213,6 +1220,17 @@ if(isManager){
         document.getElementById('pool-reload-btn').onclick = () => {
             poolData = [];
             loadPoolData();
+        };
+
+        // ★ 釋出池撥號入口
+        document.getElementById('pool-start-dial-btn').onclick = () => {
+            if(poolData.length === 0) { alert('⚠️ 請先載入釋出池名單'); return; }
+            dialerInit(poolData.map(item => ({
+                member_id:   item.member_id,
+                member_name: item.member_name,
+                mobile:      item.mobile,
+                source:      item.source
+            })));
         };
 
         const poolBatchBtn = document.getElementById('pool-batch-btn');
@@ -1336,5 +1354,549 @@ if(isManager){
         };
     }
 }
+
+/* ══════════════════════════════════════════════════════
+   ★★★ 撥號模組 (Dialer Module) ★★★
+══════════════════════════════════════════════════════ */
+
+// ── 撥號狀態變數 ──
+let dialerQueue      = [];   // 待撥名單
+let dialerIndex      = 0;    // 目前撥到第幾筆
+let dialerTimer      = null; // 防呆倒數計時器
+let dialerCountdown  = 0;    // 剩餘秒數
+let dialerActive     = false;// 是否撥號中
+let dialerPaused     = false;// 是否已暫停（接通狀態）
+let dialerExtension  = '';   // 分機號碼
+let dialerMissCount  = {};   // { member_id: 未接次數 } 方案B計數器
+let dialerTickInterval = null;
+
+// ── 撥號面板 DOM ──
+let dialerPanel = null;
+
+function dialerDestroy() {
+    if(dialerTimer)       clearTimeout(dialerTimer);
+    if(dialerTickInterval) clearInterval(dialerTickInterval);
+    dialerActive = false;
+    dialerPaused = false;
+    if(dialerPanel) { dialerPanel.remove(); dialerPanel = null; }
+    document.removeEventListener('keydown', dialerKeyHandler);
+}
+
+function dialerInit(queue) {
+    dialerDestroy(); // 先清掉舊的
+
+    if(!queue || queue.length === 0) {
+        alert('⚠️ 名單為空，無法啟動撥號。');
+        return;
+    }
+
+    // 詢問分機號碼
+    const ext = prompt('請輸入您的分機號碼：', dialerExtension || '');
+    if(ext === null) return; // 按取消
+    if(!ext.trim()) { alert('⚠️ 分機號碼不能為空！'); return; }
+    dialerExtension = ext.trim();
+
+    dialerQueue     = queue;
+    dialerIndex     = 0;
+    dialerMissCount = {};
+    dialerActive    = true;
+    dialerPaused    = false;
+
+    // 建立浮動面板
+    dialerPanel = document.createElement('div');
+    dialerPanel.id = 'dialer-float-panel';
+    dialerPanel.style.cssText = [
+        'position:fixed',
+        'bottom:20px',
+        'right:20px',
+        'width:320px',
+        'background:#1e272e',
+        'color:#dcdde1',
+        'border-radius:14px',
+        'box-shadow:0 8px 32px rgba(0,0,0,0.45)',
+        'font-family:sans-serif',
+        'z-index:1000001',
+        'overflow:hidden',
+        'border:2px solid #f39c12',
+        'user-select:none'
+    ].join(';');
+
+    dialerPanel.innerHTML = `
+        <!-- 標題列（可拖曳） -->
+        <div id="dialer-header" style="
+            background:#f39c12;
+            color:#1e272e;
+            padding:10px 14px;
+            display:flex;
+            justify-content:space-between;
+            align-items:center;
+            cursor:move;
+            font-weight:bold;
+            font-size:14px;
+        ">
+            <span>🚀 自動撥號系統</span>
+            <button id="dialer-close-btn" style="
+                background:transparent;
+                border:none;
+                font-size:18px;
+                cursor:pointer;
+                color:#1e272e;
+                line-height:1;
+                padding:0 2px;
+            ">×</button>
+        </div>
+
+        <!-- 客戶資訊區 -->
+        <div style="padding:12px 14px 8px;">
+            <div style="font-size:11px;color:#f39c12;margin-bottom:4px;letter-spacing:0.5px;">目前撥打</div>
+            <div id="dialer-name" style="font-size:20px;font-weight:bold;color:#fff;line-height:1.2;">-</div>
+            <div id="dialer-phone" style="font-size:15px;color:#a4b0be;margin-top:2px;">-</div>
+            <div id="dialer-source" style="font-size:11px;color:#718093;margin-top:2px;"></div>
+        </div>
+
+        <!-- 進度條 -->
+        <div style="padding:0 14px;">
+            <div style="display:flex;justify-content:space-between;font-size:11px;color:#718093;margin-bottom:4px;">
+                <span id="dialer-progress">0 / 0</span>
+                <span id="dialer-miss-count" style="color:#e67e22;"></span>
+            </div>
+            <div style="background:#2f3640;border-radius:4px;height:4px;overflow:hidden;">
+                <div id="dialer-progress-bar" style="height:100%;background:#f39c12;width:0%;transition:width 0.3s;border-radius:4px;"></div>
+            </div>
+        </div>
+
+        <!-- 倒數計時區 -->
+        <div style="padding:10px 14px 8px;text-align:center;">
+            <div id="dialer-status-label" style="font-size:11px;color:#718093;margin-bottom:6px;">等待撥出...</div>
+            <div style="background:#2f3640;border-radius:6px;height:8px;overflow:hidden;margin-bottom:6px;">
+                <div id="dialer-countdown-bar" style="height:100%;background:#e74c3c;width:100%;transition:width 1s linear;border-radius:6px;"></div>
+            </div>
+            <div id="dialer-countdown-text" style="font-size:22px;font-weight:bold;color:#e74c3c;font-variant-numeric:tabular-nums;">20</div>
+            <div style="font-size:10px;color:#636e72;margin-top:2px;">秒後自動視為未接</div>
+        </div>
+
+        <!-- 操作按鈕 -->
+        <div style="padding:8px 14px 14px;display:flex;gap:8px;">
+            <button id="dialer-btn-answer" style="
+                flex:1;padding:10px 6px;border:none;border-radius:8px;
+                background:#27ae60;color:white;font-weight:bold;font-size:13px;
+                cursor:pointer;letter-spacing:0.5px;
+            ">✅ 接通 (Z)</button>
+            <button id="dialer-btn-miss" style="
+                flex:1;padding:10px 6px;border:none;border-radius:8px;
+                background:#e74c3c;color:white;font-weight:bold;font-size:13px;
+                cursor:pointer;letter-spacing:0.5px;
+            ">❌ 未接 (X)</button>
+            <button id="dialer-btn-skip" style="
+                padding:10px 8px;border:none;border-radius:8px;
+                background:#636e72;color:white;font-weight:bold;font-size:12px;
+                cursor:pointer;
+            ">跳過</button>
+        </div>
+
+        <!-- 接通後訪談區（預設隱藏） -->
+        <div id="dialer-interview-area" style="display:none;padding:0 14px 14px;">
+            <div style="border-top:1px solid #2f3640;padding-top:10px;margin-bottom:8px;">
+                <div style="font-size:11px;color:#2ecc71;font-weight:bold;margin-bottom:6px;">🟢 通話中 — 訪談記錄</div>
+                <textarea id="dialer-interview-text" rows="8" style="
+                    width:100%;box-sizing:border-box;
+                    background:#2f3640;color:#dcdde1;
+                    border:1px solid #4f5d73;border-radius:6px;
+                    padding:8px;font-size:11px;font-family:sans-serif;
+                    resize:vertical;line-height:1.5;
+                "></textarea>
+            </div>
+            <div style="display:flex;gap:8px;">
+                <input type="date" id="dialer-next-date" style="
+                    flex:1;padding:6px 8px;border-radius:6px;
+                    border:1px solid #4f5d73;background:#2f3640;
+                    color:#dcdde1;font-size:12px;
+                ">
+                <button id="dialer-btn-submit" style="
+                    padding:6px 14px;border:none;border-radius:6px;
+                    background:#2ecc71;color:white;font-weight:bold;
+                    font-size:12px;cursor:pointer;white-space:nowrap;
+                ">壓紀錄</button>
+                <button id="dialer-btn-next" style="
+                    padding:6px 14px;border:none;border-radius:6px;
+                    background:#3498db;color:white;font-weight:bold;
+                    font-size:12px;cursor:pointer;white-space:nowrap;
+                ">下一通 →</button>
+            </div>
+        </div>
+
+        <!-- 分機顯示 -->
+        <div style="padding:4px 14px 10px;text-align:right;">
+            <span style="font-size:10px;color:#636e72;">分機：</span>
+            <span id="dialer-ext-display" style="font-size:10px;color:#a4b0be;cursor:pointer;text-decoration:underline dotted;">${dialerExtension}</span>
+        </div>
+    `;
+
+    document.body.appendChild(dialerPanel);
+
+    // ── 拖曳功能 ──
+    const dragHandle = document.getElementById('dialer-header');
+    let isDragging = false, dragOffX = 0, dragOffY = 0;
+    dragHandle.addEventListener('mousedown', e => {
+        if(e.target.id === 'dialer-close-btn') return;
+        isDragging = true;
+        const rect = dialerPanel.getBoundingClientRect();
+        dragOffX = e.clientX - rect.left;
+        dragOffY = e.clientY - rect.top;
+        dialerPanel.style.right = 'auto';
+        dialerPanel.style.bottom = 'auto';
+    });
+    document.addEventListener('mousemove', e => {
+        if(!isDragging) return;
+        dialerPanel.style.left = (e.clientX - dragOffX) + 'px';
+        dialerPanel.style.top  = (e.clientY - dragOffY) + 'px';
+    });
+    document.addEventListener('mouseup', () => isDragging = false);
+
+    // ── 事件綁定 ──
+    document.getElementById('dialer-close-btn').onclick = () => {
+        if(dialerActive && !confirm('確定要關閉撥號系統嗎？目前進度將會遺失。')) return;
+        dialerDestroy();
+    };
+
+    document.getElementById('dialer-btn-answer').onclick = dialerOnAnswer;
+    document.getElementById('dialer-btn-miss').onclick   = () => dialerOnMiss(true);
+    document.getElementById('dialer-btn-skip').onclick   = dialerOnSkip;
+
+    document.getElementById('dialer-btn-next').onclick = () => {
+        dialerIndex++;
+        dialerStep();
+    };
+
+    document.getElementById('dialer-btn-submit').onclick = () => {
+        dialerSubmitRecord(true); // true = 接聽
+    };
+
+    document.getElementById('dialer-ext-display').onclick = () => {
+        const newExt = prompt('修改分機號碼：', dialerExtension);
+        if(newExt !== null && newExt.trim()) {
+            dialerExtension = newExt.trim();
+            document.getElementById('dialer-ext-display').innerText = dialerExtension;
+        }
+    };
+
+    document.addEventListener('keydown', dialerKeyHandler);
+
+    // 開始第一通
+    dialerStep();
+}
+
+function dialerKeyHandler(e) {
+    if(!dialerActive) return;
+    if(e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+    const key = e.key.toLowerCase();
+    if(key === 'z') dialerOnAnswer();
+    if(key === 'x') dialerOnMiss(true);
+}
+
+function dialerStep() {
+    // 清掉上一通的計時
+    if(dialerTimer)        clearTimeout(dialerTimer);
+    if(dialerTickInterval) clearInterval(dialerTickInterval);
+
+    // 隱藏訪談區、恢復按鈕
+    const interviewArea = document.getElementById('dialer-interview-area');
+    const btnAnswer     = document.getElementById('dialer-btn-answer');
+    const btnMiss       = document.getElementById('dialer-btn-miss');
+    const btnSkip       = document.getElementById('dialer-btn-skip');
+    if(interviewArea) interviewArea.style.display = 'none';
+    if(btnAnswer)     { btnAnswer.style.display = ''; btnAnswer.disabled = false; }
+    if(btnMiss)       { btnMiss.style.display = ''; btnMiss.disabled = false; }
+    if(btnSkip)       { btnSkip.style.display = ''; btnSkip.disabled = false; }
+
+    dialerPaused = false;
+
+    if(dialerIndex >= dialerQueue.length) {
+        dialerFinish();
+        return;
+    }
+
+    const item = dialerQueue[dialerIndex];
+    const total = dialerQueue.length;
+    const pct   = (dialerIndex / total) * 100;
+
+    // 更新顯示
+    const nameEl    = document.getElementById('dialer-name');
+    const phoneEl   = document.getElementById('dialer-phone');
+    const sourceEl  = document.getElementById('dialer-source');
+    const progressEl= document.getElementById('dialer-progress');
+    const barEl     = document.getElementById('dialer-progress-bar');
+    const missEl    = document.getElementById('dialer-miss-count');
+    const statusEl  = document.getElementById('dialer-status-label');
+
+    if(nameEl)    nameEl.innerText  = item.member_name || '未知';
+    if(phoneEl)   phoneEl.innerText = item.mobile || '-';
+    if(sourceEl)  sourceEl.innerText = item.source ? '來源：' + item.source : '';
+    if(progressEl)progressEl.innerText = (dialerIndex + 1) + ' / ' + total;
+    if(barEl)     barEl.style.width = pct + '%';
+    const missN = dialerMissCount[item.member_id] || 0;
+    if(missEl)    missEl.innerText = missN > 0 ? '本次已未接 ' + missN + ' 次' : '';
+    if(statusEl)  statusEl.innerText = '📞 撥出中...';
+
+    dialerPanel.style.border = '2px solid #f39c12';
+
+    // 重設倒數
+    const SEC = 20;
+    dialerCountdown = SEC;
+    dialerUpdateCountdown(SEC, SEC);
+
+    // 觸發撥號 API
+    dialerCallApi(item);
+
+    // 防呆計時器
+    dialerTickInterval = setInterval(() => {
+        dialerCountdown--;
+        dialerUpdateCountdown(dialerCountdown, SEC);
+        if(dialerCountdown <= 0) {
+            clearInterval(dialerTickInterval);
+            dialerTickInterval = null;
+        }
+    }, 1000);
+
+    dialerTimer = setTimeout(() => {
+        if(!dialerPaused) dialerOnMiss(false); // false = 系統自動判定
+    }, SEC * 1000);
+}
+
+function dialerUpdateCountdown(remaining, total) {
+    const barEl  = document.getElementById('dialer-countdown-bar');
+    const textEl = document.getElementById('dialer-countdown-text');
+    if(!barEl || !textEl) return;
+    const pct = Math.max(0, (remaining / total) * 100);
+    barEl.style.width = pct + '%';
+    barEl.style.background = remaining <= 5 ? '#c0392b' : remaining <= 10 ? '#e67e22' : '#e74c3c';
+    textEl.innerText = Math.max(0, remaining);
+    textEl.style.color = remaining <= 5 ? '#c0392b' : '#e74c3c';
+}
+
+async function dialerCallApi(item) {
+    const statusEl = document.getElementById('dialer-status-label');
+    try {
+        const res = await fetch('https://server.etalkingonline.com/api/sales_manager/dial', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json;charset=UTF-8' },
+            body: JSON.stringify({ caller: dialerExtension, callee: item.mobile })
+        });
+        const data = await res.json().catch(() => ({}));
+        if(statusEl) statusEl.innerText = res.ok ? '📞 撥出中...' : '⚠️ 撥號 API 異常，請手動操作';
+        console.log('[撥號API]', item.member_name, item.mobile, res.status, data);
+    } catch(e) {
+        if(statusEl) statusEl.innerText = '⚠️ 撥號 API 無回應（已離線？）';
+        console.warn('[撥號API 失敗]', e);
+    }
+}
+
+function dialerOnAnswer() {
+    if(!dialerActive || dialerPaused) return;
+    dialerPaused = true;
+
+    if(dialerTimer)        clearTimeout(dialerTimer);
+    if(dialerTickInterval) clearInterval(dialerTickInterval);
+
+    // 面板變綠
+    dialerPanel.style.border = '2px solid #2ecc71';
+    const statusEl = document.getElementById('dialer-status-label');
+    if(statusEl) statusEl.innerText = '🟢 通話中';
+    const cdText = document.getElementById('dialer-countdown-text');
+    if(cdText) cdText.innerText = '✅';
+
+    // 隱藏撥號按鈕，展開訪談區
+    const btnAnswer = document.getElementById('dialer-btn-answer');
+    const btnMiss   = document.getElementById('dialer-btn-miss');
+    const btnSkip   = document.getElementById('dialer-btn-skip');
+    if(btnAnswer) btnAnswer.style.display = 'none';
+    if(btnMiss)   btnMiss.style.display = 'none';
+    if(btnSkip)   btnSkip.style.display = 'none';
+
+    const interviewArea = document.getElementById('dialer-interview-area');
+    const interviewText = document.getElementById('dialer-interview-text');
+    const nextDateInput = document.getElementById('dialer-next-date');
+    if(interviewArea) interviewArea.style.display = 'block';
+    if(interviewText) interviewText.value = INTERVIEW_TEMPLATE;
+
+    // 預設下次聯繫 +10天
+    if(nextDateInput) {
+        const d = new Date();
+        d.setDate(d.getDate() + 10);
+        nextDateInput.value = d.toISOString().split('T')[0];
+    }
+}
+
+function dialerOnMiss(isManual) {
+    if(!dialerActive) return;
+    if(dialerPaused) return; // 已接通狀態不觸發
+
+    if(dialerTimer)        clearTimeout(dialerTimer);
+    if(dialerTickInterval) clearInterval(dialerTickInterval);
+
+    const item = dialerQueue[dialerIndex];
+    if(!item) return;
+
+    // 計數 +1
+    dialerMissCount[item.member_id] = (dialerMissCount[item.member_id] || 0) + 1;
+    const n = dialerMissCount[item.member_id];
+
+    const statusEl = document.getElementById('dialer-status-label');
+    if(statusEl) statusEl.innerText = (isManual ? '❌ 手動標記未接' : '⏳ 逾時未接') + `，壓紀錄中...`;
+
+    // 自動壓未接紀錄
+    dialerAutoRecord(item, n).then(() => {
+        setTimeout(() => {
+            dialerIndex++;
+            dialerStep();
+        }, 600);
+    });
+}
+
+function dialerOnSkip() {
+    if(!dialerActive) return;
+    if(dialerTimer)        clearTimeout(dialerTimer);
+    if(dialerTickInterval) clearInterval(dialerTickInterval);
+    dialerIndex++;
+    dialerStep();
+}
+
+async function dialerAutoRecord(item, missCount) {
+    // 計算下次聯繫日 +10天
+    const nextDate = (() => {
+        const d = new Date();
+        d.setDate(d.getDate() + 10);
+        return d.toISOString().split('T')[0];
+    })();
+
+    const memberId = item.member_id;
+    const content  = `未接 *${missCount}`;
+
+    console.log(`[自動壓紀錄] ${item.member_name} (${memberId}) → ${content}，下次：${nextDate}`);
+
+    try {
+        let iframe = document.getElementById('hidden-save-frame') || document.createElement('iframe');
+        iframe.name='hidden-save-frame';
+        iframe.id='hidden-save-frame';
+        iframe.style.display='none';
+        iframe.sandbox='allow-forms allow-same-origin';
+        document.body.appendChild(iframe);
+
+        const form = document.createElement('form');
+        form.target = 'hidden-save-frame';
+        form.method = 'POST';
+        form.action = 'https://www.etalkingonline.com/admin/request_develop/save';
+
+        const params = {
+            'current_member_id': memberId,
+            'contact_status':    '3',      // 未接
+            'content':           content,
+            'sub_content':       '',
+            'search_begin':      nextDate,
+            'time':              '12:00:00',
+            'consultant_type':   '10',
+            'type':              '20'
+        };
+        for(let k in params){
+            let i = document.createElement('input');
+            i.type='hidden'; i.name=k; i.value=params[k];
+            form.appendChild(i);
+        }
+        document.body.appendChild(form);
+        form.submit();
+        console.log(`[自動壓紀錄 ✅] ${item.member_name} 完成`);
+    } catch(e) {
+        console.error('[自動壓紀錄失敗]', e);
+    }
+}
+
+function dialerSubmitRecord(isAnswer) {
+    const item = dialerQueue[dialerIndex];
+    if(!item) return;
+
+    const memberId    = item.member_id;
+    const content     = document.getElementById('dialer-interview-text').value;
+    const nextDate    = document.getElementById('dialer-next-date').value;
+    const submitBtn   = document.getElementById('dialer-btn-submit');
+
+    if(!nextDate) { alert('⚠️ 請設定下次聯繫日期'); return; }
+    if(submitBtn) { submitBtn.innerText = '送出中...'; submitBtn.disabled = true; }
+
+    try {
+        let iframe = document.getElementById('hidden-save-frame') || document.createElement('iframe');
+        iframe.name='hidden-save-frame';
+        iframe.id='hidden-save-frame';
+        iframe.style.display='none';
+        iframe.sandbox='allow-forms allow-same-origin';
+        document.body.appendChild(iframe);
+
+        const form = document.createElement('form');
+        form.target = 'hidden-save-frame';
+        form.method = 'POST';
+        form.action = 'https://www.etalkingonline.com/admin/request_develop/save';
+
+        const params = {
+            'current_member_id': memberId,
+            'contact_status':    '1',      // 已接聽
+            'content':           content,
+            'sub_content':       '',
+            'search_begin':      nextDate,
+            'time':              '12:00:00',
+            'consultant_type':   '10',
+            'type':              '20'
+        };
+        for(let k in params){
+            let i = document.createElement('input');
+            i.type='hidden'; i.name=k; i.value=params[k];
+            form.appendChild(i);
+        }
+        document.body.appendChild(form);
+        form.submit();
+
+        setTimeout(() => {
+            if(submitBtn) { submitBtn.innerText = '壓紀錄'; submitBtn.disabled = false; }
+            alert('✅ 紀錄已送出！');
+        }, 800);
+    } catch(e) {
+        console.error('[壓紀錄失敗]', e);
+        if(submitBtn) { submitBtn.innerText = '壓紀錄'; submitBtn.disabled = false; }
+    }
+}
+
+function dialerFinish() {
+    dialerActive = false;
+    if(dialerPanel) {
+        dialerPanel.style.border = '2px solid #9b59b6';
+        const nameEl   = document.getElementById('dialer-name');
+        const phoneEl  = document.getElementById('dialer-phone');
+        const statusEl = document.getElementById('dialer-status-label');
+        const cdText   = document.getElementById('dialer-countdown-text');
+        if(nameEl)   nameEl.innerText  = '🎉 全部完成！';
+        if(phoneEl)  phoneEl.innerText = '';
+        if(statusEl) statusEl.innerText = '本次名單已跑完';
+        if(cdText)   cdText.innerText   = '✔';
+    }
+    document.removeEventListener('keydown', dialerKeyHandler);
+}
+
+// ── 開啟撥號按鈕（Header 上的 🚀 撥號）──
+document.getElementById('open-dialer-btn').onclick = () => {
+    // 從 allData 取釋出名單（type==4）
+    const releaseList = allData.filter(m => m.type == 4).map(m => ({
+        member_id:   m.member_id || m.id,
+        member_name: m.member_name,
+        mobile:      m.mobile,
+        source:      m.source
+    }));
+
+    if(releaseList.length === 0) {
+        alert('⚠️ 目前沒有釋出名單，請先確認名單已載入，或切換至釋出池使用「對此批名單撥號」。');
+        return;
+    }
+
+    dialerInit(releaseList);
+};
+
+/* ══ 啟動 ══ */
 fetchData();
 })();
