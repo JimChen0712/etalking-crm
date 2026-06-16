@@ -1633,7 +1633,7 @@ function dialerStep() {
 
     if(nameEl)    nameEl.innerText  = item.member_name || '未知';
     if(phoneEl)   phoneEl.innerText = item.mobile || '-';
-    if(sourceEl)  sourceEl.innerText = item.source ? '來源：' + item.source : '';
+    if(sourceEl)  sourceEl.innerText = '';
     if(progressEl)progressEl.innerText = (dialerIndex + 1) + ' / ' + total;
     if(barEl)     barEl.style.width = pct + '%';
     const missN = dialerMissCount[item.member_id] || 0;
