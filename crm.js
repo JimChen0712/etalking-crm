@@ -1584,7 +1584,6 @@ function dialerInit(queue) {
                 "></textarea>
             </div>
             
-            <!-- ★ 版面優化：改成上下兩行避免爆版 -->
             <div style="display:flex;flex-direction:column;gap:8px;">
                 <input type="date" id="dialer-next-date" style="
                     width:100%;box-sizing:border-box;padding:6px 8px;border-radius:6px;
@@ -1702,10 +1701,10 @@ function dialerStep() {
     dialerCloseHistory();
 
     const interviewArea = document.getElementById('dialer-interview-area');
-    const preCallActions = document.getElementById('dialer-pre-call-actions'); // ★ 改抓整個外層 Div
+    const preCallActions = document.getElementById('dialer-pre-call-actions'); 
     
     if(interviewArea) interviewArea.style.display = 'none';
-    if(preCallActions) preCallActions.style.display = 'flex'; // ★ 恢復撥號按鈕列
+    if(preCallActions) preCallActions.style.display = 'flex'; 
 
     dialerPaused = false;
 
@@ -1843,7 +1842,7 @@ function dialerOnAnswer() {
     if(cdText) cdText.innerText = '✅';
 
     const preCallActions = document.getElementById('dialer-pre-call-actions');
-    if(preCallActions) preCallActions.style.display = 'none'; // ★ 通話時隱藏所有撥號前按鈕(包含暫停)
+    if(preCallActions) preCallActions.style.display = 'none'; 
 
     const interviewArea = document.getElementById('dialer-interview-area');
     const interviewText = document.getElementById('dialer-interview-text');
@@ -2091,6 +2090,7 @@ function dialerCloseHistory() {
     if(old) old.remove();
 }
 
+// ★ 核心修復：歷史紀錄視窗垂直置中
 async function dialerOpenHistory(item) {
     dialerCloseHistory();
 
@@ -2100,10 +2100,11 @@ async function dialerOpenHistory(item) {
     hp.id = 'dialer-history-panel';
     hp.style.cssText = [
         'position:fixed',
-        'top:' + Math.max(10, dialerRect.top) + 'px',
-        'left:' + Math.max(10, dialerRect.left - 660) + 'px',
+        'top: 50%',                                       // 固定於螢幕高度 50%
+        'transform: translateY(-50%)',                    // 完美垂直置中
+        'left:' + Math.max(10, dialerRect.left - 660) + 'px', // 放在撥號器左側
         'width:640px',
-        'height:80vh',
+        'height:80vh',                                    // 佔螢幕 80% 高度
         'background:#1e272e',
         'color:#dcdde1',
         'border-radius:14px',
