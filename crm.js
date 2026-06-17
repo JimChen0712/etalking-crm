@@ -64,15 +64,27 @@ const USER_DICT = {
 const isManager=crmUid===MANAGER_UID;
 const fetchUrl='https://server.etalkingonline.com/name_list/new_list/'+(isManager?'-1':crmUid);
 
-/* ══ Apps Script API ══ */
+/* ══ Apps Script API (修正：強化 Error Handle) ══ */
 async function gasGet(params){
     const url=APPS_SCRIPT_URL+'?'+new URLSearchParams(params).toString();
     const res=await fetch(url);
-    return res.json();
+    const text=await res.text();
+    try {
+        return JSON.parse(text);
+    } catch(e) {
+        console.error('GAS Get 解析失敗:', text);
+        return { error: '解析失敗' };
+    }
 }
 async function gasPost(data){
     const res=await fetch(APPS_SCRIPT_URL,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify(data)});
-    return res.json();
+    const text=await res.text();
+    try {
+        return JSON.parse(text);
+    } catch(e) {
+        console.error('GAS Post 解析失敗:', text);
+        return { success: false, error: '解析失敗' };
+    }
 }
 async function initSheet(){ await gasGet({action:'init'}); }
 async function readSheet(){ return gasGet({action:'read'}); }
@@ -174,21 +186,13 @@ function debounceSaveMemo(memberId, grade, memo, item) {
             let rowNum = sheetRowMap[String(memberId)];
             const isEmpty = (statusToSave === '' && !gradeToSave && !memoToSave);
 
-            if (item.type != 1 && isEmpty && typeof rowNum === 'number') {
-                await sheetsDeleteRow(rowNum);
-                delete sheetData[String(memberId)];
-                delete sheetRowMap[String(memberId)];
-                
-                for (let id in sheetRowMap) {
-                    if (typeof sheetRowMap[id] === 'number' && sheetRowMap[id] > rowNum) {
-                        sheetRowMap[id]--;
-                    }
-                }
-                if(maxKnownRow >= rowNum) maxKnownRow--;
-            } 
-            else if (!isEmpty || item.type == 1) {
-                await updateSheetMemo(memberId, statusToSave, gradeToSave, memoToSave, item);
-            }
+        if (item.type != 1 && isEmpty && typeof rowNum === 'number') {
+            // 不再刪除整列，只清空內容，避免列號位移影響其他人
+            await updateSheetMemo(memberId, '', '', '', item);
+        } 
+        else if (!isEmpty || item.type == 1) {
+            await updateSheetMemo(memberId, statusToSave, gradeToSave, memoToSave, item);
+        }
             
             setSaveStatus(memberId, 'saved');
         } catch(e) {
@@ -857,18 +861,26 @@ function renderList(){
     });
 }
 
+/* ══ 修正點 1 & 2：加上 setTimeout 移除表單，與 iframe 不存在才建立 ══ */
 document.getElementById('modal-submit').onclick=()=>{
     if(!currentItem)return;
     const memberId=document.getElementById('modal-member-id').value;
     const btn=document.getElementById('modal-submit');btn.innerText='送出中...';
-    let iframe=document.getElementById('hidden-save-frame')||document.createElement('iframe');
-    iframe.name='hidden-save-frame';iframe.id='hidden-save-frame';iframe.style.display='none';iframe.sandbox='allow-forms allow-same-origin';
-    document.body.appendChild(iframe);
+    
+    let iframe=document.getElementById('hidden-save-frame');
+    if(!iframe){
+        iframe=document.createElement('iframe');
+        iframe.name='hidden-save-frame';iframe.id='hidden-save-frame';iframe.style.display='none';iframe.sandbox='allow-forms allow-same-origin';
+        document.body.appendChild(iframe);
+    }
     const form=document.createElement('form');form.target='hidden-save-frame';form.method='POST';
     form.action='https://www.etalkingonline.com/admin/request_develop/save';
     const params={'current_member_id':memberId,'contact_status':document.getElementById('modal-status').value,'content':document.getElementById('modal-content').value,'sub_content':'','search_begin':document.getElementById('modal-date').value,'time':'12:00:00','consultant_type':'10','type':'20'};
     for(let k in params){let i=document.createElement('input');i.type='hidden';i.name=k;i.value=params[k];form.appendChild(i);}
+    
     document.body.appendChild(form);form.submit();
+    setTimeout(()=>form.remove(), 500);
+
     setTimeout(()=>{
         alert('✅ 紀錄已成功送出！');
         recordModal.style.display='none';btn.innerText='送出紀錄';
@@ -1426,7 +1438,6 @@ function dialerInit(queue) {
     ].join(';');
 
     dialerPanel.innerHTML = `
-        <!-- 標題列（可拖曳） -->
         <div id="dialer-header" style="
             background:#f39c12;
             color:#1e272e;
@@ -1459,7 +1470,6 @@ function dialerInit(queue) {
             ">×</button>
         </div>
 
-        <!-- 客戶資訊區 -->
         <div style="padding:12px 14px 8px;">
             <div style="font-size:11px;color:#f39c12;margin-bottom:4px;letter-spacing:0.5px;">目前撥打</div>
             <div id="dialer-name" style="font-size:20px;font-weight:bold;color:#fff;line-height:1.2;">-</div>
@@ -1467,7 +1477,6 @@ function dialerInit(queue) {
             <div id="dialer-source" style="font-size:11px;color:#718093;margin-top:2px;"></div>
         </div>
 
-        <!-- 進度條 -->
         <div style="padding:0 14px;">
             <div style="display:flex;justify-content:space-between;font-size:11px;color:#718093;margin-bottom:4px;">
                 <span id="dialer-progress">0 / 0</span>
@@ -1478,7 +1487,6 @@ function dialerInit(queue) {
             </div>
         </div>
 
-        <!-- 倒數計時區 -->
         <div style="padding:10px 14px 8px;text-align:center;">
             <div id="dialer-status-label" style="font-size:11px;color:#718093;margin-bottom:6px;">等待撥出...</div>
             <div style="background:#2f3640;border-radius:6px;height:8px;overflow:hidden;margin-bottom:6px;">
@@ -1488,7 +1496,6 @@ function dialerInit(queue) {
             <div style="font-size:10px;color:#636e72;margin-top:2px;">秒後自動視為未接</div>
         </div>
 
-        <!-- 操作按鈕 -->
         <div style="padding:8px 14px 14px;display:flex;gap:8px;">
             <button id="dialer-btn-answer" style="
                 flex:1;padding:10px 6px;border:none;border-radius:8px;
@@ -1512,7 +1519,6 @@ function dialerInit(queue) {
             ">⏸ 暫停</button>
         </div>
 
-        <!-- 接通後訪談區（預設隱藏） -->
         <div id="dialer-interview-area" style="display:none;padding:0 14px 14px;">
             <div style="border-top:1px solid #2f3640;padding-top:10px;margin-bottom:8px;">
                 <div style="font-size:11px;color:#2ecc71;font-weight:bold;margin-bottom:6px;">🟢 通話中 — 訪談記錄</div>
@@ -1543,7 +1549,6 @@ function dialerInit(queue) {
             </div>
         </div>
 
-        <!-- 分機顯示 -->
         <div style="padding:4px 14px 10px;text-align:right;">
             <span style="font-size:10px;color:#636e72;">分機：</span>
             <span id="dialer-ext-display" style="font-size:10px;color:#a4b0be;cursor:pointer;text-decoration:underline dotted;">${dialerExtension}</span>
@@ -1849,6 +1854,7 @@ function dialerOnSkip() {
     dialerStep();
 }
 
+/* ══ 修正點 1 & 2：加上 setTimeout 移除表單，與 iframe 不存在才建立 ══ */
 async function dialerAutoRecord(item, missCount) {
     // 計算下次聯繫日 +10天
     const nextDate = (() => {
@@ -1863,12 +1869,12 @@ async function dialerAutoRecord(item, missCount) {
     console.log(`[自動壓紀錄] ${item.member_name} (${memberId}) → ${content}，下次：${nextDate}`);
 
     try {
-        let iframe = document.getElementById('hidden-save-frame') || document.createElement('iframe');
-        iframe.name='hidden-save-frame';
-        iframe.id='hidden-save-frame';
-        iframe.style.display='none';
-        iframe.sandbox='allow-forms allow-same-origin';
-        document.body.appendChild(iframe);
+        let iframe = document.getElementById('hidden-save-frame');
+        if(!iframe){
+            iframe=document.createElement('iframe');
+            iframe.name='hidden-save-frame';iframe.id='hidden-save-frame';iframe.style.display='none';iframe.sandbox='allow-forms allow-same-origin';
+            document.body.appendChild(iframe);
+        }
 
         const form = document.createElement('form');
         form.target = 'hidden-save-frame';
@@ -1892,12 +1898,15 @@ async function dialerAutoRecord(item, missCount) {
         }
         document.body.appendChild(form);
         form.submit();
+        setTimeout(()=>form.remove(), 500);
+
         console.log(`[自動壓紀錄 ✅] ${item.member_name} 完成`);
     } catch(e) {
         console.error('[自動壓紀錄失敗]', e);
     }
 }
 
+/* ══ 修正點 1 & 2：加上 setTimeout 移除表單，與 iframe 不存在才建立 ══ */
 function dialerSubmitRecord(isAnswer) {
     const item = dialerQueue[dialerIndex];
     if(!item) return;
@@ -1911,12 +1920,12 @@ function dialerSubmitRecord(isAnswer) {
     if(submitBtn) { submitBtn.innerText = '送出中...'; submitBtn.disabled = true; }
 
     try {
-        let iframe = document.getElementById('hidden-save-frame') || document.createElement('iframe');
-        iframe.name='hidden-save-frame';
-        iframe.id='hidden-save-frame';
-        iframe.style.display='none';
-        iframe.sandbox='allow-forms allow-same-origin';
-        document.body.appendChild(iframe);
+        let iframe = document.getElementById('hidden-save-frame');
+        if(!iframe){
+            iframe=document.createElement('iframe');
+            iframe.name='hidden-save-frame';iframe.id='hidden-save-frame';iframe.style.display='none';iframe.sandbox='allow-forms allow-same-origin';
+            document.body.appendChild(iframe);
+        }
 
         const form = document.createElement('form');
         form.target = 'hidden-save-frame';
@@ -1940,6 +1949,7 @@ function dialerSubmitRecord(isAnswer) {
         }
         document.body.appendChild(form);
         form.submit();
+        setTimeout(()=>form.remove(), 500);
 
         setTimeout(() => {
             if(submitBtn) { submitBtn.innerText = '壓紀錄'; submitBtn.disabled = false; }
@@ -1966,7 +1976,9 @@ function dialerFinish() {
     }
     document.removeEventListener('keydown', dialerKeyHandler);
 }
-    function dialerSyncMiniBar() {
+
+/* ══ 修正點 4：縮排歸位 ══ */
+function dialerSyncMiniBar() {
     if(!dialerMinimized) return;
     const item = dialerQueue[dialerIndex];
     if(!item) return;
@@ -2034,7 +2046,8 @@ function dialerToggleMinimize() {
         document.getElementById('dialer-minimize-btn').innerText = '▬';
     }
 }
-    function dialerCloseHistory() {
+
+function dialerCloseHistory() {
     const old = document.getElementById('dialer-history-panel');
     if(old) old.remove();
 }
