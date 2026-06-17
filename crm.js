@@ -2164,21 +2164,113 @@ async function dialerOpenHistory(item) {
 
 // ── 開啟撥號按鈕（Header 上的 🚀 撥號）──
 document.getElementById('open-dialer-btn').onclick = () => {
-    // 從 allData 取釋出名單（type==4）
-    const releaseList = allData.filter(m => m.type == 4).map(m => ({
-        member_id:   m.member_id || m.id,
-        member_name: m.member_name,
-        mobile:      m.mobile,
-        source:      m.source
-    }));
-
-    if(releaseList.length === 0) {
-        alert('⚠️ 目前沒有釋出名單，請先確認名單已載入，或切換至釋出池使用「對此批名單撥號」。');
-        return;
-    }
-
-    dialerInit(releaseList);
+    dialerShowEntryChoice();
 };
+
+function dialerShowEntryChoice() {
+    const old = document.getElementById('dialer-entry-modal');
+    if(old) old.remove();
+
+    const modal = document.createElement('div');
+    modal.id = 'dialer-entry-modal';
+    modal.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);width:380px;background:white;padding:24px;border-radius:10px;box-shadow:0 8px 32px rgba(0,0,0,0.3);z-index:1000002;font-family:sans-serif;';
+    modal.innerHTML = `
+        <h4 style="margin-top:0;color:#2c3e50;">選擇撥號名單來源</h4>
+        <div style="display:flex;flex-direction:column;gap:10px;margin-top:16px;">
+            <button id="dialer-entry-release" style="padding:12px;border:none;border-radius:8px;background:#f39c12;color:white;font-weight:bold;cursor:pointer;font-size:14px;">📋 撥打釋出名單</button>
+            <button id="dialer-entry-manual" style="padding:12px;border:none;border-radius:8px;background:#3498db;color:white;font-weight:bold;cursor:pointer;font-size:14px;">📞 指定電話號碼</button>
+        </div>
+        <div style="text-align:right;margin-top:16px;">
+            <button id="dialer-entry-cancel" style="padding:6px 14px;border:1px solid #ddd;background:#f5f5f5;border-radius:6px;cursor:pointer;color:#333;">取消</button>
+        </div>
+    `;
+    document.body.appendChild(modal);
+
+    document.getElementById('dialer-entry-cancel').onclick = () => modal.remove();
+
+    document.getElementById('dialer-entry-release').onclick = () => {
+        modal.remove();
+        const releaseList = allData.filter(m => m.type == 4).map(m => ({
+            member_id:   m.member_id || m.id,
+            member_name: m.member_name,
+            mobile:      m.mobile,
+            source:      m.source
+        }));
+        if(releaseList.length === 0) {
+            alert('⚠️ 目前沒有釋出名單，請先確認名單已載入，或切換至釋出池使用「對此批名單撥號」。');
+            return;
+        }
+        dialerInit(releaseList);
+    };
+
+    document.getElementById('dialer-entry-manual').onclick = () => {
+        modal.remove();
+        dialerShowManualInput();
+    };
+}
+
+function dialerShowManualInput() {
+    const old = document.getElementById('dialer-manual-modal');
+    if(old) old.remove();
+
+    const modal = document.createElement('div');
+    modal.id = 'dialer-manual-modal';
+    modal.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);width:420px;background:white;padding:24px;border-radius:10px;box-shadow:0 8px 32px rgba(0,0,0,0.3);z-index:1000002;font-family:sans-serif;';
+    modal.innerHTML = `
+        <h4 style="margin-top:0;color:#2c3e50;">指定電話號碼撥號</h4>
+        <p style="font-size:12px;color:#888;margin-bottom:8px;">請貼上電話號碼，一行一個或用逗號分隔，工具會自動比對目前已載入的名單。</p>
+        <textarea id="dialer-manual-phones" rows="6" style="width:100%;box-sizing:border-box;padding:8px;border:1px solid #ddd;border-radius:6px;font-size:13px;font-family:sans-serif;resize:vertical;" placeholder="例如：&#10;0912345678&#10;0987654321"></textarea>
+        <div style="display:flex;justify-content:space-between;margin-top:16px;">
+            <button id="dialer-manual-cancel" style="padding:6px 14px;border:1px solid #ddd;background:#f5f5f5;border-radius:6px;cursor:pointer;color:#333;">取消</button>
+            <button id="dialer-manual-start" style="padding:6px 18px;border:none;background:#3498db;color:white;border-radius:6px;cursor:pointer;font-weight:bold;">開始撥號</button>
+        </div>
+    `;
+    document.body.appendChild(modal);
+
+    document.getElementById('dialer-manual-cancel').onclick = () => modal.remove();
+
+    document.getElementById('dialer-manual-start').onclick = () => {
+        const raw = document.getElementById('dialer-manual-phones').value;
+        const phones = raw.split(/[\n,，、\s]+/).map(p => p.trim()).filter(Boolean);
+
+        if(phones.length === 0) {
+            alert('⚠️ 請至少輸入一個電話號碼');
+            return;
+        }
+
+        const normalize = p => p.replace(/[\s-]/g, '');
+        const found = [];
+        const notFound = [];
+
+        phones.forEach(p => {
+            const np = normalize(p);
+            const match = allData.find(m => m.mobile && normalize(m.mobile) === np);
+            if(match) {
+                found.push({
+                    member_id:   match.member_id || match.id,
+                    member_name: match.member_name,
+                    mobile:      match.mobile,
+                    source:      match.source
+                });
+            } else {
+                notFound.push(p);
+            }
+        });
+
+        if(found.length === 0) {
+            alert('❌ 所有輸入的號碼都找不到對應名單，請確認名單已載入且電話正確。');
+            return;
+        }
+
+        modal.remove();
+
+        if(notFound.length > 0) {
+            alert('⚠️ 以下號碼找不到對應名單，將略過：\n' + notFound.join('\n') + '\n\n其餘 ' + found.length + ' 筆將開始撥號。');
+        }
+
+        dialerInit(found);
+    };
+}
 
 /* ══ 啟動 ══ */
 fetchData();
