@@ -357,13 +357,12 @@ ${isManager ? `
         <button id="refresh-btn" style="padding:4px 10px;cursor:pointer;border-radius:4px;border:none;background:#3498db;color:white;">重新整理</button>
         <span id="loading-status" style="font-size:11px;color:#f1c40f;font-weight:bold;"></span>
     </div>
-    <div style="display:flex;align-items:center;gap:12px;">
-        <div style="position:relative;width:46px;height:46px;display:flex;align-items:center;justify-content:center;">
+    <div style="position:relative;width:46px;height:46px;display:flex;align-items:center;justify-content:center;">
     <svg viewBox="0 0 100 100" style="position:absolute;width:46px;height:46px;pointer-events:none;">
-        <path d="M 50 6 A 44 44 0 1 1 9.8 32" fill="none" stroke="#f39c12" stroke-width="4" stroke-linecap="round"/>
-        <polygon points="50,0 59,13 41,13" fill="#f39c12"/>
-        <path d="M 50 94 A 44 44 0 1 1 90.2 68" fill="none" stroke="#f39c12" stroke-width="4" stroke-linecap="round"/>
-        <polygon points="50,100 41,87 59,87" fill="#f39c12"/>
+        <circle cx="50" cy="50" r="42" fill="none" stroke="#f39c12" stroke-width="6"
+            stroke-linecap="round" stroke-dasharray="242 22"
+            transform="rotate(-90 50 50)"/>
+        <polygon points="0,-7 9,0 0,7" fill="#f39c12" transform="translate(29,13.63) rotate(-30)"/>
     </svg>
     <button id="open-dialer-btn" title="啟動自動撥號系統" style="position:relative;z-index:1;display:flex;align-items:center;justify-content:center;width:34px;height:34px;cursor:pointer;border-radius:50%;border:2px solid #f39c12;background:#f39c12;color:white;padding:0;transition:0.2s;box-shadow:0 2px 6px rgba(0,0,0,0.2);">
         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 512 512" fill="currentColor">
