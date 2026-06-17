@@ -358,17 +358,15 @@ ${isManager ? `
         <span id="loading-status" style="font-size:11px;color:#f1c40f;font-weight:bold;"></span>
     </div>
     <div style="position:absolute;top:50%;right:15px;transform:translateY(-50%);display:flex;align-items:center;gap:8px;">
-        <div style="position:relative;width:46px;height:46px;display:flex;align-items:center;justify-content:center;">
-            <svg viewBox="0 0 100 100" style="position:absolute;width:46px;height:46px;pointer-events:none;">
-                <circle cx="50" cy="50" r="42" fill="none" stroke="#3498db" stroke-width="6"
-                    stroke-linecap="round" stroke-dasharray="242 22"
-                    transform="rotate(-90 50 50)"/>
-                <polygon points="0,-7 9,0 0,7" fill="#3498db" transform="translate(29,13.63) rotate(-30)"/>
+        <div style="position:relative;width:40px;height:40px;display:flex;align-items:center;justify-content:center;">
+            <svg viewBox="0 0 100 100" style="position:absolute;width:100%;height:100%;pointer-events:none;">
+                <circle cx="50" cy="50" r="44" fill="none" stroke="#dfe6e9" stroke-width="5" stroke-linecap="round" stroke-dasharray="245 31" transform="rotate(-90 50 50)"/>
+                <polygon points="0,-7 10,0 0,7" fill="#dfe6e9" transform="translate(30,13) rotate(-30)"/>
             </svg>
             <button id="open-dialer-btn" title="啟動自動撥號系統" 
-                onmouseover="this.style.background='#3498db'"
-                onmouseout="this.style.background='#2c3e50'"
-                style="position:relative;z-index:1;display:flex;align-items:center;justify-content:center;width:34px;height:34px;cursor:pointer;border-radius:50%;border:2px solid #3498db;background:#2c3e50;color:white;padding:0;transition:0.2s;box-shadow:0 2px 6px rgba(0,0,0,0.2);">
+                onmouseover="this.style.background='#3498db'; this.style.borderColor='#3498db';"
+                onmouseout="this.style.background='transparent'; this.style.borderColor='#b2bec3';"
+                style="position:relative;z-index:1;display:flex;align-items:center;justify-content:center;width:32px;height:32px;cursor:pointer;border-radius:50%;border:2px solid #b2bec3;background:transparent;color:white;padding:0;transition:0.2s;">
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 512 512" fill="currentColor">
                     <path d="M164.9 24.6c-7.7-18.6-28-28.5-47.4-23.2l-88 24C12.1 30.2 0 46 0 64C0 311.4 200.6 512 448 512c18 0 33.8-12.1 38.6-29.5l24-88c5.3-19.4-4.6-39.7-23.2-47.4l-96-40c-16.3-6.8-35.2-2.1-46.3 11.6L304.7 368C234.3 334.7 177.3 277.7 144 207.3L193.3 167c13.7-11.2 18.4-30 11.6-46.3l-40-96z"/>
                 </svg>
