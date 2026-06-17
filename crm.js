@@ -357,9 +357,15 @@ ${isManager ? `
         <button id="refresh-btn" style="padding:4px 10px;cursor:pointer;border-radius:4px;border:none;background:#3498db;color:white;">重新整理</button>
         <span id="loading-status" style="font-size:11px;color:#f1c40f;font-weight:bold;"></span>
     </div>
-    <div style="display:flex;align-items:center;gap:8px;">
-        <button id="open-dialer-btn" style="padding:4px 14px;cursor:pointer;border-radius:4px;border:2px solid #f39c12;background:#f39c12;color:white;font-weight:bold;font-size:13px;">自動撥號系統</button>
-        <button id="close-btn" style="background:transparent;border:none;color:white;font-size:20px;cursor:pointer;">×</button>
+    <div style="display:flex;align-items:center;gap:12px;">
+        <button id="open-dialer-btn" title="啟動自動撥號系統" style="display:flex;align-items:center;justify-content:center;width:34px;height:34px;cursor:pointer;border-radius:50%;border:2px solid #f39c12;background:#f39c12;color:white;padding:0;transition:0.2s;box-shadow:0 2px 6px rgba(0,0,0,0.2);">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21.5 12a9.5 9.5 0 1 1-2-5.5"></path>
+                <path d="M21.5 2v4.5h-4.5"></path>
+                <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path>
+            </svg>
+        </button>
+        <button id="close-btn" title="關閉" style="background:transparent;border:none;color:white;font-size:26px;line-height:1;cursor:pointer;padding:0 4px;">×</button>
     </div>
 `;
 
@@ -1704,7 +1710,6 @@ function dialerStep() {
     if(interviewArea) interviewArea.style.display = 'none';
     if(preCallActions) preCallActions.style.display = 'flex'; 
 
-    // ★ 重置跳過按鈕狀態
     const btnSkip = document.getElementById('dialer-btn-skip');
     if(btnSkip) { 
         btnSkip.disabled = false; 
@@ -1743,7 +1748,6 @@ function dialerStep() {
         if(statusEl) statusEl.innerText = '';
         if(cdText)   cdText.innerText   = '-';
         
-        // 暫停時隱藏不必要的按鈕
         if(btnAnswer) btnAnswer.style.display = 'none';
         if(btnMiss)   btnMiss.style.display = 'none';
         if(btnSkip) {
@@ -1819,7 +1823,6 @@ function dialerStep() {
         dialerCountdown--;
         dialerUpdateCountdown(dialerCountdown, SEC);
 
-        // ★ 防呆：前三秒後自動禁用跳過按鈕
         if (dialerCountdown <= SEC - 3) {
             const bSkip = document.getElementById('dialer-btn-skip');
             const mSkip = document.getElementById('mini-btn-skip');
@@ -2116,14 +2119,15 @@ function dialerToggleMinimize() {
         };
     }
 
-    // ★ 若縮小時已經超過 3 秒，直接套用禁用狀態
-    const mSkip = document.getElementById('mini-btn-skip');
-    if (mSkip && dialerCountdown <= 32) {
-        mSkip.disabled = true;
-        mSkip.style.background = '#2f3640';
-        mSkip.style.border = '1px solid #4f5d73';
-        mSkip.style.color = '#718093';
-        mSkip.style.cursor = 'not-allowed';
+    if (dialerCountdown <= 32) {
+        const mSkip = document.getElementById('mini-btn-skip');
+        if (mSkip) {
+            mSkip.disabled = true;
+            mSkip.style.background = '#2f3640';
+            mSkip.style.border = '1px solid #4f5d73';
+            mSkip.style.color = '#718093';
+            mSkip.style.cursor = 'not-allowed';
+        }
     }
 
     dialerMinimized = !dialerMinimized;
