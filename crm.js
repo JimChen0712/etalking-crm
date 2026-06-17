@@ -359,9 +359,10 @@ ${isManager ? `
     </div>
     <div style="display:flex;align-items:center;gap:12px;">
         <button id="open-dialer-btn" title="啟動自動撥號系統" style="display:flex;align-items:center;justify-content:center;width:34px;height:34px;cursor:pointer;border-radius:50%;border:2px solid #f39c12;background:#f39c12;color:white;padding:0;transition:0.2s;box-shadow:0 2px 6px rgba(0,0,0,0.2);">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 512 512" fill="currentColor">
-                <path d="M164.9 24.6c-7.7-18.6-28-28.5-47.4-23.2l-88 24C12.1 30.2 0 46 0 64C0 311.4 200.6 512 448 512c18 0 33.8-12.1 38.6-29.5l24-88c5.3-19.4-4.6-39.7-23.2-47.4l-96-40c-16.3-6.8-35.2-2.1-46.3 11.6L304.7 368C234.3 334.7 177.3 277.7 144 207.3L193.3 167c13.7-11.2 18.4-30 11.6-46.3l-40-96z"/>
-            </svg>
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24">
+            <path d="M21 12A9 9 0 1 1 12 3v-2l3.5 3l-3.5 3V5a7 7 0 1 0 7 7h2z" fill="#c0392b"/>
+            <path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z" fill="#ffffff" transform="translate(3.5, 3.5) scale(0.7)"/>
+        </svg>
         </button>
         <button id="close-btn" title="關閉" style="background:transparent;border:none;color:white;font-size:26px;line-height:1;cursor:pointer;padding:0 4px;">×</button>
     </div>
