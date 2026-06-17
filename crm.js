@@ -64,27 +64,48 @@ const USER_DICT = {
 const isManager=crmUid===MANAGER_UID;
 const fetchUrl='https://server.etalkingonline.com/name_list/new_list/'+(isManager?'-1':crmUid);
 
-/* ══ Apps Script API (修正：強化 Error Handle) ══ */
+/* ══ LocalStorage 聯繫紀錄管理 ══ */
+const LOCAL_CONTACTED_KEY = 'etalking_contacted_pool';
+const EXPIRE_DAYS = 14; // ★ 這裡可以修改自動過期的天數
+
+function getLocalContacted() {
+    try {
+        let dict = JSON.parse(localStorage.getItem(LOCAL_CONTACTED_KEY) || '{}');
+        let now = Date.now();
+        let changed = false;
+        for (let id in dict) {
+            // 清除超過 14 天的紀錄
+            if (now - dict[id] > EXPIRE_DAYS * 86400000) {
+                delete dict[id];
+                changed = true;
+            }
+        }
+        if (changed) localStorage.setItem(LOCAL_CONTACTED_KEY, JSON.stringify(dict));
+        return dict;
+    } catch(e) { return {}; }
+}
+
+function setLocalContacted(id, toggle = false) {
+    let dict = getLocalContacted();
+    if (toggle && dict[id]) {
+        delete dict[id];
+    } else {
+        dict[id] = Date.now();
+    }
+    localStorage.setItem(LOCAL_CONTACTED_KEY, JSON.stringify(dict));
+}
+
+/* ══ Apps Script API ══ */
 async function gasGet(params){
     const url=APPS_SCRIPT_URL+'?'+new URLSearchParams(params).toString();
     const res=await fetch(url);
     const text=await res.text();
-    try {
-        return JSON.parse(text);
-    } catch(e) {
-        console.error('GAS Get 解析失敗:', text);
-        return { error: '解析失敗' };
-    }
+    try { return JSON.parse(text); } catch(e) { return { error: '解析失敗' }; }
 }
 async function gasPost(data){
     const res=await fetch(APPS_SCRIPT_URL,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify(data)});
     const text=await res.text();
-    try {
-        return JSON.parse(text);
-    } catch(e) {
-        console.error('GAS Post 解析失敗:', text);
-        return { success: false, error: '解析失敗' };
-    }
+    try { return JSON.parse(text); } catch(e) { return { success: false, error: '解析失敗' }; }
 }
 async function initSheet(){ await gasGet({action:'init'}); }
 async function readSheet(){ return gasGet({action:'read'}); }
@@ -139,7 +160,7 @@ async function ensureMemberInSheet(memberId, item, assignDate) {
             sheetRowMap[id] = res.rowNum;
             if (res.rowNum > maxKnownRow) maxKnownRow = res.rowNum;
         } else {
-            throw new Error('appendRow 回傳異常，拒絕盲猜: ' + JSON.stringify(res));
+            throw new Error('appendRow 回傳異常: ' + JSON.stringify(res));
         }
     } catch(e) {
         throw e;
@@ -186,13 +207,13 @@ function debounceSaveMemo(memberId, grade, memo, item) {
             let rowNum = sheetRowMap[String(memberId)];
             const isEmpty = (statusToSave === '' && !gradeToSave && !memoToSave);
 
-        if (item.type != 1 && isEmpty && typeof rowNum === 'number') {
-            // 不再刪除整列，只清空內容，避免列號位移影響其他人
-            await updateSheetMemo(memberId, '', '', '', item);
-        } 
-        else if (!isEmpty || item.type == 1) {
-            await updateSheetMemo(memberId, statusToSave, gradeToSave, memoToSave, item);
-        }
+            if (item.type != 1 && isEmpty && typeof rowNum === 'number') {
+                // 不刪除整列，只清空內容避免列號位移
+                await updateSheetMemo(memberId, '', '', '', item);
+            } 
+            else if (!isEmpty || item.type == 1) {
+                await updateSheetMemo(memberId, statusToSave, gradeToSave, memoToSave, item);
+            }
             
             setSaveStatus(memberId, 'saved');
         } catch(e) {
@@ -661,6 +682,7 @@ function renderList(){
     const selectedConsultant=isManager?document.getElementById('consultant-filter').value:'-1';
     const selectedTType=document.getElementById('t-type-filter').value;
     const selectedSource = (isManager && document.getElementById('source-filter')) ? document.getElementById('source-filter').value : '-1';
+    const localContactedDict = getLocalContacted();
     
     let filteredData=allData.filter(item=>{
         const cMatch=isManager?(selectedConsultant=='-1'||(item.user_name||'').trim()===selectedConsultant):true;
@@ -720,7 +742,10 @@ function renderList(){
 
         if (item.type == 4 && !isReInquire) {
             gradeHtml = '<span style="color:#bdc3c7;font-size:11px;">無須評等</span>';
-            memoHtml = '<button class="reinquire-btn" data-id="'+id+'" style="padding:6px 12px;border:1px solid #c0392b;border-radius:4px;background:#fff;color:#c0392b;cursor:pointer;font-size:12px;font-weight:bold;width:100%;">🚩 標記為「再次留單」</button><span id="save-status-'+id+'" style="font-size:10px;margin-left:6px;"></span>';
+            // ★ 新增本地標記按鈕
+            const isLocalContacted = !!localContactedDict[id];
+            memoHtml = '<button class="reinquire-btn" data-id="'+id+'" style="padding:6px 12px;border:1px solid #c0392b;border-radius:4px;background:#fff;color:#c0392b;cursor:pointer;font-size:12px;font-weight:bold;width:100%;margin-bottom:6px;">🚩 標記為「再次留單」</button>' + 
+                       '<br><button class="local-contact-btn" data-id="'+id+'" style="padding:6px 12px;border:1px solid '+(isLocalContacted?'#27ae60':'#bdc3c7')+';border-radius:4px;background:'+(isLocalContacted?'#e8f8f5':'#fff')+';color:'+(isLocalContacted?'#27ae60':'#7f8c8d')+';cursor:pointer;font-size:11px;font-weight:bold;width:100%;">'+(isLocalContacted?'💬 已聯繫 (本機暫存)':'標記為已聯繫')+'</button>';
         } else {
             const gradeA = sd.grade==='A';
             const gradeC = sd.grade==='C';
@@ -794,6 +819,15 @@ function renderList(){
         };
     });
 
+    // ★ 綁定本地標記按鈕事件
+    document.querySelectorAll('.local-contact-btn').forEach(btn=>{
+        btn.onclick=e=>{
+            const memberId = e.target.getAttribute('data-id');
+            setLocalContacted(memberId, true); // 切換狀態
+            renderList(); // 重繪 UI
+        };
+    });
+
     document.querySelectorAll('.grade-inline-btn').forEach(btn=>{
         btn.onclick=e=>{
             const memberId=e.target.getAttribute('data-id');
@@ -861,7 +895,6 @@ function renderList(){
     });
 }
 
-/* ══ 修正點 1 & 2：加上 setTimeout 移除表單，與 iframe 不存在才建立 ══ */
 document.getElementById('modal-submit').onclick=()=>{
     if(!currentItem)return;
     const memberId=document.getElementById('modal-member-id').value;
@@ -889,6 +922,12 @@ document.getElementById('modal-submit').onclick=()=>{
             detailData[memberId].lastLogNextTime = params['search_begin'];
         }
         currentItem.next_time=params['search_begin']+' 11:59:59';
+        
+        // 如果是在 Modal 手動壓「已接聽」，也自動標記為已聯繫
+        if (params['contact_status'] === '1' && currentItem.type == 4) {
+            setLocalContacted(memberId, false);
+        }
+
         renderList();
     },1000);
 };
@@ -1139,6 +1178,8 @@ if(isManager){
             allData.map(item => (item.source||'').trim().substring(0,2).toUpperCase()).filter(Boolean)
         )].sort();
 
+        const localContactedDict = getLocalContacted();
+
         const filterHtml = `
             <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:8px 0;border-bottom:1px solid #dee2e6;margin-bottom:8px;">
                 <select id="pool-source-filter" style="padding:5px 8px;border-radius:4px;border:1px solid #ddd;font-size:12px;">
@@ -1182,7 +1223,7 @@ if(isManager){
                 <th style="padding:6px;width:30px;text-align:center;">
                     <input type="checkbox" id="pool-select-all" style="cursor:pointer;">
                 </th>
-                <th style="padding:6px;">姓名</th>
+                <th style="padding:6px;">姓名 / 狀態</th>
                 <th style="padding:6px;">電話</th>
                 <th style="padding:6px;width:8%;">來源</th>
                 <th style="padding:6px;width:14%;">釋出時間</th>
@@ -1193,12 +1234,16 @@ if(isManager){
             tableHtml += '<tr><td colspan="6" style="text-align:center;padding:30px;color:#999;">目前沒有符合條件的資料</td></tr>';
         } else {
             poolData.slice(0, 300).forEach(item => {
+                const isLocalContacted = !!localContactedDict[item.member_id];
                 tableHtml += `
                     <tr style="border-bottom:1px solid #dee2e6;">
                         <td style="padding:6px;text-align:center;vertical-align:top;">
                             <input type="checkbox" class="pool-cb" value="${item.member_id}" style="cursor:pointer;">
                         </td>
-                        <td style="padding:6px;vertical-align:top;"><b>${item.member_name || '未知'}</b></td>
+                        <td style="padding:6px;vertical-align:top;">
+                            <b>${item.member_name || '未知'}</b><br>
+                            <button class="local-contact-btn" data-id="${item.member_id}" style="margin-top:4px;padding:2px 6px;border:1px solid ${isLocalContacted?'#27ae60':'#bdc3c7'};border-radius:4px;background:${isLocalContacted?'#e8f8f5':'#fff'};color:${isLocalContacted?'#27ae60':'#7f8c8d'};cursor:pointer;font-size:10px;">${isLocalContacted?'💬 已聯繫':'標記已聯繫'}</button>
+                        </td>
                         <td style="padding:6px;vertical-align:top;">${item.mobile || '-'}</td>
                         <td style="padding:6px;vertical-align:top;color:#8e44ad;font-size:11px;">${item.source || '-'}</td>
                         <td style="padding:6px;vertical-align:top;font-size:11px;color:#d35400;">${item.release_time || '-'}</td>
@@ -1212,6 +1257,15 @@ if(isManager){
         }
 
         content.innerHTML = filterHtml + tableHtml;
+
+        // ★ 綁定釋出池標記按鈕
+        document.querySelectorAll('.local-contact-btn').forEach(btn=>{
+            btn.onclick=e=>{
+                const memberId = e.target.getAttribute('data-id');
+                setLocalContacted(memberId, true);
+                renderPoolList(); 
+            };
+        });
 
         document.getElementById('pool-filter-btn').onclick = () => {
             poolSourceFilter = document.getElementById('pool-source-filter').value;
@@ -1234,15 +1288,9 @@ if(isManager){
             loadPoolData();
         };
 
-        // ★ 釋出池撥號入口
         document.getElementById('pool-start-dial-btn').onclick = () => {
             if(poolData.length === 0) { alert('⚠️ 請先載入釋出池名單'); return; }
-            dialerInit(poolData.map(item => ({
-                member_id:   item.member_id,
-                member_name: item.member_name,
-                mobile:      item.mobile,
-                source:      item.source
-            })));
+            dialerShowEntryChoice(poolData);
         };
 
         const poolBatchBtn = document.getElementById('pool-batch-btn');
@@ -1372,17 +1420,17 @@ if(isManager){
 ══════════════════════════════════════════════════════ */
 
 // ── 撥號狀態變數 ──
-let dialerQueue      = [];   // 待撥名單
-let dialerIndex      = 0;    // 目前撥到第幾筆
-let dialerTimer      = null; // 防呆倒數計時器
-let dialerCountdown  = 0;    // 剩餘秒數
-let dialerActive     = false;// 是否撥號中
-let dialerPaused     = false;// 是否已暫停（接通狀態）
-let dialerExtension  = '';   // 分機號碼
-let dialerMissCount  = {};   // { member_id: 未接次數 } 方案B計數器
+let dialerQueue      = [];   
+let dialerIndex      = 0;    
+let dialerTimer      = null; 
+let dialerCountdown  = 0;    
+let dialerActive     = false;
+let dialerPaused     = false;
+let dialerExtension  = '';   
+let dialerMissCount  = {};   
 let dialerTickInterval = null;
-let dialerPendingPause = false; // 這通結束後暫停旗標
-let dialerMinimized = false; // 是否處於縮小狀態（單一可信來源）
+let dialerPendingPause = false; 
+let dialerMinimized = false; 
 
 // ── 撥號面板 DOM ──
 let dialerPanel = null;
@@ -1399,16 +1447,15 @@ function dialerDestroy() {
 }
 
 function dialerInit(queue) {
-    dialerDestroy(); // 先清掉舊的
+    dialerDestroy(); 
 
     if(!queue || queue.length === 0) {
         alert('⚠️ 名單為空，無法啟動撥號。');
         return;
     }
 
-    // 詢問分機號碼
     const ext = prompt('請輸入您的分機號碼：', dialerExtension || '');
-    if(ext === null) return; // 按取消
+    if(ext === null) return; 
     if(!ext.trim()) { alert('⚠️ 分機號碼不能為空！'); return; }
     dialerExtension = ext.trim();
 
@@ -1418,7 +1465,6 @@ function dialerInit(queue) {
     dialerActive    = true;
     dialerPaused    = false;
 
-    // 建立浮動面板
     dialerPanel = document.createElement('div');
     dialerPanel.id = 'dialer-float-panel';
     dialerPanel.style.cssText = [
@@ -1557,7 +1603,6 @@ function dialerInit(queue) {
 
     document.body.appendChild(dialerPanel);
 
-    // ── 拖曳功能 ──
     const dragHandle = document.getElementById('dialer-header');
     let isDragging = false, dragOffX = 0, dragOffY = 0;
     dragHandle.addEventListener('mousedown', e => {
@@ -1576,15 +1621,12 @@ function dialerInit(queue) {
     });
     document.addEventListener('mouseup', () => isDragging = false);
 
-    // ── 事件綁定 ──
     document.getElementById('dialer-close-btn').onclick = () => {
         if(dialerActive && !confirm('確定要關閉撥號系統嗎？目前進度將會遺失。')) return;
         dialerDestroy();
     };
 
-    document.getElementById('dialer-minimize-btn').onclick = () => {
-        dialerToggleMinimize();
-    };
+    document.getElementById('dialer-minimize-btn').onclick = () => { dialerToggleMinimize(); };
     document.getElementById('dialer-btn-answer').onclick = dialerOnAnswer;
     document.getElementById('dialer-btn-miss').onclick   = () => dialerOnMiss(true);
     document.getElementById('dialer-btn-skip').onclick   = dialerOnSkip;
@@ -1608,9 +1650,7 @@ function dialerInit(queue) {
         dialerStep();
     };
 
-    document.getElementById('dialer-btn-submit').onclick = () => {
-        dialerSubmitRecord(true); // true = 接聽
-    };
+    document.getElementById('dialer-btn-submit').onclick = () => { dialerSubmitRecord(true); };
 
     document.getElementById('dialer-ext-display').onclick = () => {
         const newExt = prompt('修改分機號碼：', dialerExtension);
@@ -1621,8 +1661,6 @@ function dialerInit(queue) {
     };
 
     document.addEventListener('keydown', dialerKeyHandler);
-
-    // 開始第一通
     dialerStep();
 }
 
@@ -1635,12 +1673,10 @@ function dialerKeyHandler(e) {
 }
 
 function dialerStep() {
-    // 清掉上一通的計時
     if(dialerTimer)        clearTimeout(dialerTimer);
     if(dialerTickInterval) clearInterval(dialerTickInterval);
     dialerCloseHistory();
 
-    // 隱藏訪談區、恢復按鈕
     const interviewArea = document.getElementById('dialer-interview-area');
     const btnAnswer     = document.getElementById('dialer-btn-answer');
     const btnMiss       = document.getElementById('dialer-btn-miss');
@@ -1673,7 +1709,6 @@ function dialerStep() {
                 pauseBtn.innerText = '⏸ 暫停';
                 pauseBtn.style.background = '#8e44ad';
                 pauseBtn.style.outline = 'none';
-                // 重新綁回原本的 toggle 邏輯
                 pauseBtn.onclick = () => {
                     dialerPendingPause = !dialerPendingPause;
                     if(dialerPendingPause) {
@@ -1701,7 +1736,6 @@ function dialerStep() {
     const total = dialerQueue.length;
     const pct   = (dialerIndex / total) * 100;
 
-    // 更新顯示
     const nameEl    = document.getElementById('dialer-name');
     const phoneEl   = document.getElementById('dialer-phone');
     const sourceEl  = document.getElementById('dialer-source');
@@ -1722,15 +1756,12 @@ function dialerStep() {
 
     dialerPanel.style.border = '2px solid #f39c12';
 
-    // 重設倒數
     const SEC = 35;
     dialerCountdown = SEC;
     dialerUpdateCountdown(SEC, SEC);
 
-    // 觸發撥號 API
     dialerCallApi(item);
 
-    // 防呆計時器
     dialerTickInterval = setInterval(() => {
         dialerCountdown--;
         dialerUpdateCountdown(dialerCountdown, SEC);
@@ -1741,7 +1772,7 @@ function dialerStep() {
     }, 1000);
 
     dialerTimer = setTimeout(() => {
-        if(!dialerPaused) dialerOnMiss(false); // false = 系統自動判定
+        if(!dialerPaused) dialerOnMiss(false); 
     }, SEC * 1000);
 }
 
@@ -1755,7 +1786,6 @@ function dialerUpdateCountdown(remaining, total) {
     textEl.innerText = Math.max(0, remaining);
     textEl.style.color = remaining <= 5 ? '#c0392b' : '#e74c3c';
 
-    // 同步 mini bar 倒數
     const miniCd = document.getElementById('mini-countdown');
     if(miniCd) {
         miniCd.innerText = '00:' + String(Math.max(0, remaining)).padStart(2, '0');
@@ -1773,10 +1803,8 @@ async function dialerCallApi(item) {
         });
         const data = await res.json().catch(() => ({}));
         if(statusEl) statusEl.innerText = res.ok ? '📞 撥出中...' : '⚠️ 撥號 API 異常，請手動操作';
-        console.log('[撥號API]', item.member_name, item.mobile, res.status, data);
     } catch(e) {
         if(statusEl) statusEl.innerText = '⚠️ 撥號 API 無回應（已離線？）';
-        console.warn('[撥號API 失敗]', e);
     }
 }
 
@@ -1787,14 +1815,12 @@ function dialerOnAnswer() {
     if(dialerTimer)        clearTimeout(dialerTimer);
     if(dialerTickInterval) clearInterval(dialerTickInterval);
 
-    // 面板變綠
     dialerPanel.style.border = '2px solid #2ecc71';
     const statusEl = document.getElementById('dialer-status-label');
     if(statusEl) statusEl.innerText = '🟢 通話中';
     const cdText = document.getElementById('dialer-countdown-text');
     if(cdText) cdText.innerText = '✅';
 
-    // 隱藏撥號按鈕，展開訪談區
     const btnAnswer = document.getElementById('dialer-btn-answer');
     const btnMiss   = document.getElementById('dialer-btn-miss');
     const btnSkip   = document.getElementById('dialer-btn-skip');
@@ -1808,21 +1834,19 @@ function dialerOnAnswer() {
     if(interviewArea) interviewArea.style.display = 'block';
     if(interviewText) interviewText.value = INTERVIEW_TEMPLATE;
 
-    // 預設下次聯繫 +10天
     if(nextDateInput) {
         const d = new Date();
         d.setDate(d.getDate() + 10);
         nextDateInput.value = d.toISOString().split('T')[0];
     }
 
-    // 展開歷史紀錄面板
     const item = dialerQueue[dialerIndex];
     if(item) dialerOpenHistory(item);
 }
 
 function dialerOnMiss(isManual) {
     if(!dialerActive) return;
-    if(dialerPaused) return; // 已接通狀態不觸發
+    if(dialerPaused) return; 
 
     if(dialerTimer)        clearTimeout(dialerTimer);
     if(dialerTickInterval) clearInterval(dialerTickInterval);
@@ -1830,14 +1854,12 @@ function dialerOnMiss(isManual) {
     const item = dialerQueue[dialerIndex];
     if(!item) return;
 
-    // 計數 +1
     dialerMissCount[item.member_id] = (dialerMissCount[item.member_id] || 0) + 1;
     const n = dialerMissCount[item.member_id];
 
     const statusEl = document.getElementById('dialer-status-label');
     if(statusEl) statusEl.innerText = (isManual ? '❌ 手動標記未接' : '⏳ 逾時未接') + `，壓紀錄中...`;
 
-    // 自動壓未接紀錄
     dialerAutoRecord(item, n).then(() => {
         setTimeout(() => {
             dialerIndex++;
@@ -1854,9 +1876,7 @@ function dialerOnSkip() {
     dialerStep();
 }
 
-/* ══ 修正點 1 & 2：加上 setTimeout 移除表單，與 iframe 不存在才建立 ══ */
 async function dialerAutoRecord(item, missCount) {
-    // 計算下次聯繫日 +10天
     const nextDate = (() => {
         const d = new Date();
         d.setDate(d.getDate() + 10);
@@ -1865,8 +1885,6 @@ async function dialerAutoRecord(item, missCount) {
 
     const memberId = item.member_id;
     const content  = `未接 *${missCount}`;
-
-    console.log(`[自動壓紀錄] ${item.member_name} (${memberId}) → ${content}，下次：${nextDate}`);
 
     try {
         let iframe = document.getElementById('hidden-save-frame');
@@ -1883,7 +1901,7 @@ async function dialerAutoRecord(item, missCount) {
 
         const params = {
             'current_member_id': memberId,
-            'contact_status':    '3',      // 未接
+            'contact_status':    '3',
             'content':           content,
             'sub_content':       '',
             'search_begin':      nextDate,
@@ -1899,14 +1917,11 @@ async function dialerAutoRecord(item, missCount) {
         document.body.appendChild(form);
         form.submit();
         setTimeout(()=>form.remove(), 500);
-
-        console.log(`[自動壓紀錄 ✅] ${item.member_name} 完成`);
     } catch(e) {
         console.error('[自動壓紀錄失敗]', e);
     }
 }
 
-/* ══ 修正點 1 & 2：加上 setTimeout 移除表單，與 iframe 不存在才建立 ══ */
 function dialerSubmitRecord(isAnswer) {
     const item = dialerQueue[dialerIndex];
     if(!item) return;
@@ -1934,7 +1949,7 @@ function dialerSubmitRecord(isAnswer) {
 
         const params = {
             'current_member_id': memberId,
-            'contact_status':    '1',      // 已接聽
+            'contact_status':    '1',
             'content':           content,
             'sub_content':       '',
             'search_begin':      nextDate,
@@ -1954,6 +1969,16 @@ function dialerSubmitRecord(isAnswer) {
         setTimeout(() => {
             if(submitBtn) { submitBtn.innerText = '壓紀錄'; submitBtn.disabled = false; }
             alert('✅ 紀錄已送出！');
+
+            // ★ 自動標記本機已聯繫
+            setLocalContacted(memberId, false);
+            
+            // 讓背景名單或釋出池能刷新
+            if (currentTab === 'pool' && typeof renderPoolList === 'function') {
+                renderPoolList();
+            } else if (typeof renderList === 'function') {
+                renderList();
+            }
         }, 800);
     } catch(e) {
         console.error('[壓紀錄失敗]', e);
@@ -1977,7 +2002,6 @@ function dialerFinish() {
     document.removeEventListener('keydown', dialerKeyHandler);
 }
 
-/* ══ 修正點 4：縮排歸位 ══ */
 function dialerSyncMiniBar() {
     if(!dialerMinimized) return;
     const item = dialerQueue[dialerIndex];
@@ -2055,7 +2079,6 @@ function dialerCloseHistory() {
 async function dialerOpenHistory(item) {
     dialerCloseHistory();
 
-    // 計算位置：撥號面板左側
     const dialerRect = dialerPanel.getBoundingClientRect();
 
     const hp = document.createElement('div');
@@ -2109,7 +2132,6 @@ async function dialerOpenHistory(item) {
 
     document.getElementById('dialer-history-close').onclick = dialerCloseHistory;
 
-    // 抓歷史紀錄
     try {
         const res = await fetch('/admin/request_develop?member_id=' + item.member_id + '&hide_layout=true');
         const html = await res.text();
@@ -2145,12 +2167,10 @@ async function dialerOpenHistory(item) {
             const content  = cells[4] ? cells[4].innerText.trim() : '';
             const operator = cells[cells.length - 1] ? cells[cells.length - 1].innerText.trim() : '';
 
-            // 類型顏色
             let typeColor = '#a4b0be';
             if(type.includes('聯絡')) typeColor = '#f39c12';
             if(type.includes('名單移動')) typeColor = '#3498db';
 
-            // 內容顏色（未接標紅）
             let contentColor = '#dcdde1';
             if(content.includes('未接')) contentColor = '#e74c3c';
             if(content.includes('已接') || content.includes('【')) contentColor = '#2ecc71';
@@ -2180,21 +2200,26 @@ async function dialerOpenHistory(item) {
 
 // ── 開啟撥號按鈕（Header 上的 🚀 撥號）──
 document.getElementById('open-dialer-btn').onclick = () => {
-    dialerShowEntryChoice();
+    // 依據當前顯示的是「我的名單」還是「釋出池」決定要傳哪個陣列進去過濾
+    const targetPool = (currentTab === 'pool' && poolData.length > 0) ? poolData : allData;
+    dialerShowEntryChoice(targetPool);
 };
 
-function dialerShowEntryChoice() {
+// ★ 核心變更：動態分流撥號選單
+function dialerShowEntryChoice(baseDataArray) {
     const old = document.getElementById('dialer-entry-modal');
     if(old) old.remove();
 
     const modal = document.createElement('div');
     modal.id = 'dialer-entry-modal';
     modal.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);width:380px;background:white;padding:24px;border-radius:10px;box-shadow:0 8px 32px rgba(0,0,0,0.3);z-index:1000002;font-family:sans-serif;';
+    
     modal.innerHTML = `
         <h4 style="margin-top:0;color:#2c3e50;">選擇撥號名單來源</h4>
         <div style="display:flex;flex-direction:column;gap:10px;margin-top:16px;">
-            <button id="dialer-entry-release" style="padding:12px;border:none;border-radius:8px;background:#f39c12;color:white;font-weight:bold;cursor:pointer;font-size:14px;">📋 撥打釋出名單</button>
-            <button id="dialer-entry-manual" style="padding:12px;border:none;border-radius:8px;background:#3498db;color:white;font-weight:bold;cursor:pointer;font-size:14px;">📞 指定電話號碼</button>
+            <button id="dialer-entry-release-uncontacted" style="padding:12px;border:none;border-radius:8px;background:#e67e22;color:white;font-weight:bold;cursor:pointer;font-size:14px;box-shadow:0 2px 4px rgba(0,0,0,0.1);">🆕 撥打釋出名單 (未聯繫)</button>
+            <button id="dialer-entry-release-contacted" style="padding:12px;border:none;border-radius:8px;background:#27ae60;color:white;font-weight:bold;cursor:pointer;font-size:14px;box-shadow:0 2px 4px rgba(0,0,0,0.1);">💬 撥打釋出名單 (已聯繫)</button>
+            <button id="dialer-entry-manual" style="padding:12px;border:none;border-radius:8px;background:#3498db;color:white;font-weight:bold;cursor:pointer;font-size:14px;box-shadow:0 2px 4px rgba(0,0,0,0.1);">📞 指定電話號碼</button>
         </div>
         <div style="text-align:right;margin-top:16px;">
             <button id="dialer-entry-cancel" style="padding:6px 14px;border:1px solid #ddd;background:#f5f5f5;border-radius:6px;cursor:pointer;color:#333;">取消</button>
@@ -2204,28 +2229,50 @@ function dialerShowEntryChoice() {
 
     document.getElementById('dialer-entry-cancel').onclick = () => modal.remove();
 
-    document.getElementById('dialer-entry-release').onclick = () => {
-        modal.remove();
-        const releaseList = allData.filter(m => m.type == 4).map(m => ({
+    // ★ 過濾邏輯
+    const getReleaseList = (filterType) => {
+        const localDict = getLocalContacted();
+
+        return baseDataArray.filter(m => {
+            // 如果是在名單管理頁面，我們只抓 type == 4 釋出名單。
+            // 如果是在釋出池頁面，裡面的資料本來就全部都是釋出名單了。
+            if (currentTab !== 'pool' && m.type != 4) return false; 
+
+            const id = String(m.member_id || m.id);
+            const isContactedLocal = !!localDict[id]; // 檢查是否在記憶體的名單內
+
+            if (filterType === 'uncontacted') return !isContactedLocal;
+            if (filterType === 'contacted') return isContactedLocal;
+            return true;
+        }).map(m => ({
             member_id:   m.member_id || m.id,
             member_name: m.member_name,
             mobile:      m.mobile,
             source:      m.source
         }));
-        if(releaseList.length === 0) {
-            alert('⚠️ 目前沒有釋出名單，請先確認名單已載入，或切換至釋出池使用「對此批名單撥號」。');
-            return;
-        }
-        dialerInit(releaseList);
+    };
+
+    document.getElementById('dialer-entry-release-uncontacted').onclick = () => {
+        modal.remove();
+        const list = getReleaseList('uncontacted');
+        if(list.length === 0) { alert('🎉 太棒了！目前畫面上沒有【未聯繫】的釋出名單。'); return; }
+        dialerInit(list);
+    };
+
+    document.getElementById('dialer-entry-release-contacted').onclick = () => {
+        modal.remove();
+        const list = getReleaseList('contacted');
+        if(list.length === 0) { alert('⚠️ 目前畫面上沒有被標記為【已聯繫】的釋出名單。'); return; }
+        dialerInit(list);
     };
 
     document.getElementById('dialer-entry-manual').onclick = () => {
         modal.remove();
-        dialerShowManualInput();
+        dialerShowManualInput(baseDataArray);
     };
 }
 
-function dialerShowManualInput() {
+function dialerShowManualInput(baseDataArray) {
     const old = document.getElementById('dialer-manual-modal');
     if(old) old.remove();
 
@@ -2260,7 +2307,7 @@ function dialerShowManualInput() {
 
         phones.forEach(p => {
             const np = normalize(p);
-            const match = allData.find(m => m.mobile && normalize(m.mobile) === np);
+            const match = baseDataArray.find(m => m.mobile && normalize(m.mobile) === np);
             if(match) {
                 found.push({
                     member_id:   match.member_id || match.id,
