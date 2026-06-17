@@ -1547,7 +1547,6 @@ function dialerInit(queue) {
             <div style="font-size:10px;color:#636e72;margin-top:2px;">秒後自動視為未接</div>
         </div>
 
-        <!-- 通話前的控制區 -->
         <div id="dialer-pre-call-actions" style="padding:8px 14px 14px;display:flex;gap:8px;">
             <button id="dialer-btn-answer" style="
                 flex:1;padding:10px 6px;border:none;border-radius:8px;
@@ -1571,7 +1570,6 @@ function dialerInit(queue) {
             ">⏸ 暫停</button>
         </div>
 
-        <!-- 接通後訪談區 -->
         <div id="dialer-interview-area" style="display:none;padding:0 14px 14px;">
             <div style="border-top:1px solid #2f3640;padding-top:10px;margin-bottom:8px;">
                 <div style="font-size:11px;color:#2ecc71;font-weight:bold;margin-bottom:6px;">🟢 通話中 — 訪談記錄</div>
@@ -1706,6 +1704,30 @@ function dialerStep() {
     if(interviewArea) interviewArea.style.display = 'none';
     if(preCallActions) preCallActions.style.display = 'flex'; 
 
+    // ★ 重置跳過按鈕狀態
+    const btnSkip = document.getElementById('dialer-btn-skip');
+    if(btnSkip) { 
+        btnSkip.disabled = false; 
+        btnSkip.style.background = '#636e72';
+        btnSkip.style.border = 'none';
+        btnSkip.style.color = 'white';
+        btnSkip.style.cursor = 'pointer';
+        btnSkip.innerText = '跳過';
+    }
+    const miniBtnSkip = document.getElementById('mini-btn-skip');
+    if(miniBtnSkip) {
+        miniBtnSkip.disabled = false;
+        miniBtnSkip.style.background = '#636e72';
+        miniBtnSkip.style.border = 'none';
+        miniBtnSkip.style.color = 'white';
+        miniBtnSkip.style.cursor = 'pointer';
+    }
+
+    const btnAnswer = document.getElementById('dialer-btn-answer');
+    const btnMiss   = document.getElementById('dialer-btn-miss');
+    if(btnAnswer) btnAnswer.style.display = '';
+    if(btnMiss)   btnMiss.style.display = '';
+
     dialerPaused = false;
 
     if(dialerPendingPause) {
@@ -1720,6 +1742,17 @@ function dialerStep() {
         if(phoneEl)  phoneEl.innerText  = '點「繼續」恢復撥號';
         if(statusEl) statusEl.innerText = '';
         if(cdText)   cdText.innerText   = '-';
+        
+        // 暫停時隱藏不必要的按鈕
+        if(btnAnswer) btnAnswer.style.display = 'none';
+        if(btnMiss)   btnMiss.style.display = 'none';
+        if(btnSkip) {
+            btnSkip.disabled = true;
+            btnSkip.style.background = '#2f3640';
+            btnSkip.style.color = '#718093';
+            btnSkip.innerText = '無法跳過';
+        }
+
         if(pauseBtn) {
             pauseBtn.innerText = '▶ 繼續';
             pauseBtn.style.background = '#27ae60';
@@ -1785,6 +1818,28 @@ function dialerStep() {
     dialerTickInterval = setInterval(() => {
         dialerCountdown--;
         dialerUpdateCountdown(dialerCountdown, SEC);
+
+        // ★ 防呆：前三秒後自動禁用跳過按鈕
+        if (dialerCountdown <= SEC - 3) {
+            const bSkip = document.getElementById('dialer-btn-skip');
+            const mSkip = document.getElementById('mini-btn-skip');
+            if (bSkip && !bSkip.disabled) {
+                bSkip.disabled = true;
+                bSkip.style.background = '#2f3640';
+                bSkip.style.border = '1px solid #4f5d73';
+                bSkip.style.color = '#718093';
+                bSkip.style.cursor = 'not-allowed';
+                bSkip.innerText = '無法跳過';
+            }
+            if (mSkip && !mSkip.disabled) {
+                mSkip.disabled = true;
+                mSkip.style.background = '#2f3640';
+                mSkip.style.border = '1px solid #4f5d73';
+                mSkip.style.color = '#718093';
+                mSkip.style.cursor = 'not-allowed';
+            }
+        }
+
         if(dialerCountdown <= 0) {
             clearInterval(dialerTickInterval);
             dialerTickInterval = null;
@@ -2061,6 +2116,16 @@ function dialerToggleMinimize() {
         };
     }
 
+    // ★ 若縮小時已經超過 3 秒，直接套用禁用狀態
+    const mSkip = document.getElementById('mini-btn-skip');
+    if (mSkip && dialerCountdown <= 32) {
+        mSkip.disabled = true;
+        mSkip.style.background = '#2f3640';
+        mSkip.style.border = '1px solid #4f5d73';
+        mSkip.style.color = '#718093';
+        mSkip.style.cursor = 'not-allowed';
+    }
+
     dialerMinimized = !dialerMinimized;
 
     const bodyEls = dialerPanel.querySelectorAll(':scope > div:not(#dialer-header):not(#dialer-mini-bar)');
@@ -2090,7 +2155,6 @@ function dialerCloseHistory() {
     if(old) old.remove();
 }
 
-// ★ 核心修復：歷史紀錄視窗垂直置中
 async function dialerOpenHistory(item) {
     dialerCloseHistory();
 
@@ -2100,11 +2164,11 @@ async function dialerOpenHistory(item) {
     hp.id = 'dialer-history-panel';
     hp.style.cssText = [
         'position:fixed',
-        'top: 50%',                                       // 固定於螢幕高度 50%
-        'transform: translateY(-50%)',                    // 完美垂直置中
-        'left:' + Math.max(10, dialerRect.left - 660) + 'px', // 放在撥號器左側
+        'top: 50%',
+        'transform: translateY(-50%)',
+        'left:' + Math.max(10, dialerRect.left - 660) + 'px',
         'width:640px',
-        'height:80vh',                                    // 佔螢幕 80% 高度
+        'height:80vh',
         'background:#1e272e',
         'color:#dcdde1',
         'border-radius:14px',
