@@ -1483,7 +1483,7 @@ function dialerInit(queue) {
             <div style="background:#2f3640;border-radius:6px;height:8px;overflow:hidden;margin-bottom:6px;">
                 <div id="dialer-countdown-bar" style="height:100%;background:#e74c3c;width:100%;transition:width 1s linear;border-radius:6px;"></div>
             </div>
-            <div id="dialer-countdown-text" style="font-size:22px;font-weight:bold;color:#e74c3c;font-variant-numeric:tabular-nums;">30</div>
+            <div id="dialer-countdown-text" style="font-size:22px;font-weight:bold;color:#e74c3c;font-variant-numeric:tabular-nums;">35</div>
             <div style="font-size:10px;color:#636e72;margin-top:2px;">秒後自動視為未接</div>
         </div>
 
@@ -1592,7 +1592,7 @@ function dialerInit(queue) {
                     <span id="mini-name" style="font-size:12px;font-weight:bold;color:#fff;white-space:nowrap;max-width:80px;overflow:hidden;text-overflow:ellipsis;">-</span>
                     <span id="mini-phone" style="font-size:11px;color:#a4b0be;white-space:nowrap;">-</span>
                     <span style="font-size:10px;color:#718093;white-space:nowrap;">⏱</span>
-                    <span id="mini-countdown" style="font-size:13px;font-weight:bold;color:#e74c3c;font-variant-numeric:tabular-nums;white-space:nowrap;min-width:36px;">00:30</span>
+                    <span id="mini-countdown" style="font-size:13px;font-weight:bold;color:#e74c3c;font-variant-numeric:tabular-nums;white-space:nowrap;min-width:36px;">00:35</span>
                     <div style="display:flex;gap:4px;margin-left:4px;">
                         <button id="mini-btn-answer" style="padding:4px 8px;border:none;border-radius:6px;background:#27ae60;color:white;font-weight:bold;font-size:12px;cursor:pointer;">✅</button>
                         <button id="mini-btn-miss" style="padding:4px 8px;border:none;border-radius:6px;background:#e74c3c;color:white;font-weight:bold;font-size:12px;cursor:pointer;">❌</button>
@@ -1772,7 +1772,7 @@ function dialerStep() {
     dialerPanel.style.border = '2px solid #f39c12';
 
     // 重設倒數
-    const SEC = 30;
+    const SEC = 35;
     dialerCountdown = SEC;
     dialerUpdateCountdown(SEC, SEC);
 
