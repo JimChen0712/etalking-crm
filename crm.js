@@ -1022,7 +1022,6 @@ document.getElementById('release-submit').onclick = async () => {
             renderList();
         }
 
-        // ★ 如果撥號系統開啟中，且剛剛釋出的是當前正在撥打的對象，自動跳下一通
         if (typeof dialerCheckAndSkipIfReleased === 'function') {
             dialerCheckAndSkipIfReleased(memberIds);
         }
@@ -1418,7 +1417,6 @@ if(isManager){
    ★★★ 撥號模組 (Dialer Module) ★★★
 ══════════════════════════════════════════════════════ */
 
-// ── 撥號狀態變數 ──
 let dialerQueue      = [];   
 let dialerIndex      = 0;    
 let dialerTimer      = null; 
@@ -1431,7 +1429,6 @@ let dialerTickInterval = null;
 let dialerPendingPause = false; 
 let dialerMinimized = false; 
 
-// ★ 撥號器專用：接收釋出成功訊號並自動跳轉
 function dialerCheckAndSkipIfReleased(releasedIds) {
     if (!dialerActive) return;
     const currentItem = dialerQueue[dialerIndex];
@@ -1441,7 +1438,6 @@ function dialerCheckAndSkipIfReleased(releasedIds) {
     }
 }
 
-// ── 撥號面板 DOM ──
 let dialerPanel = null;
 
 function dialerDestroy() {
@@ -1551,7 +1547,8 @@ function dialerInit(queue) {
             <div style="font-size:10px;color:#636e72;margin-top:2px;">秒後自動視為未接</div>
         </div>
 
-        <div style="padding:8px 14px 14px;display:flex;gap:8px;">
+        <!-- 通話前的控制區 -->
+        <div id="dialer-pre-call-actions" style="padding:8px 14px 14px;display:flex;gap:8px;">
             <button id="dialer-btn-answer" style="
                 flex:1;padding:10px 6px;border:none;border-radius:8px;
                 background:#27ae60;color:white;font-weight:bold;font-size:13px;
@@ -1574,6 +1571,7 @@ function dialerInit(queue) {
             ">⏸ 暫停</button>
         </div>
 
+        <!-- 接通後訪談區 -->
         <div id="dialer-interview-area" style="display:none;padding:0 14px 14px;">
             <div style="border-top:1px solid #2f3640;padding-top:10px;margin-bottom:8px;">
                 <div style="font-size:11px;color:#2ecc71;font-weight:bold;margin-bottom:6px;">🟢 通話中 — 訪談記錄</div>
@@ -1585,28 +1583,31 @@ function dialerInit(queue) {
                     resize:vertical;line-height:1.5;
                 "></textarea>
             </div>
-            <div style="display:flex;gap:8px;">
+            
+            <!-- ★ 版面優化：改成上下兩行避免爆版 -->
+            <div style="display:flex;flex-direction:column;gap:8px;">
                 <input type="date" id="dialer-next-date" style="
-                    flex:1;padding:6px 8px;border-radius:6px;
+                    width:100%;box-sizing:border-box;padding:6px 8px;border-radius:6px;
                     border:1px solid #4f5d73;background:#2f3640;
                     color:#dcdde1;font-size:12px;
                 ">
-                <button id="dialer-btn-submit" style="
-                    padding:6px 14px;border:none;border-radius:6px;
-                    background:#2ecc71;color:white;font-weight:bold;
-                    font-size:12px;cursor:pointer;white-space:nowrap;
-                ">壓紀錄</button>
-                <!-- ★ 新增的釋出按鈕 -->
-                <button id="dialer-btn-release" style="
-                    padding:6px 14px;border:none;border-radius:6px;
-                    background:#c0392b;color:white;font-weight:bold;
-                    font-size:12px;cursor:pointer;white-space:nowrap;
-                ">釋出</button>
-                <button id="dialer-btn-next" style="
-                    padding:6px 14px;border:none;border-radius:6px;
-                    background:#3498db;color:white;font-weight:bold;
-                    font-size:12px;cursor:pointer;white-space:nowrap;
-                ">下一通 →</button>
+                <div style="display:flex;gap:8px;">
+                    <button id="dialer-btn-submit" style="
+                        flex:1;padding:8px 0;border:none;border-radius:6px;
+                        background:#2ecc71;color:white;font-weight:bold;
+                        font-size:12px;cursor:pointer;text-align:center;
+                    ">壓紀錄</button>
+                    <button id="dialer-btn-release" style="
+                        flex:1;padding:8px 0;border:none;border-radius:6px;
+                        background:#c0392b;color:white;font-weight:bold;
+                        font-size:12px;cursor:pointer;text-align:center;
+                    ">釋出</button>
+                    <button id="dialer-btn-next" style="
+                        flex:1;padding:8px 0;border:none;border-radius:6px;
+                        background:#3498db;color:white;font-weight:bold;
+                        font-size:12px;cursor:pointer;text-align:center;
+                    ">下一通 →</button>
+                </div>
             </div>
         </div>
 
@@ -1667,7 +1668,6 @@ function dialerInit(queue) {
 
     document.getElementById('dialer-btn-submit').onclick = () => { dialerSubmitRecord(true); };
 
-    // ★ 綁定「撥號器內建釋出」按鈕
     document.getElementById('dialer-btn-release').onclick = () => {
         const item = dialerQueue[dialerIndex];
         if(!item) return;
@@ -1702,13 +1702,10 @@ function dialerStep() {
     dialerCloseHistory();
 
     const interviewArea = document.getElementById('dialer-interview-area');
-    const btnAnswer     = document.getElementById('dialer-btn-answer');
-    const btnMiss       = document.getElementById('dialer-btn-miss');
-    const btnSkip       = document.getElementById('dialer-btn-skip');
+    const preCallActions = document.getElementById('dialer-pre-call-actions'); // ★ 改抓整個外層 Div
+    
     if(interviewArea) interviewArea.style.display = 'none';
-    if(btnAnswer)     { btnAnswer.style.display = ''; btnAnswer.disabled = false; }
-    if(btnMiss)       { btnMiss.style.display = ''; btnMiss.disabled = false; }
-    if(btnSkip)       { btnSkip.style.display = ''; btnSkip.disabled = false; }
+    if(preCallActions) preCallActions.style.display = 'flex'; // ★ 恢復撥號按鈕列
 
     dialerPaused = false;
 
@@ -1845,12 +1842,8 @@ function dialerOnAnswer() {
     const cdText = document.getElementById('dialer-countdown-text');
     if(cdText) cdText.innerText = '✅';
 
-    const btnAnswer = document.getElementById('dialer-btn-answer');
-    const btnMiss   = document.getElementById('dialer-btn-miss');
-    const btnSkip   = document.getElementById('dialer-btn-skip');
-    if(btnAnswer) btnAnswer.style.display = 'none';
-    if(btnMiss)   btnMiss.style.display = 'none';
-    if(btnSkip)   btnSkip.style.display = 'none';
+    const preCallActions = document.getElementById('dialer-pre-call-actions');
+    if(preCallActions) preCallActions.style.display = 'none'; // ★ 通話時隱藏所有撥號前按鈕(包含暫停)
 
     const interviewArea = document.getElementById('dialer-interview-area');
     const interviewText = document.getElementById('dialer-interview-text');
@@ -2248,6 +2241,12 @@ function dialerShowEntryChoice(baseDataArray) {
 
     document.getElementById('dialer-entry-cancel').onclick = () => modal.remove();
 
+    const sortByNextTime = (a, b) => {
+        const timeA = (!a.next_time || a.next_time.includes('0000')) ? 0 : new Date(a.next_time.replace(/-/g, '/')).getTime();
+        const timeB = (!b.next_time || b.next_time.includes('0000')) ? 0 : new Date(b.next_time.replace(/-/g, '/')).getTime();
+        return timeA - timeB;
+    };
+
     const getReleaseList = (filterType) => {
         const localDict = getLocalContacted();
 
@@ -2264,8 +2263,9 @@ function dialerShowEntryChoice(baseDataArray) {
             member_id:   m.member_id || m.id,
             member_name: m.member_name,
             mobile:      m.mobile,
-            source:      m.source
-        }));
+            source:      m.source,
+            next_time:   m.next_time || ''
+        })).sort(sortByNextTime); 
     };
 
     document.getElementById('dialer-entry-release-uncontacted').onclick = () => {
@@ -2284,11 +2284,11 @@ function dialerShowEntryChoice(baseDataArray) {
 
     document.getElementById('dialer-entry-manual').onclick = () => {
         modal.remove();
-        dialerShowManualInput(baseDataArray);
+        dialerShowManualInput(baseDataArray, sortByNextTime);
     };
 }
 
-function dialerShowManualInput(baseDataArray) {
+function dialerShowManualInput(baseDataArray, sortByNextTime) {
     const old = document.getElementById('dialer-manual-modal');
     if(old) old.remove();
 
@@ -2329,7 +2329,8 @@ function dialerShowManualInput(baseDataArray) {
                     member_id:   match.member_id || match.id,
                     member_name: match.member_name,
                     mobile:      match.mobile,
-                    source:      match.source
+                    source:      match.source,
+                    next_time:   match.next_time || '' 
                 });
             } else {
                 notFound.push(p);
@@ -2347,6 +2348,7 @@ function dialerShowManualInput(baseDataArray) {
             alert('⚠️ 以下號碼找不到對應名單，將略過：\n' + notFound.join('\n') + '\n\n其餘 ' + found.length + ' 筆將開始撥號。');
         }
 
+        found.sort(sortByNextTime);
         dialerInit(found);
     };
 }
