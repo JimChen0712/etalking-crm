@@ -1750,7 +1750,7 @@ function dialerStep() {
             btnSkip.disabled = true;
             btnSkip.style.background = '#2f3640';
             btnSkip.style.color = '#718093';
-            btnSkip.innerText = '無法跳過';
+            btnSkip.innerText = '跳過';
         }
 
         if(pauseBtn) {
@@ -1829,7 +1829,7 @@ function dialerStep() {
                 bSkip.style.border = '1px solid #4f5d73';
                 bSkip.style.color = '#718093';
                 bSkip.style.cursor = 'not-allowed';
-                bSkip.innerText = '無法跳過';
+                bSkip.innerText = '跳過';
             }
             if (mSkip && !mSkip.disabled) {
                 mSkip.disabled = true;
