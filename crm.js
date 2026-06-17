@@ -360,15 +360,13 @@ ${isManager ? `
     <div style="position:absolute;top:50%;right:15px;transform:translateY(-50%);display:flex;align-items:center;gap:8px;">
     <div style="display:flex;align-items:center;gap:12px;">
         <button id="open-dialer-btn" title="啟動自動撥號系統" 
-            onmouseover="this.style.background='linear-gradient(145deg, #3498db, #2980b9)'; this.style.boxShadow='0 4px 12px rgba(52,152,219,0.5)';"
-            onmouseout="this.style.background='linear-gradient(145deg, #3a4c5e, #2c3e50)'; this.style.boxShadow='0 2px 6px rgba(0,0,0,0.3)';"
-            style="display:flex;align-items:center;justify-content:center;width:34px;height:34px;cursor:pointer;border-radius:50%;border:1px solid rgba(255,255,255,0.15);background:linear-gradient(145deg, #3a4c5e, #2c3e50);color:white;padding:0;transition:all 0.3s ease;box-shadow:0 2px 6px rgba(0,0,0,0.3);">
-            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <!-- 外部自動旋轉箭頭 -->
-                <path d="M23 4v6h-6M1 20v-6h6" />
-                <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
-                <!-- 內部電話筒 -->
-                <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" fill="#ffffff" stroke="none" />
+            onmouseover="this.style.background='#3498db'; this.style.borderColor='#3498db';"
+            onmouseout="this.style.background='#2c3e50'; this.style.borderColor='#3498db';"
+            style="display:flex;align-items:center;justify-content:center;width:34px;height:34px;cursor:pointer;border-radius:50%;border:2px solid #3498db;background:#2c3e50;color:white;padding:0;transition:background 0.2s ease, border-color 0.2s ease;box-shadow:0 2px 6px rgba(0,0,0,0.2);">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M23 4v6h-6M1 20v-6h6" stroke="#ffffff" />
+                <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" stroke="#ffffff" />
+                <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" fill="#ffffff" />
             </svg>
         </button>
         <button id="close-btn" title="關閉" 
