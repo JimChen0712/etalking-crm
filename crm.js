@@ -329,10 +329,10 @@ panel.id='custom-crm-panel';
 panel.style.cssText='position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);width:1060px;height:88vh;background:#fff;box-shadow:0 15px 50px rgba(0,0,0,0.2);border-radius:12px;z-index:999999;display:flex;flex-direction:column;overflow:hidden;font-family:sans-serif;';
 
 const header=document.createElement('div');
-header.style.cssText='padding:12px 15px;background:#2c3e50;color:white;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;flex-shrink:0;';
+header.style.cssText='padding:12px 15px;background:#2c3e50;color:white;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;flex-shrink:0;position:relative;';
 
 header.innerHTML = `
-    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding-right:100px;">
         <h3 style="margin:0;font-size:15px;color:white;">名單管理面板</h3>
 ${isManager ? `
     <button id="tab-crm" style="padding:4px 14px;cursor:pointer;border-radius:4px;border:2px solid #3498db;background:#3498db;color:white;font-weight:bold;">名單管理</button>
@@ -357,18 +357,21 @@ ${isManager ? `
         <button id="refresh-btn" style="padding:4px 10px;cursor:pointer;border-radius:4px;border:none;background:#3498db;color:white;">重新整理</button>
         <span id="loading-status" style="font-size:11px;color:#f1c40f;font-weight:bold;"></span>
     </div>
+    <div style="position:absolute;top:50%;right:15px;transform:translateY(-50%);display:flex;align-items:center;gap:8px;">
     <div style="position:relative;width:46px;height:46px;display:flex;align-items:center;justify-content:center;">
-    <svg viewBox="0 0 100 100" style="position:absolute;width:46px;height:46px;pointer-events:none;">
-        <circle cx="50" cy="50" r="42" fill="none" stroke="#f39c12" stroke-width="6"
-            stroke-linecap="round" stroke-dasharray="242 22"
-            transform="rotate(-90 50 50)"/>
-        <polygon points="0,-7 9,0 0,7" fill="#f39c12" transform="translate(29,13.63) rotate(-30)"/>
-    </svg>
-    <button id="open-dialer-btn" title="啟動自動撥號系統" style="position:relative;z-index:1;display:flex;align-items:center;justify-content:center;width:34px;height:34px;cursor:pointer;border-radius:50%;border:2px solid #f39c12;background:#f39c12;color:white;padding:0;transition:0.2s;box-shadow:0 2px 6px rgba(0,0,0,0.2);">
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 512 512" fill="currentColor">
-            <path d="M164.9 24.6c-7.7-18.6-28-28.5-47.4-23.2l-88 24C12.1 30.2 0 46 0 64C0 311.4 200.6 512 448 512c18 0 33.8-12.1 38.6-29.5l24-88c5.3-19.4-4.6-39.7-23.2-47.4l-96-40c-16.3-6.8-35.2-2.1-46.3 11.6L304.7 368C234.3 334.7 177.3 277.7 144 207.3L193.3 167c13.7-11.2 18.4-30 11.6-46.3l-40-96z"/>
+        <svg viewBox="0 0 100 100" style="position:absolute;width:46px;height:46px;pointer-events:none;">
+            <circle cx="50" cy="50" r="42" fill="none" stroke="#f39c12" stroke-width="6"
+                stroke-linecap="round" stroke-dasharray="242 22"
+                transform="rotate(-90 50 50)"/>
+            <polygon points="0,-7 9,0 0,7" fill="#f39c12" transform="translate(29,13.63) rotate(-30)"/>
         </svg>
-    </button>
+        <button id="open-dialer-btn" title="啟動自動撥號系統" style="position:relative;z-index:1;display:flex;align-items:center;justify-content:center;width:34px;height:34px;cursor:pointer;border-radius:50%;border:2px solid #f39c12;background:#f39c12;color:white;padding:0;transition:0.2s;box-shadow:0 2px 6px rgba(0,0,0,0.2);">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 512 512" fill="currentColor">
+                <path d="M164.9 24.6c-7.7-18.6-28-28.5-47.4-23.2l-88 24C12.1 30.2 0 46 0 64C0 311.4 200.6 512 448 512c18 0 33.8-12.1 38.6-29.5l24-88c5.3-19.4-4.6-39.7-23.2-47.4l-96-40c-16.3-6.8-35.2-2.1-46.3 11.6L304.7 368C234.3 334.7 177.3 277.7 144 207.3L193.3 167c13.7-11.2 18.4-30 11.6-46.3l-40-96z"/>
+            </svg>
+        </button>
+    </div>
+    <button id="close-btn" style="background:transparent;border:none;color:white;font-size:20px;cursor:pointer;">×</button>
 </div>
         <button id="close-btn" title="關閉" style="background:transparent;border:none;color:white;font-size:26px;line-height:1;cursor:pointer;padding:0 4px;">×</button>
     </div>
