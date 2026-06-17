@@ -373,8 +373,6 @@ ${isManager ? `
     </div>
     <button id="close-btn" style="background:transparent;border:none;color:white;font-size:20px;cursor:pointer;">×</button>
 </div>
-        <button id="close-btn" title="關閉" style="background:transparent;border:none;color:white;font-size:26px;line-height:1;cursor:pointer;padding:0 4px;">×</button>
-    </div>
 `;
 
 const content=document.createElement('div');
