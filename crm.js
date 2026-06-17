@@ -66,7 +66,7 @@ const fetchUrl='https://server.etalkingonline.com/name_list/new_list/'+(isManage
 
 /* ══ LocalStorage 聯繫紀錄管理 ══ */
 const LOCAL_CONTACTED_KEY = 'etalking_contacted_pool';
-const EXPIRE_DAYS = 14; // ★ 這裡可以修改自動過期的天數
+const EXPIRE_DAYS = 14; 
 
 function getLocalContacted() {
     try {
@@ -74,7 +74,6 @@ function getLocalContacted() {
         let now = Date.now();
         let changed = false;
         for (let id in dict) {
-            // 清除超過 14 天的紀錄
             if (now - dict[id] > EXPIRE_DAYS * 86400000) {
                 delete dict[id];
                 changed = true;
@@ -208,7 +207,6 @@ function debounceSaveMemo(memberId, grade, memo, item) {
             const isEmpty = (statusToSave === '' && !gradeToSave && !memoToSave);
 
             if (item.type != 1 && isEmpty && typeof rowNum === 'number') {
-                // 不刪除整列，只清空內容避免列號位移
                 await updateSheetMemo(memberId, '', '', '', item);
             } 
             else if (!isEmpty || item.type == 1) {
@@ -360,7 +358,7 @@ ${isManager ? `
         <span id="loading-status" style="font-size:11px;color:#f1c40f;font-weight:bold;"></span>
     </div>
     <div style="display:flex;align-items:center;gap:8px;">
-        <button id="open-dialer-btn" style="padding:4px 14px;cursor:pointer;border-radius:4px;border:2px solid #f39c12;background:#f39c12;color:white;font-weight:bold;font-size:13px;">自動撥號系統(測試中勿點擊)</button>
+        <button id="open-dialer-btn" style="padding:4px 14px;cursor:pointer;border-radius:4px;border:2px solid #f39c12;background:#f39c12;color:white;font-weight:bold;font-size:13px;">自動撥號系統</button>
         <button id="close-btn" style="background:transparent;border:none;color:white;font-size:20px;cursor:pointer;">×</button>
     </div>
 `;
@@ -368,16 +366,16 @@ ${isManager ? `
 const content=document.createElement('div');
 content.style.cssText='flex:1;overflow-y:auto;padding:12px;background:#f8f9fa;';
 
-/* ══ 壓紀錄 Modal ══ */
+/* ══ 壓紀錄 Modal (提高層級避免被擋) ══ */
 const recordModal=document.createElement('div');
 recordModal.id='record-modal';
-recordModal.style.cssText='display:none;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:480px;max-height:85vh;overflow-y:auto;background:white;padding:20px;border-radius:8px;box-shadow:0 4px 15px rgba(0,0,0,0.2);z-index:1000000;';
+recordModal.style.cssText='display:none;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:480px;max-height:85vh;overflow-y:auto;background:white;padding:20px;border-radius:8px;box-shadow:0 4px 15px rgba(0,0,0,0.2);z-index:1000005;';
 recordModal.innerHTML='<h4 style="margin-top:0;">新增聯絡紀錄</h4><input type="hidden" id="modal-member-id"><div id="modal-info-text" style="font-size:11px;color:#e67e22;margin-bottom:10px;font-weight:bold;"></div><div style="margin-bottom:10px;"><label>聯絡類型:</label><select id="modal-status" style="width:100%;padding:5px;margin-top:5px;"><option value="3">未接</option><option value="1">已接聽</option><option value="2">非本人</option><option value="4">關機</option></select></div><div style="margin-bottom:10px;"><label>聯絡內容:</label><textarea id="modal-content" style="width:100%;padding:5px;margin-top:5px;min-height:60px;font-family:sans-serif;font-size:13px;border:1px solid #ddd;border-radius:4px;resize:vertical;">未接 *1</textarea></div><div style="margin-bottom:10px;"><label>下次聯繫日期:</label><input type="date" id="modal-date" style="width:100%;padding:5px;margin-top:5px;"></div><div style="display:flex;justify-content:space-between;margin-top:15px;"><button id="modal-cancel" style="padding:5px 15px;cursor:pointer;">取消</button><button id="modal-submit" style="padding:5px 15px;background:#27ae60;color:white;border:none;cursor:pointer;border-radius:4px;">送出紀錄</button></div>';
 
-/* ══ 釋出名單 Modal ══ */
+/* ══ 釋出名單 Modal (提高層級避免被擋) ══ */
 const releaseModal=document.createElement('div');
 releaseModal.id='release-modal';
-releaseModal.style.cssText='display:none;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:420px;background:white;padding:20px;border-radius:8px;box-shadow:0 4px 15px rgba(0,0,0,0.2);z-index:1000000;';
+releaseModal.style.cssText='display:none;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:420px;background:white;padding:20px;border-radius:8px;box-shadow:0 4px 15px rgba(0,0,0,0.2);z-index:1000005;';
 
 const reassignHtml = isManager ? `
     <div style="margin-top:15px; border-top:1px dashed #ccc; padding-top:15px;">
@@ -742,7 +740,6 @@ function renderList(){
 
         if (item.type == 4 && !isReInquire) {
             gradeHtml = '<span style="color:#bdc3c7;font-size:11px;">無須評等</span>';
-            // ★ 新增本地標記按鈕
             const isLocalContacted = !!localContactedDict[id];
             memoHtml = '<button class="reinquire-btn" data-id="'+id+'" style="padding:6px 12px;border:1px solid #c0392b;border-radius:4px;background:#fff;color:#c0392b;cursor:pointer;font-size:12px;font-weight:bold;width:100%;margin-bottom:6px;">🚩 標記為「再次留單」</button>' + 
                        '<br><button class="local-contact-btn" data-id="'+id+'" style="padding:6px 12px;border:1px solid '+(isLocalContacted?'#27ae60':'#bdc3c7')+';border-radius:4px;background:'+(isLocalContacted?'#e8f8f5':'#fff')+';color:'+(isLocalContacted?'#27ae60':'#7f8c8d')+';cursor:pointer;font-size:11px;font-weight:bold;width:100%;">'+(isLocalContacted?'💬 已聯繫 (本機暫存)':'標記為已聯繫')+'</button>';
@@ -819,12 +816,11 @@ function renderList(){
         };
     });
 
-    // ★ 綁定本地標記按鈕事件
     document.querySelectorAll('.local-contact-btn').forEach(btn=>{
         btn.onclick=e=>{
             const memberId = e.target.getAttribute('data-id');
-            setLocalContacted(memberId, true); // 切換狀態
-            renderList(); // 重繪 UI
+            setLocalContacted(memberId, true); 
+            renderList(); 
         };
     });
 
@@ -923,7 +919,6 @@ document.getElementById('modal-submit').onclick=()=>{
         }
         currentItem.next_time=params['search_begin']+' 11:59:59';
         
-        // 如果是在 Modal 手動壓「已接聽」，也自動標記為已聯繫
         if (params['contact_status'] === '1' && currentItem.type == 4) {
             setLocalContacted(memberId, false);
         }
@@ -1025,6 +1020,11 @@ document.getElementById('release-submit').onclick = async () => {
             if(typeof renderPoolList === 'function') renderPoolList();
         } else {
             renderList();
+        }
+
+        // ★ 如果撥號系統開啟中，且剛剛釋出的是當前正在撥打的對象，自動跳下一通
+        if (typeof dialerCheckAndSkipIfReleased === 'function') {
+            dialerCheckAndSkipIfReleased(memberIds);
         }
         
     } catch(e) {
@@ -1258,7 +1258,6 @@ if(isManager){
 
         content.innerHTML = filterHtml + tableHtml;
 
-        // ★ 綁定釋出池標記按鈕
         document.querySelectorAll('.local-contact-btn').forEach(btn=>{
             btn.onclick=e=>{
                 const memberId = e.target.getAttribute('data-id');
@@ -1432,6 +1431,16 @@ let dialerTickInterval = null;
 let dialerPendingPause = false; 
 let dialerMinimized = false; 
 
+// ★ 撥號器專用：接收釋出成功訊號並自動跳轉
+function dialerCheckAndSkipIfReleased(releasedIds) {
+    if (!dialerActive) return;
+    const currentItem = dialerQueue[dialerIndex];
+    if (currentItem && releasedIds.includes(String(currentItem.member_id || currentItem.id))) {
+        dialerIndex++;
+        dialerStep();
+    }
+}
+
 // ── 撥號面板 DOM ──
 let dialerPanel = null;
 
@@ -1587,6 +1596,12 @@ function dialerInit(queue) {
                     background:#2ecc71;color:white;font-weight:bold;
                     font-size:12px;cursor:pointer;white-space:nowrap;
                 ">壓紀錄</button>
+                <!-- ★ 新增的釋出按鈕 -->
+                <button id="dialer-btn-release" style="
+                    padding:6px 14px;border:none;border-radius:6px;
+                    background:#c0392b;color:white;font-weight:bold;
+                    font-size:12px;cursor:pointer;white-space:nowrap;
+                ">釋出</button>
                 <button id="dialer-btn-next" style="
                     padding:6px 14px;border:none;border-radius:6px;
                     background:#3498db;color:white;font-weight:bold;
@@ -1651,6 +1666,15 @@ function dialerInit(queue) {
     };
 
     document.getElementById('dialer-btn-submit').onclick = () => { dialerSubmitRecord(true); };
+
+    // ★ 綁定「撥號器內建釋出」按鈕
+    document.getElementById('dialer-btn-release').onclick = () => {
+        const item = dialerQueue[dialerIndex];
+        if(!item) return;
+        document.getElementById('release-member-id').value = item.member_id || item.id;
+        document.getElementById('release-memo').value = '';
+        document.getElementById('release-modal').style.display = 'block';
+    };
 
     document.getElementById('dialer-ext-display').onclick = () => {
         const newExt = prompt('修改分機號碼：', dialerExtension);
@@ -1970,10 +1994,8 @@ function dialerSubmitRecord(isAnswer) {
             if(submitBtn) { submitBtn.innerText = '壓紀錄'; submitBtn.disabled = false; }
             alert('✅ 紀錄已送出！');
 
-            // ★ 自動標記本機已聯繫
             setLocalContacted(memberId, false);
             
-            // 讓背景名單或釋出池能刷新
             if (currentTab === 'pool' && typeof renderPoolList === 'function') {
                 renderPoolList();
             } else if (typeof renderList === 'function') {
@@ -2198,14 +2220,11 @@ async function dialerOpenHistory(item) {
     }
 }
 
-// ── 開啟撥號按鈕（Header 上的 🚀 撥號）──
 document.getElementById('open-dialer-btn').onclick = () => {
-    // 依據當前顯示的是「我的名單」還是「釋出池」決定要傳哪個陣列進去過濾
     const targetPool = (currentTab === 'pool' && poolData.length > 0) ? poolData : allData;
     dialerShowEntryChoice(targetPool);
 };
 
-// ★ 核心變更：動態分流撥號選單
 function dialerShowEntryChoice(baseDataArray) {
     const old = document.getElementById('dialer-entry-modal');
     if(old) old.remove();
@@ -2229,17 +2248,14 @@ function dialerShowEntryChoice(baseDataArray) {
 
     document.getElementById('dialer-entry-cancel').onclick = () => modal.remove();
 
-    // ★ 過濾邏輯
     const getReleaseList = (filterType) => {
         const localDict = getLocalContacted();
 
         return baseDataArray.filter(m => {
-            // 如果是在名單管理頁面，我們只抓 type == 4 釋出名單。
-            // 如果是在釋出池頁面，裡面的資料本來就全部都是釋出名單了。
             if (currentTab !== 'pool' && m.type != 4) return false; 
 
             const id = String(m.member_id || m.id);
-            const isContactedLocal = !!localDict[id]; // 檢查是否在記憶體的名單內
+            const isContactedLocal = !!localDict[id]; 
 
             if (filterType === 'uncontacted') return !isContactedLocal;
             if (filterType === 'contacted') return isContactedLocal;
