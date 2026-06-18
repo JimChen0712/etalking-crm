@@ -2394,8 +2394,12 @@ function dialerShowEntryChoice(baseDataArray) {
     modal.innerHTML = `
         <h4 style="margin-top:0;color:#2c3e50;">選擇撥號名單來源</h4>
         <div style="display:flex;flex-direction:column;gap:10px;margin-top:16px;">
-            <button id="dialer-entry-release-uncontacted" style="padding:12px;border:none;border-radius:8px;background:#e67e22;color:white;font-weight:bold;cursor:pointer;font-size:14px;box-shadow:0 2px 4px rgba(0,0,0,0.1);">🆕 撥打釋出名單 (未聯繫)</button>
-            <button id="dialer-entry-manual" style="padding:12px;border:none;border-radius:8px;background:#3498db;color:white;font-weight:bold;cursor:pointer;font-size:14px;box-shadow:0 2px 4px rgba(0,0,0,0.1);">📞 指定電話號碼</button>
+            <button id="dialer-entry-release-uncontacted" style="display:flex;align-items:center;justify-content:center;gap:8px;padding:12px;border:none;border-radius:8px;background:#e67e22;color:white;font-weight:bold;cursor:pointer;font-size:14px;box-shadow:0 2px 4px rgba(0,0,0,0.1);">
+                <span style="font-size:15px;">📞</span> 撥打釋出名單 (未聯繫)
+            </button>
+            <button id="dialer-entry-manual" style="display:flex;align-items:center;justify-content:center;gap:8px;padding:12px;border:none;border-radius:8px;background:#3498db;color:white;font-weight:bold;cursor:pointer;font-size:14px;box-shadow:0 2px 4px rgba(0,0,0,0.1);">
+                <span style="font-size:17px;line-height:1;">☎</span> 指定電話號碼
+            </button>
         </div>
         <div style="text-align:right;margin-top:16px;">
             <button id="dialer-entry-cancel" style="padding:6px 14px;border:1px solid #ddd;background:#f5f5f5;border-radius:6px;cursor:pointer;color:#333;">取消</button>
