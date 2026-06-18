@@ -933,7 +933,7 @@ function renderList(){
         };
     });
 }
-
+document.getElementById('modal-cancel').onclick = () => { document.getElementById('record-modal').style.display='none'; };
 document.getElementById('modal-submit').onclick=()=>{
     if(!currentItem)return;
     const memberId=document.getElementById('modal-member-id').value;
