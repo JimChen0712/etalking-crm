@@ -2392,17 +2392,36 @@ function dialerShowEntryChoice(baseDataArray) {
     
     // ★ 修改點 1：已經幫你把「撥打已聯繫」的按鈕清掉了，現在只剩兩個按鈕
     modal.innerHTML = `
-        <h4 style="margin-top:0;color:#2c3e50;">選擇撥號名單來源</h4>
-        <div style="display:flex;flex-direction:column;gap:10px;margin-top:16px;">
-            <button id="dialer-entry-release-uncontacted" style="display:flex;align-items:center;justify-content:center;gap:8px;padding:12px;border:none;border-radius:8px;background:#e67e22;color:white;font-weight:bold;cursor:pointer;font-size:14px;box-shadow:0 2px 4px rgba(0,0,0,0.1);">
-                <span style="font-size:15px;">📞</span> 撥打釋出名單 (未聯繫)
+        <h4 style="margin:0 0 6px 0;color:#2c3e50;font-size:16px;letter-spacing:0.5px;">選擇撥號名單來源</h4>
+        <p style="margin:0 0 18px 0;color:#7f8c8d;font-size:12px;">請選擇您接下來要進行自動撥號的模式</p>
+        
+        <div style="display:flex;flex-direction:column;gap:12px;">
+            <button id="dialer-entry-release-uncontacted" 
+                onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 12px rgba(230,126,34,0.3)';"
+                onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 2px 4px rgba(0,0,0,0.1)';"
+                style="display:flex;align-items:center;justify-content:center;gap:10px;padding:14px;border:1px solid #d35400;border-radius:8px;background:linear-gradient(135deg, #e67e22, #d35400);color:white;font-weight:bold;cursor:pointer;font-size:14px;box-shadow:0 2px 4px rgba(0,0,0,0.1);transition:all 0.2s ease;">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <ellipse cx="12" cy="5" rx="9" ry="3"></ellipse><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"></path><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"></path>
+                </svg>
+                撥打釋出名單 (未聯繫)
             </button>
-            <button id="dialer-entry-manual" style="display:flex;align-items:center;justify-content:center;gap:8px;padding:12px;border:none;border-radius:8px;background:#3498db;color:white;font-weight:bold;cursor:pointer;font-size:14px;box-shadow:0 2px 4px rgba(0,0,0,0.1);">
-                <span style="font-size:17px;line-height:1;">☎</span> 指定電話號碼
+            
+            <button id="dialer-entry-manual" 
+                onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 12px rgba(52,152,219,0.3)';"
+                onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 2px 4px rgba(0,0,0,0.1)';"
+                style="display:flex;align-items:center;justify-content:center;gap:10px;padding:14px;border:1px solid #2980b9;border-radius:8px;background:linear-gradient(135deg, #3498db, #2980b9);color:white;font-weight:bold;cursor:pointer;font-size:14px;box-shadow:0 2px 4px rgba(0,0,0,0.1);transition:all 0.2s ease;">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect><line x1="9" y1="14" x2="15" y2="14"></line><line x1="9" y1="18" x2="15" y2="18"></line><line x1="9" y1="10" x2="9.01" y2="10"></line>
+                </svg>
+                指定電話號碼
             </button>
         </div>
-        <div style="text-align:right;margin-top:16px;">
-            <button id="dialer-entry-cancel" style="padding:6px 14px;border:1px solid #ddd;background:#f5f5f5;border-radius:6px;cursor:pointer;color:#333;">取消</button>
+        
+        <div style="text-align:right;margin-top:18px;">
+            <button id="dialer-entry-cancel" 
+                onmouseover="this.style.background='#e0e0e0';"
+                onmouseout="this.style.background='#f5f5f5';"
+                style="padding:8px 18px;border:1px solid #ccc;background:#f5f5f5;border-radius:6px;cursor:pointer;color:#555;font-weight:bold;transition:all 0.2s ease;">取消</button>
         </div>
     `;
     document.body.appendChild(modal);
