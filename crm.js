@@ -2390,11 +2390,11 @@ function dialerShowEntryChoice(baseDataArray) {
     modal.id = 'dialer-entry-modal';
     modal.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);width:380px;background:white;padding:24px;border-radius:10px;box-shadow:0 8px 32px rgba(0,0,0,0.3);z-index:1000002;font-family:sans-serif;';
     
+    // ★ 修改點 1：已經幫你把「撥打已聯繫」的按鈕清掉了，現在只剩兩個按鈕
     modal.innerHTML = `
         <h4 style="margin-top:0;color:#2c3e50;">選擇撥號名單來源</h4>
         <div style="display:flex;flex-direction:column;gap:10px;margin-top:16px;">
             <button id="dialer-entry-release-uncontacted" style="padding:12px;border:none;border-radius:8px;background:#e67e22;color:white;font-weight:bold;cursor:pointer;font-size:14px;box-shadow:0 2px 4px rgba(0,0,0,0.1);">🆕 撥打釋出名單 (未聯繫)</button>
-            <button id="dialer-entry-release-contacted" style="padding:12px;border:none;border-radius:8px;background:#27ae60;color:white;font-weight:bold;cursor:pointer;font-size:14px;box-shadow:0 2px 4px rgba(0,0,0,0.1);">💬 撥打釋出名單 (已聯繫)</button>
             <button id="dialer-entry-manual" style="padding:12px;border:none;border-radius:8px;background:#3498db;color:white;font-weight:bold;cursor:pointer;font-size:14px;box-shadow:0 2px 4px rgba(0,0,0,0.1);">📞 指定電話號碼</button>
         </div>
         <div style="text-align:right;margin-top:16px;">
@@ -2421,7 +2421,6 @@ function dialerShowEntryChoice(baseDataArray) {
             const isContactedLocal = !!localDict[id]; 
 
             if (filterType === 'uncontacted') return !isContactedLocal;
-            if (filterType === 'contacted') return isContactedLocal;
             return true;
         }).map(m => ({
             member_id:   m.member_id || m.id,
@@ -2439,12 +2438,7 @@ function dialerShowEntryChoice(baseDataArray) {
         dialerInit(list);
     };
 
-    document.getElementById('dialer-entry-release-contacted').onclick = () => {
-        modal.remove();
-        const list = getReleaseList('contacted');
-        if(list.length === 0) { alert('⚠️ 目前畫面上沒有被標記為【已聯繫】的釋出名單。'); return; }
-        dialerInit(list);
-    };
+    // ★ 修改點 2：這裡原本綁定「撥打已聯繫」的 onclick 事件也一併安全移除了！
 
     document.getElementById('dialer-entry-manual').onclick = () => {
         modal.remove();
