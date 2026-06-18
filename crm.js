@@ -382,13 +382,50 @@ ${isManager ? `
 const content=document.createElement('div');
 content.style.cssText='flex:1;overflow-y:auto;padding:12px;background:#f8f9fa;';
 
-/* ══ 壓紀錄 Modal (提高層級避免被擋) ══ */
+/* ══ 共用業務選項清單 ══ */
+const salesOptionsHtmlStr = `
+    <option value="130">Jeremy testjeremy [IT&CS]</option>
+    <option value="283">Ash 俞任鴻 [IT&CS]</option>
+    <option value="465">Lily 李昱萱 [IT&CS]</option>
+    <option value="248">Luka 林冠宇 [IT&CS]</option>
+    <option value="434">Nina 林怡欣 [IT&CS]</option>
+    <option value="358">amiee 林琬倩 [IT&CS]</option>
+    <option value="469">Lara 王品儒 [IT&CS]</option>
+    <option value="410">Claire 葉芷羽 [IT&CS]</option>
+    <option value="241">Paris 黃雅琪 [IT&CS]</option>
+    <option value="279">test3 test3 [業務部]</option>
+    <option value="467">Anna 余可芳 [業務部]</option>
+    <option value="452">Rita 侯宛余 [業務部]</option>
+    <option value="433">Wynn 吳昱瑩 [業務部]</option>
+    <option value="464">ori 孫逸亭 [業務部]</option>
+    <option value="468">Ria 廖沐琳 [業務部]</option>
+    <option value="432">Elsie 林采庭 [業務部]</option>
+    <option value="445">Luke 楊博竣 [業務部]</option>
+    <option value="457">Alan 楊碩頫 [業務部]</option>
+    <option value="438">Lily 楊若莉 [業務部]</option>
+    <option value="451">Kyle 江宗翰 [業務部]</option>
+    <option value="454">Andy 沈祐頡 [業務部]</option>
+    <option value="206">Connie 游婷瑛 [業務部]</option>
+    <option value="462">homer 許瀚方 [業務部]</option>
+    <option value="458">Josie 陳品妤 [業務部]</option>
+    <option value="459">An 陳怡安 [業務部]</option>
+    <option value="409">Joyce 魏良伃 [業務部]</option>
+    <option value="453">Wolf 黃詳淵 [業務部]</option>
+    <option value="368">Jordan 李睿峰 [業務部()]</option>
+    <option value="69">TEST test0504 [業務部(主管)]</option>
+    <option value="162">Joy 洪淑慧 [業務部(主管)]</option>
+    <option value="240">Minzing 程銘靜 [業務部(主管)]</option>
+    <option value="60">johnny 謝愷澤 [業務部(主管)]</option>
+    <option value="424">Jim 陳昕謨 [業務部(主管)]</option>
+`;
+
+/* ══ 壓紀錄 Modal ══ */
 const recordModal=document.createElement('div');
 recordModal.id='record-modal';
 recordModal.style.cssText='display:none;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:480px;max-height:85vh;overflow-y:auto;background:white;padding:20px;border-radius:8px;box-shadow:0 4px 15px rgba(0,0,0,0.2);z-index:1000005;';
 recordModal.innerHTML='<h4 style="margin-top:0;">新增聯絡紀錄</h4><input type="hidden" id="modal-member-id"><div id="modal-info-text" style="font-size:11px;color:#e67e22;margin-bottom:10px;font-weight:bold;"></div><div style="margin-bottom:10px;"><label>聯絡類型:</label><select id="modal-status" style="width:100%;padding:5px;margin-top:5px;"><option value="3">未接</option><option value="1">已接聽</option><option value="2">非本人</option><option value="4">關機</option></select></div><div style="margin-bottom:10px;"><label>聯絡內容:</label><textarea id="modal-content" style="width:100%;padding:5px;margin-top:5px;min-height:60px;font-family:sans-serif;font-size:13px;border:1px solid #ddd;border-radius:4px;resize:vertical;">未接 *1</textarea></div><div style="margin-bottom:10px;"><label>下次聯繫日期:</label><input type="date" id="modal-date" style="width:100%;padding:5px;margin-top:5px;"></div><div style="display:flex;justify-content:space-between;margin-top:15px;"><button id="modal-cancel" style="padding:5px 15px;cursor:pointer;">取消</button><button id="modal-submit" style="padding:5px 15px;background:#27ae60;color:white;border:none;cursor:pointer;border-radius:4px;">送出紀錄</button></div>';
 
-/* ══ 釋出名單 Modal (提高層級避免被擋) ══ */
+/* ══ 單筆/一般批次 釋出 Modal ══ */
 const releaseModal=document.createElement('div');
 releaseModal.id='release-modal';
 releaseModal.style.cssText='display:none;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:420px;background:white;padding:20px;border-radius:8px;box-shadow:0 4px 15px rgba(0,0,0,0.2);z-index:1000005;';
@@ -398,39 +435,7 @@ const reassignHtml = isManager ? `
         <label style="font-size:13px;font-weight:bold;color:#1a6fc4;">👑 主管專屬：轉派人員 (選填)</label>
         <select id="release-reassign" style="width:100%;height:auto;min-height:36px;line-height:normal;box-sizing:border-box;padding:8px;margin-top:8px;border-radius:4px;border:2px solid #1a6fc4;font-size:13px;color:#333;background:#f0f8ff;appearance:auto;">
             <option value="-1">單純釋出 (不轉派)</option>
-            <option value="130">Jeremy testjeremy [IT&CS]</option>
-            <option value="283">Ash 俞任鴻 [IT&CS]</option>
-            <option value="465">Lily 李昱萱 [IT&CS]</option>
-            <option value="248">Luka 林冠宇 [IT&CS]</option>
-            <option value="434">Nina 林怡欣 [IT&CS]</option>
-            <option value="358">amiee 林琬倩 [IT&CS]</option>
-            <option value="469">Lara 王品儒 [IT&CS]</option>
-            <option value="410">Claire 葉芷羽 [IT&CS]</option>
-            <option value="241">Paris 黃雅琪 [IT&CS]</option>
-            <option value="279">test3 test3 [業務部]</option>
-            <option value="467">Anna 余可芳 [業務部]</option>
-            <option value="452">Rita 侯宛余 [業務部]</option>
-            <option value="433">Wynn 吳昱瑩 [業務部]</option>
-            <option value="464">ori 孫逸亭 [業務部]</option>
-            <option value="468">Ria 廖沐琳 [業務部]</option>
-            <option value="432">Elsie 林采庭 [業務部]</option>
-            <option value="445">Luke 楊博竣 [業務部]</option>
-            <option value="457">Alan 楊碩頫 [業務部]</option>
-            <option value="438">Lily 楊若莉 [業務部]</option>
-            <option value="451">Kyle 江宗翰 [業務部]</option>
-            <option value="454">Andy 沈祐頡 [業務部]</option>
-            <option value="206">Connie 游婷瑛 [業務部]</option>
-            <option value="462">homer 許瀚方 [業務部]</option>
-            <option value="458">Josie 陳品妤 [業務部]</option>
-            <option value="459">An 陳怡安 [業務部]</option>
-            <option value="409">Joyce 魏良伃 [業務部]</option>
-            <option value="453">Wolf 黃詳淵 [業務部]</option>
-            <option value="368">Jordan 李睿峰 [業務部()]</option>
-            <option value="69">TEST test0504 [業務部(主管)]</option>
-            <option value="162">Joy 洪淑慧 [業務部(主管)]</option>
-            <option value="240">Minzing 程銘靜 [業務部(主管)]</option>
-            <option value="60">johnny 謝愷澤 [業務部(主管)]</option>
-            <option value="424">Jim 陳昕謨 [業務部(主管)]</option>
+            ${salesOptionsHtmlStr}
         </select>
     </div>
 ` : '';
@@ -486,10 +491,32 @@ releaseModal.innerHTML=`
     </div>
 `;
 
+/* ══ 釋出池專用：純派發 Modal ══ */
+const poolAssignModal = document.createElement('div');
+poolAssignModal.id = 'pool-assign-modal';
+poolAssignModal.style.cssText = 'display:none;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:400px;background:white;padding:20px;border-radius:8px;box-shadow:0 4px 15px rgba(0,0,0,0.2);z-index:1000005;';
+poolAssignModal.innerHTML = `
+    <h4 style="margin-top:0;color:#27ae60;">批次派發名單 (釋出池)</h4>
+    <p style="font-size:12px;color:#666;margin-bottom:15px;">將選取的名單大量指派給特定業務。此操作沒有延遲，送出後即刻生效。</p>
+    <input type="hidden" id="pool-assign-ids">
+    <div>
+        <label style="font-size:13px;font-weight:bold;color:#333;">選擇轉派人員:</label>
+        <select id="pool-assign-select" style="width:100%;height:auto;min-height:36px;padding:8px;margin-top:8px;border-radius:4px;border:2px solid #27ae60;font-size:13px;background:#f0f8ff;">
+            <option value="-1">請選擇轉派業務...</option>
+            ${salesOptionsHtmlStr}
+        </select>
+    </div>
+    <div style="display:flex;justify-content:space-between;margin-top:20px;">
+        <button id="pool-assign-cancel" style="padding:6px 15px;cursor:pointer;border:1px solid #ddd;background:#f5f5f5;border-radius:4px;color:#333;">取消</button>
+        <button id="pool-assign-submit" style="padding:6px 15px;background:#27ae60;color:white;border:none;cursor:pointer;border-radius:4px;font-weight:bold;">一鍵派發</button>
+    </div>
+`;
+
 panel.appendChild(header);
 panel.appendChild(content);
 panel.appendChild(recordModal);
 panel.appendChild(releaseModal);
+panel.appendChild(poolAssignModal);
 document.body.appendChild(panel);
 
 /* ══ 聯絡類型切換 ══ */
@@ -943,6 +970,7 @@ document.getElementById('modal-submit').onclick=()=>{
     },1000);
 };
 
+/* ══ 名單管理頁面：批次處理 (包含延遲的原始邏輯) ══ */
 const batchBtnObj = document.getElementById('batch-release-btn');
 if (batchBtnObj) {
     batchBtnObj.onclick = () => {
@@ -1049,6 +1077,61 @@ document.getElementById('release-submit').onclick = async () => {
         btn.innerText = '確定送出';
         btn.disabled = false;
         if(reassignSelect) reassignSelect.value = '-1';
+    }
+};
+
+/* ══ 釋出池專用：純轉派 API 呼叫邏輯 ══ */
+document.getElementById('pool-assign-cancel').onclick = () => { document.getElementById('pool-assign-modal').style.display='none'; };
+
+document.getElementById('pool-assign-submit').onclick = async () => {
+    const idsStr = document.getElementById('pool-assign-ids').value;
+    const targetSalesId = document.getElementById('pool-assign-select').value;
+    
+    if (targetSalesId === '-1') {
+        alert('⚠️ 請選擇要轉派的業務！');
+        return;
+    }
+    if (!idsStr) return;
+
+    const memberIds = idsStr.split(',');
+    const btn = document.getElementById('pool-assign-submit');
+    btn.innerText = '處理中...';
+    btn.disabled = true;
+
+    try {
+        const adminNameStr = getWriterName();
+        const accountStr = adminNameStr.split(' ')[0] || adminNameStr;
+        const reassignUrl = `https://www.etalkingonline.com/admin/sys/api_release_appoint.php?uid=${crmUid}&account=${encodeURIComponent(accountStr)}&admin_name=${encodeURIComponent(adminNameStr)}`;
+        
+        const formData = new URLSearchParams();
+        formData.append('sales', targetSalesId);
+        memberIds.forEach(id => formData.append('checked[]', id));
+
+        // ★ 一鍵送出所有名單給單支 API，零延遲
+        const reassignRes = await fetch(reassignUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: formData.toString()
+        });
+
+        if (!reassignRes.ok) throw new Error('轉派 API 錯誤');
+        
+        alert(`✅ 成功派發 ${memberIds.length} 筆名單給指定的業務！`);
+        
+        // 成功後隱藏 Modal 並從畫面移除這些名單
+        document.getElementById('pool-assign-modal').style.display = 'none';
+        const dispatchedIds = new Set(memberIds);
+        poolData = poolData.filter(item => !dispatchedIds.has(String(item.member_id)));
+        
+        if (typeof renderPoolList === 'function') renderPoolList();
+
+    } catch(e) {
+        alert('❌ 派發發生錯誤！');
+        console.error(e);
+    } finally {
+        btn.innerText = '一鍵派發';
+        btn.disabled = false;
+        document.getElementById('pool-assign-select').value = '-1';
     }
 };
 
@@ -1307,6 +1390,7 @@ if(isManager){
             dialerShowEntryChoice(poolData);
         };
 
+        // ★ 修改釋出池特有的批次派發按鈕邏輯
         const poolBatchBtn = document.getElementById('pool-batch-btn');
         const updatePoolBatchBtn = () => {
             const count = document.querySelectorAll('.pool-cb:checked').length;
@@ -1323,10 +1407,11 @@ if(isManager){
         poolBatchBtn.onclick = () => {
             const checkedIds = Array.from(document.querySelectorAll('.pool-cb:checked')).map(cb => cb.value);
             if(!checkedIds.length) return;
-            document.getElementById('release-member-id').value = checkedIds.join(',');
-            document.getElementById('release-memo').value = '';
-            document.getElementById('release-reason').value = '8-6 其他 - 顧問自填';
-            document.getElementById('release-modal').style.display = 'block';
+            
+            // 打開新的專屬純派發 Modal
+            document.getElementById('pool-assign-ids').value = checkedIds.join(',');
+            document.getElementById('pool-assign-select').value = '-1';
+            document.getElementById('pool-assign-modal').style.display = 'block';
         };
     };
 
