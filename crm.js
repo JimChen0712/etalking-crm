@@ -1205,14 +1205,20 @@ document.getElementById('close-btn').onclick=()=>{
 };
 document.getElementById('refresh-btn').onclick=fetchData;
 
-// ★ 所有切換條件時，重置為第一頁
-document.getElementById('t-type-filter').onchange = () => { currentPage = 1; renderList(); };
-document.getElementById('source-filter').onchange = () => { currentPage = 1; renderList(); };
-document.getElementById('consultant-filter').onchange=function(){
-    currentPage = 1;
-    renderList();
-    if(this.value!=='-1')loadDetailsForConsultant(this.value);
-};
+// ★ 所有切換條件時，重置為第一頁 (加上防護罩避免組員端報錯)
+if(document.getElementById('t-type-filter')) {
+    document.getElementById('t-type-filter').onchange = () => { currentPage = 1; renderList(); };
+}
+if(document.getElementById('source-filter')) {
+    document.getElementById('source-filter').onchange = () => { currentPage = 1; renderList(); };
+}
+if(document.getElementById('consultant-filter')) {
+    document.getElementById('consultant-filter').onchange=function(){
+        currentPage = 1;
+        renderList();
+        if(this.value!=='-1')loadDetailsForConsultant(this.value);
+    };
+}
 
 if(isManager){
     function switchTab(tab) {
