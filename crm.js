@@ -2525,30 +2525,45 @@ function dialerShowEntryChoice(baseDataArray) {
     modal.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);width:380px;background:white;padding:24px;border-radius:10px;box-shadow:0 8px 32px rgba(0,0,0,0.3);z-index:1000002;font-family:sans-serif;';
     
     modal.innerHTML = `
-        <h4 style="margin:0 0 6px 0;color:#2c3e50;font-size:16px;letter-spacing:0.5px;">選擇撥號名單來源</h4>
-        <p style="margin:0 0 18px 0;color:#7f8c8d;font-size:12px;">請選擇您接下來要進行自動撥號的模式</p>
-        
-        <div style="display:flex;flex-direction:column;gap:12px;">
-            <button id="dialer-entry-release-uncontacted" 
-                onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 12px rgba(230,126,34,0.3)';"
-                onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 2px 4px rgba(0,0,0,0.1)';"
-                style="display:flex;align-items:center;justify-content:center;gap:10px;padding:14px;border:1px solid #d35400;border-radius:8px;background:linear-gradient(135deg, #e67e22, #d35400);color:white;font-weight:bold;cursor:pointer;font-size:14px;box-shadow:0 2px 4px rgba(0,0,0,0.1);transition:all 0.2s ease;">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                    <ellipse cx="12" cy="5" rx="9" ry="3"></ellipse><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"></path><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"></path>
+    <h4 style="margin:0 0 6px 0;color:#1f2937;font-size:16px;letter-spacing:0.3px;">選擇撥號名單來源</h4>
+    <p style="margin:0 0 20px 0;color:#9ca3af;font-size:12px;">請選擇您接下來要進行自動撥號的模式</p>
+
+    <div style="display:flex;flex-direction:column;gap:12px;">
+        <button id="dialer-entry-release-uncontacted"
+            onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 10px 20px rgba(13,148,136,0.28)';"
+            onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 2px 6px rgba(15,23,42,0.08)';"
+            style="display:flex;align-items:center;gap:14px;padding:14px 16px;border:none;border-radius:12px;background:linear-gradient(135deg,#14b8a6,#0d7d72);color:white;cursor:pointer;text-align:left;box-shadow:0 2px 6px rgba(15,23,42,0.08);transition:all 0.2s ease;width:100%;">
+            <span style="flex-shrink:0;width:40px;height:40px;border-radius:10px;background:rgba(255,255,255,0.18);display:flex;align-items:center;justify-content:center;">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"></path>
+                    <polyline points="23 7 23 1 17 1"></polyline>
+                    <line x1="16" y1="8" x2="23" y2="1"></line>
                 </svg>
-                撥打釋出名單 (未聯繫)
-            </button>
-            
-            <button id="dialer-entry-manual" 
-                onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 12px rgba(52,152,219,0.3)';"
-                onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 2px 4px rgba(0,0,0,0.1)';"
-                style="display:flex;align-items:center;justify-content:center;gap:10px;padding:14px;border:1px solid #2980b9;border-radius:8px;background:linear-gradient(135deg, #3498db, #2980b9);color:white;font-weight:bold;cursor:pointer;font-size:14px;box-shadow:0 2px 4px rgba(0,0,0,0.1);transition:all 0.2s ease;">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect><line x1="9" y1="14" x2="15" y2="14"></line><line x1="9" y1="18" x2="15" y2="18"></line><line x1="9" y1="10" x2="9.01" y2="10"></line>
+            </span>
+            <span>
+                <span style="display:block;font-size:14px;font-weight:700;">撥打釋出名單</span>
+                <span style="display:block;font-size:12px;font-weight:400;color:rgba(255,255,255,0.8);margin-top:2px;">自動撥打尚未聯繫的客戶</span>
+            </span>
+        </button>
+
+        <button id="dialer-entry-manual"
+            onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 10px 20px rgba(79,70,229,0.28)';"
+            onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 2px 6px rgba(15,23,42,0.08)';"
+            style="display:flex;align-items:center;gap:14px;padding:14px 16px;border:none;border-radius:12px;background:linear-gradient(135deg,#6366f1,#4338ca);color:white;cursor:pointer;text-align:left;box-shadow:0 2px 6px rgba(15,23,42,0.08);transition:all 0.2s ease;width:100%;">
+            <span style="flex-shrink:0;width:40px;height:40px;border-radius:10px;background:rgba(255,255,255,0.18);display:flex;align-items:center;justify-content:center;">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="white" stroke="none">
+                    <circle cx="7" cy="7" r="1.7"></circle><circle cx="12" cy="7" r="1.7"></circle><circle cx="17" cy="7" r="1.7"></circle>
+                    <circle cx="7" cy="12" r="1.7"></circle><circle cx="12" cy="12" r="1.7"></circle><circle cx="17" cy="12" r="1.7"></circle>
+                    <circle cx="7" cy="17" r="1.7"></circle><circle cx="12" cy="17" r="1.7"></circle><circle cx="17" cy="17" r="1.7"></circle>
                 </svg>
-                指定電話號碼
-            </button>
-        </div>
+            </span>
+            <span>
+                <span style="display:block;font-size:14px;font-weight:700;">指定電話號碼</span>
+                <span style="display:block;font-size:12px;font-weight:400;color:rgba(255,255,255,0.8);margin-top:2px;">手動輸入單一號碼撥打</span>
+            </span>
+        </button>
+    </div>
+`;
         
         <div style="text-align:right;margin-top:18px;">
             <button id="dialer-entry-cancel" 
