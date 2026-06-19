@@ -341,7 +341,6 @@ header.innerHTML = `
         <h3 style="margin:0;font-size:15px;color:white;">名單管理面板</h3>
 ${isManager ? `
     <button id="tab-crm" style="padding:4px 14px;cursor:pointer;border-radius:4px;border:2px solid #3498db;background:#3498db;color:white;font-weight:bold;">名單管理</button>
-    <button id="tab-normal" style="padding:4px 14px;cursor:pointer;border-radius:4px;border:2px solid rgba(255,255,255,0.4);background:transparent;color:white;font-weight:bold;">常態總表</button>
     <button id="tab-pool" style="padding:4px 14px;cursor:pointer;border-radius:4px;border:2px solid rgba(255,255,255,0.4);background:transparent;color:white;font-weight:bold;">釋出池</button>
 ` : ''}
         ${isManager ? `
@@ -747,14 +746,7 @@ function renderList(){
     
     let filteredData=allData.filter(item=>{
         const cMatch=isManager?(selectedConsultant=='-1'||(item.user_name||'').trim()===selectedConsultant):true;
-        
-        let tMatch = false;
-        if (currentTab === 'normal') {
-            tMatch = String(item.type) === '2';
-        } else {
-            tMatch = selectedTType=='-1'||String(item.type)===selectedTType;
-        }
-
+        const tMatch = selectedTType=='-1'||String(item.type)===selectedTType;
         const sMatch = selectedSource === '-1' || (item.source && item.source.trim().substring(0, 2).toUpperCase() === selectedSource);
         
         // ★ 加入全域搜尋過濾
@@ -1224,12 +1216,11 @@ if(isManager){
     function switchTab(tab) {
         currentTab = tab;
         const tabCrm = document.getElementById('tab-crm');
-        const tabNormal = document.getElementById('tab-normal');
         const tabPool = document.getElementById('tab-pool');
         const poolSyncBlock = document.getElementById('pool-sync-block');
         const typeFilter = document.getElementById('t-type-filter'); 
 
-        [tabCrm, tabNormal, tabPool].forEach(t => {
+        [tabCrm, tabPool].forEach(t => {
             if(t) {
                 t.style.background = 'transparent';
                 t.style.border = '2px solid rgba(255,255,255,0.4)';
@@ -1251,17 +1242,6 @@ if(isManager){
             if(poolSyncBlock) poolSyncBlock.style.display = 'none';
             renderList();
 
-        } else if(tab === 'normal') {
-            tabNormal.style.background = '#9b59b6';
-            tabNormal.style.border = '2px solid #9b59b6';
-            ['consultant-filter','source-filter','sync-all-new-btn','sync-demo-btn','refresh-btn'].forEach(id => {
-                const el = document.getElementById(id);
-                if(el) el.style.display = '';
-            });
-            if(typeFilter) typeFilter.style.display = 'none'; 
-            if(poolSyncBlock) poolSyncBlock.style.display = 'none';
-            renderList();
-
         } else {
             tabPool.style.background = '#2ecc71';
             tabPool.style.border = '2px solid #2ecc71';
@@ -1276,9 +1256,6 @@ if(isManager){
     }
 
     document.getElementById('tab-crm').onclick = () => switchTab('crm');
-    if (document.getElementById('tab-normal')) {
-        document.getElementById('tab-normal').onclick = () => switchTab('normal');
-    }
     document.getElementById('tab-pool').onclick = () => switchTab('pool');
 
     function renderPoolEmptyState() {
