@@ -124,6 +124,11 @@ let poolFilterStart  = '';
 let poolFilterEnd    = '';
 let renderPoolList = () => {}; 
 
+// ★ 分頁與搜尋狀態管理
+let currentPage = 1;
+let poolCurrentPage = 1;
+let currentSearchTerm = '';
+
 /* ══════════════════════════════════════════════════════
    ★ Global Promise Queue（全域單線程排隊鎖）
 ══════════════════════════════════════════════════════ */
@@ -326,7 +331,7 @@ document.body.appendChild(curtain);
 
 const panel=document.createElement('div');
 panel.id='custom-crm-panel';
-panel.style.cssText='position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);width:1060px;height:88vh;background:#fff;box-shadow:0 15px 50px rgba(0,0,0,0.2);border-radius:12px;z-index:999999;display:flex;flex-direction:column;overflow:hidden;font-family:sans-serif;';
+panel.style.cssText='position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);width:1100px;height:88vh;background:#fff;box-shadow:0 15px 50px rgba(0,0,0,0.2);border-radius:12px;z-index:999999;display:flex;flex-direction:column;overflow:hidden;font-family:sans-serif;';
 
 const header=document.createElement('div');
 header.style.cssText='padding:12px 15px;background:#2c3e50;color:white;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;flex-shrink:0;position:relative;';
@@ -336,6 +341,7 @@ header.innerHTML = `
         <h3 style="margin:0;font-size:15px;color:white;">名單管理面板</h3>
 ${isManager ? `
     <button id="tab-crm" style="padding:4px 14px;cursor:pointer;border-radius:4px;border:2px solid #3498db;background:#3498db;color:white;font-weight:bold;">名單管理</button>
+    <button id="tab-normal" style="padding:4px 14px;cursor:pointer;border-radius:4px;border:2px solid rgba(255,255,255,0.4);background:transparent;color:white;font-weight:bold;">常態總表</button>
     <button id="tab-pool" style="padding:4px 14px;cursor:pointer;border-radius:4px;border:2px solid rgba(255,255,255,0.4);background:transparent;color:white;font-weight:bold;">釋出池</button>
 ` : ''}
         ${isManager ? `
@@ -351,6 +357,9 @@ ${isManager ? `
                 <button id="sync-pool-btn" style="padding:2px 10px;cursor:pointer;border-radius:4px;border:none;background:#2ecc71;color:white;font-weight:bold;font-size:11px;height:22px;line-height:18px;">更新釋出池</button>
             </div>
         ` : '<span style="font-size:12px;color:#bdc3c7;">我的名單</span>'}
+        
+        <input type="text" id="global-search-input" placeholder="🔍 搜尋姓名/電話" style="padding:4px 8px;border-radius:4px;border:none;width:120px;font-size:12px;outline:none;margin-left:4px;">
+        
         <select id="t-type-filter" style="padding:4px;border-radius:4px;border:none;">
             <option value="-1">所有種類</option><option value="1">新單</option><option value="2">常態名單</option><option value="3">Demo過名單</option><option value="4">釋出名單</option>
         </select>
@@ -380,7 +389,7 @@ ${isManager ? `
 `;
 
 const content=document.createElement('div');
-content.style.cssText='flex:1;overflow-y:auto;padding:12px;background:#f8f9fa;';
+content.style.cssText='flex:1;overflow-y:auto;padding:12px;background:#f8f9fa;display:flex;flex-direction:column;';
 
 /* ══ 共用業務選項清單 ══ */
 const salesOptionsHtmlStr = `
@@ -719,7 +728,18 @@ function getDropDaysLeft(item, detail){
     return Math.ceil((dropDate - today) / 86400000);
 }
 
+// ★ 全局監聽搜尋輸入
+document.getElementById('global-search-input').addEventListener('input', (e) => {
+    currentSearchTerm = e.target.value.trim().toLowerCase();
+    currentPage = 1;
+    poolCurrentPage = 1;
+    if (currentTab === 'pool') renderPoolList();
+    else renderList();
+});
+
 function renderList(){
+    if (currentTab === 'pool') return; 
+    
     const selectedConsultant=isManager?document.getElementById('consultant-filter').value:'-1';
     const selectedTType=document.getElementById('t-type-filter').value;
     const selectedSource = (isManager && document.getElementById('source-filter')) ? document.getElementById('source-filter').value : '-1';
@@ -727,21 +747,46 @@ function renderList(){
     
     let filteredData=allData.filter(item=>{
         const cMatch=isManager?(selectedConsultant=='-1'||(item.user_name||'').trim()===selectedConsultant):true;
-        const tMatch=selectedTType=='-1'||String(item.type)===selectedTType;
+        
+        let tMatch = false;
+        if (currentTab === 'normal') {
+            tMatch = String(item.type) === '2';
+        } else {
+            tMatch = selectedTType=='-1'||String(item.type)===selectedTType;
+        }
+
         const sMatch = selectedSource === '-1' || (item.source && item.source.trim().substring(0, 2).toUpperCase() === selectedSource);
-        return cMatch && tMatch && sMatch;
+        
+        // ★ 加入全域搜尋過濾
+        let searchMatch = true;
+        if (currentSearchTerm) {
+            const nameStr = (item.member_name || '').toLowerCase();
+            const phoneStr = (item.mobile || '').toLowerCase();
+            searchMatch = nameStr.includes(currentSearchTerm) || phoneStr.includes(currentSearchTerm);
+        }
+
+        return cMatch && tMatch && sMatch && searchMatch;
     });
+    
     filteredData.sort((a,b)=>(getDropDaysLeft(a,detailData[a.member_id])??999)-(getDropDaysLeft(b,detailData[b.member_id])??999));
     if(!filteredData.length){content.innerHTML='<div style="text-align:center;padding:20px;color:#666;">找不到符合條件的名單。</div>';return;}
     
+    // ★ 分頁邏輯計算
+    const ITEMS_PER_PAGE = 150;
+    const totalItems = filteredData.length;
+    const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE) || 1;
+    if (currentPage > totalPages) currentPage = totalPages;
+    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+    const pagedData = filteredData.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+
     const typeStyles={'1':{label:'新單',bg:'#1a6fc4'},'2':{label:'常態',bg:'#27ae60'},'3':{label:'Demo',bg:'#8e44ad'},'4':{label:'釋出',bg:'#e67e22'}};
     const sourceHeader=isManager?'<th style="padding:6px;width:7%;">來源</th>':'';
     const batchHeader = isManager ? '<th style="padding:6px;width:30px;text-align:center;"><input type="checkbox" id="select-all-cb" style="cursor:pointer;"></th>' : '';
 
-    let html='<table style="width:100%;border-collapse:collapse;font-size:12px;">';
+    let html='<div style="flex:1;overflow-y:auto;"><table style="width:100%;border-collapse:collapse;font-size:12px;">';
     html+='<tr style="background:#e9ecef;text-align:left;position:sticky;top:0;z-index:10;">' + batchHeader + '<th style="padding:6px;">姓名/狀態</th><th style="padding:6px;">電話</th><th style="padding:6px;width:10%;">等級</th><th style="padding:6px;width:22%;">備註</th><th style="padding:6px;width:16%;">下次聯繫 & 預警</th>'+sourceHeader+'<th style="padding:6px;">業務</th><th style="padding:6px;width:9%;">操作</th></tr>';
 
-    filteredData.slice(0,150).forEach(item=>{
+    pagedData.forEach(item=>{
         const id=item.member_id||item.id||'';
         const d=detailData[id];
         const sd=sheetData[String(id)]||{};
@@ -818,9 +863,29 @@ function renderList(){
         html+='<tr style="border-bottom:1px solid #dee2e6;border-left:4px solid '+rowBorderColor+';">' + batchCell + '<td style="padding:6px;vertical-align:top;"><b>'+(item.member_name||'未知')+'</b><br><span style="background:'+ts.bg+';color:white;padding:1px 5px;border-radius:3px;font-size:10px;">'+ts.label+'</span>'+reInquireHtml+progressHtml+'</td><td style="padding:6px;vertical-align:top;">'+(item.mobile||'-')+'</td><td style="padding:6px;vertical-align:top;">'+gradeHtml+'</td><td style="padding:6px;vertical-align:top;">'+memoHtml+'</td><td style="padding:6px;vertical-align:top;"><span style="color:#d35400;">'+(item.type==2 && d ? (d.lastLogNextTime || d.normalDate || '無紀錄') : (item.next_time&&!item.next_time.includes('0000')?item.next_time.split(' ')[0]:'無紀錄'))+'</span>'+warningHtml+'</td>'+sourceCell+'<td style="padding:6px;color:#7f8c8d;vertical-align:top;font-size:11px;">'+displayUserName+'</td><td style="padding:6px;vertical-align:top;"><button class="quick-record-btn" data-id="'+id+'" style="padding:4px 8px;background:'+btnBg+';color:white;border:none;border-radius:4px;cursor:pointer;font-size:11px;font-weight:bold;width:100%;">壓紀錄</button><button class="quick-release-btn" data-id="'+id+'" style="margin-top:4px;padding:4px 8px;background:#c0392b;color:white;border:none;border-radius:4px;cursor:pointer;font-size:11px;font-weight:bold;width:100%;">釋出</button></td></tr>';
     });
 
-    html+='</table>';
-    if(filteredData.length>150)html+='<div style="text-align:center;padding:10px;color:#888;">(共 '+filteredData.length+' 筆，顯示前 150 筆)</div>';
+    html+='</table></div>';
+    
+    // ★ 底部新增分頁列
+    html += `
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 20px;background:#fff;border-top:1px solid #dee2e6;flex-shrink:0;">
+            <div style="font-size:12px;color:#666;">
+                顯示第 ${totalItems === 0 ? 0 : startIndex + 1} 到 ${Math.min(startIndex + ITEMS_PER_PAGE, totalItems)} 筆，共 <b style="color:#2c3e50;">${totalItems}</b> 筆 
+                <span style="margin-left:8px;color:#888;">(第 ${currentPage} / ${totalPages} 頁)</span>
+            </div>
+            <div style="display:flex;gap:8px;">
+                <button id="page-prev-btn" ${currentPage === 1 ? 'disabled' : ''} style="padding:5px 14px;border:1px solid #ddd;border-radius:4px;background:${currentPage === 1 ? '#f1f1f1' : '#fff'};color:${currentPage === 1 ? '#aaa' : '#333'};cursor:${currentPage === 1 ? 'not-allowed' : 'pointer'};font-weight:bold;">上一頁</button>
+                <button id="page-next-btn" ${currentPage === totalPages ? 'disabled' : ''} style="padding:5px 14px;border:1px solid #ddd;border-radius:4px;background:${currentPage === totalPages ? '#f1f1f1' : '#fff'};color:${currentPage === totalPages ? '#aaa' : '#333'};cursor:${currentPage === totalPages ? 'not-allowed' : 'pointer'};font-weight:bold;">下一頁</button>
+            </div>
+        </div>
+    `;
+    
     content.innerHTML=html;
+    
+    // ★ 綁定分頁按鈕事件
+    const prevBtn = document.getElementById('page-prev-btn');
+    const nextBtn = document.getElementById('page-next-btn');
+    if(prevBtn && !prevBtn.disabled) prevBtn.onclick = () => { currentPage--; renderList(); };
+    if(nextBtn && !nextBtn.disabled) nextBtn.onclick = () => { currentPage++; renderList(); };
 
     if (isManager) {
         const batchBtn = document.getElementById('batch-release-btn');
@@ -1107,7 +1172,6 @@ document.getElementById('pool-assign-submit').onclick = async () => {
         formData.append('sales', targetSalesId);
         memberIds.forEach(id => formData.append('checked[]', id));
 
-        // ★ 一鍵送出所有名單給單支 API，零延遲
         const reassignRes = await fetch(reassignUrl, {
             method: 'POST',
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -1118,7 +1182,6 @@ document.getElementById('pool-assign-submit').onclick = async () => {
         
         alert(`✅ 成功派發 ${memberIds.length} 筆名單給指定的業務！`);
         
-        // 成功後隱藏 Modal 並從畫面移除這些名單
         document.getElementById('pool-assign-modal').style.display = 'none';
         const dispatchedIds = new Set(memberIds);
         poolData = poolData.filter(item => !dispatchedIds.has(String(item.member_id)));
@@ -1141,41 +1204,75 @@ document.getElementById('close-btn').onclick=()=>{
     setTimeout(()=>{window.location.href='https://admin.etalkingonline.com/etalking2.0/#/kpi';},300);
 };
 document.getElementById('refresh-btn').onclick=fetchData;
-document.getElementById('t-type-filter').onchange=renderList;
+
+// ★ 所有切換條件時，重置為第一頁
+document.getElementById('t-type-filter').onchange = () => { currentPage = 1; renderList(); };
+document.getElementById('source-filter').onchange = () => { currentPage = 1; renderList(); };
+document.getElementById('consultant-filter').onchange=function(){
+    currentPage = 1;
+    renderList();
+    if(this.value!=='-1')loadDetailsForConsultant(this.value);
+};
 
 if(isManager){
     function switchTab(tab) {
         currentTab = tab;
         const tabCrm = document.getElementById('tab-crm');
+        const tabNormal = document.getElementById('tab-normal');
         const tabPool = document.getElementById('tab-pool');
         const poolSyncBlock = document.getElementById('pool-sync-block');
+        const typeFilter = document.getElementById('t-type-filter'); 
+
+        [tabCrm, tabNormal, tabPool].forEach(t => {
+            if(t) {
+                t.style.background = 'transparent';
+                t.style.border = '2px solid rgba(255,255,255,0.4)';
+            }
+        });
+
+        // 切換頁籤時重置分頁狀態
+        currentPage = 1;
+        poolCurrentPage = 1;
 
         if(tab === 'crm') {
             tabCrm.style.background = '#3498db';
             tabCrm.style.border = '2px solid #3498db';
-            tabPool.style.background = 'transparent';
-            tabPool.style.border = '2px solid rgba(255,255,255,0.4)';
-            ['consultant-filter','source-filter','sync-all-new-btn','sync-demo-btn','t-type-filter','refresh-btn'].forEach(id => {
+            ['consultant-filter','source-filter','sync-all-new-btn','sync-demo-btn','refresh-btn'].forEach(id => {
                 const el = document.getElementById(id);
                 if(el) el.style.display = '';
             });
+            if(typeFilter) typeFilter.style.display = ''; 
             if(poolSyncBlock) poolSyncBlock.style.display = 'none';
             renderList();
+
+        } else if(tab === 'normal') {
+            tabNormal.style.background = '#9b59b6';
+            tabNormal.style.border = '2px solid #9b59b6';
+            ['consultant-filter','source-filter','sync-all-new-btn','sync-demo-btn','refresh-btn'].forEach(id => {
+                const el = document.getElementById(id);
+                if(el) el.style.display = '';
+            });
+            if(typeFilter) typeFilter.style.display = 'none'; 
+            if(poolSyncBlock) poolSyncBlock.style.display = 'none';
+            renderList();
+
         } else {
-            tabCrm.style.background = 'transparent';
-            tabCrm.style.border = '2px solid rgba(255,255,255,0.4)';
             tabPool.style.background = '#2ecc71';
             tabPool.style.border = '2px solid #2ecc71';
-            ['consultant-filter','source-filter','sync-all-new-btn','sync-demo-btn','t-type-filter','refresh-btn'].forEach(id => {
+            ['consultant-filter','source-filter','sync-all-new-btn','sync-demo-btn','refresh-btn'].forEach(id => {
                 const el = document.getElementById(id);
                 if(el) el.style.display = 'none';
             });
+            if(typeFilter) typeFilter.style.display = 'none';
             if(poolSyncBlock) poolSyncBlock.style.display = 'inline-flex';
             renderPoolEmptyState();
         }
     }
 
     document.getElementById('tab-crm').onclick = () => switchTab('crm');
+    if (document.getElementById('tab-normal')) {
+        document.getElementById('tab-normal').onclick = () => switchTab('normal');
+    }
     document.getElementById('tab-pool').onclick = () => switchTab('pool');
 
     function renderPoolEmptyState() {
@@ -1210,6 +1307,7 @@ if(isManager){
             poolFilterStart  = document.getElementById('pool-filter-start').value;
             poolFilterEnd    = document.getElementById('pool-filter-end').value;
             poolData = [];
+            poolCurrentPage = 1;
             loadPoolData();
         };
     }
@@ -1278,6 +1376,22 @@ if(isManager){
 
         const localContactedDict = getLocalContacted();
 
+        // ★ 釋出池專屬前端搜尋過濾
+        let poolFiltered = poolData.filter(item => {
+            if (!currentSearchTerm) return true;
+            const nameStr = (item.member_name || '').toLowerCase();
+            const phoneStr = (item.mobile || '').toLowerCase();
+            return nameStr.includes(currentSearchTerm) || phoneStr.includes(currentSearchTerm);
+        });
+
+        // ★ 釋出池分頁計算
+        const POOL_ITEMS_PER_PAGE = 300;
+        const totalItems = poolFiltered.length;
+        const totalPages = Math.ceil(totalItems / POOL_ITEMS_PER_PAGE) || 1;
+        if (poolCurrentPage > totalPages) poolCurrentPage = totalPages;
+        const startIndex = (poolCurrentPage - 1) * POOL_ITEMS_PER_PAGE;
+        const pagedData = poolFiltered.slice(startIndex, startIndex + POOL_ITEMS_PER_PAGE);
+
         const filterHtml = `
             <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:8px 0;border-bottom:1px solid #dee2e6;margin-bottom:8px;">
                 <select id="pool-source-filter" style="padding:5px 8px;border-radius:4px;border:1px solid #ddd;font-size:12px;">
@@ -1297,10 +1411,6 @@ if(isManager){
                     style="padding:5px 10px;background:#95a5a6;color:white;border:none;border-radius:4px;cursor:pointer;font-size:12px;">
                     清除篩選
                 </button>
-                <span style="font-size:12px;color:#666;margin-left:4px;">
-                    顯示 <b>${poolData.length}</b> 筆
-                    ${(poolFilterStart||poolFilterEnd||poolSourceFilter!=='-1') ? '<span style="color:#e67e22;">（已篩選）</span>' : ''}
-                </span>
                 <button id="pool-batch-btn"
                     style="display:none;padding:5px 14px;background:#27ae60;color:white;border:none;border-radius:4px;cursor:pointer;font-weight:bold;font-size:12px;margin-left:auto;">
                     批次派發 (0)
@@ -1315,7 +1425,7 @@ if(isManager){
                 </button>
             </div>`;
 
-        let tableHtml = '<table style="width:100%;border-collapse:collapse;font-size:12px;">';
+        let tableHtml = '<div style="flex:1;overflow-y:auto;"><table style="width:100%;border-collapse:collapse;font-size:12px;">';
         tableHtml += `
             <tr style="background:#e9ecef;text-align:left;position:sticky;top:0;z-index:10;">
                 <th style="padding:6px;width:30px;text-align:center;">
@@ -1328,10 +1438,10 @@ if(isManager){
                 <th style="padding:6px;width:14%;">同步時間</th>
             </tr>`;
 
-        if (poolData.length === 0) {
+        if (poolFiltered.length === 0) {
             tableHtml += '<tr><td colspan="6" style="text-align:center;padding:30px;color:#999;">目前沒有符合條件的資料</td></tr>';
         } else {
-            poolData.slice(0, 300).forEach(item => {
+            pagedData.forEach(item => {
                 const isLocalContacted = !!localContactedDict[item.member_id];
                 tableHtml += `
                     <tr style="border-bottom:1px solid #dee2e6;">
@@ -1349,12 +1459,28 @@ if(isManager){
                     </tr>`;
             });
         }
-        tableHtml += '</table>';
-        if (poolData.length > 300) {
-            tableHtml += `<div style="text-align:center;padding:10px;color:#888;">(共 ${poolData.length} 筆，顯示前 300 筆)</div>`;
-        }
+        tableHtml += '</table></div>';
+        
+        let paginationHtml = `
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 20px;background:#fff;border-top:1px solid #dee2e6;flex-shrink:0;">
+                <div style="font-size:12px;color:#666;">
+                    顯示第 ${totalItems === 0 ? 0 : startIndex + 1} 到 ${Math.min(startIndex + POOL_ITEMS_PER_PAGE, totalItems)} 筆，共 <b style="color:#2c3e50;">${totalItems}</b> 筆 
+                    <span style="margin-left:8px;color:#888;">(第 ${poolCurrentPage} / ${totalPages} 頁)</span>
+                </div>
+                <div style="display:flex;gap:8px;">
+                    <button id="pool-page-prev-btn" ${poolCurrentPage === 1 ? 'disabled' : ''} style="padding:5px 14px;border:1px solid #ddd;border-radius:4px;background:${poolCurrentPage === 1 ? '#f1f1f1' : '#fff'};color:${poolCurrentPage === 1 ? '#aaa' : '#333'};cursor:${poolCurrentPage === 1 ? 'not-allowed' : 'pointer'};font-weight:bold;">上一頁</button>
+                    <button id="pool-page-next-btn" ${poolCurrentPage === totalPages ? 'disabled' : ''} style="padding:5px 14px;border:1px solid #ddd;border-radius:4px;background:${poolCurrentPage === totalPages ? '#f1f1f1' : '#fff'};color:${poolCurrentPage === totalPages ? '#aaa' : '#333'};cursor:${poolCurrentPage === totalPages ? 'not-allowed' : 'pointer'};font-weight:bold;">下一頁</button>
+                </div>
+            </div>
+        `;
 
-        content.innerHTML = filterHtml + tableHtml;
+        content.innerHTML = filterHtml + tableHtml + paginationHtml;
+
+        // ★ 綁定釋出池分頁按鈕事件
+        const prevBtn = document.getElementById('pool-page-prev-btn');
+        const nextBtn = document.getElementById('pool-page-next-btn');
+        if(prevBtn && !prevBtn.disabled) prevBtn.onclick = () => { poolCurrentPage--; renderPoolList(); };
+        if(nextBtn && !nextBtn.disabled) nextBtn.onclick = () => { poolCurrentPage++; renderPoolList(); };
 
         document.querySelectorAll('.local-contact-btn').forEach(btn=>{
             btn.onclick=e=>{
@@ -1369,6 +1495,7 @@ if(isManager){
             poolFilterStart  = document.getElementById('pool-filter-start').value;
             poolFilterEnd    = document.getElementById('pool-filter-end').value;
             poolData = [];
+            poolCurrentPage = 1;
             loadPoolData();
         };
 
@@ -1377,20 +1504,21 @@ if(isManager){
             poolFilterStart  = '';
             poolFilterEnd    = '';
             poolData = [];
+            poolCurrentPage = 1;
             renderPoolEmptyState();
         };
 
         document.getElementById('pool-reload-btn').onclick = () => {
             poolData = [];
+            poolCurrentPage = 1;
             loadPoolData();
         };
 
         document.getElementById('pool-start-dial-btn').onclick = () => {
-            if(poolData.length === 0) { alert('⚠️ 請先載入釋出池名單'); return; }
-            dialerShowEntryChoice(poolData);
+            if(poolFiltered.length === 0) { alert('⚠️ 請先載入釋出池名單'); return; }
+            dialerShowEntryChoice(poolFiltered);
         };
 
-        // ★ 修改釋出池特有的批次派發按鈕邏輯
         const poolBatchBtn = document.getElementById('pool-batch-btn');
         const updatePoolBatchBtn = () => {
             const count = document.querySelectorAll('.pool-cb:checked').length;
@@ -1408,7 +1536,6 @@ if(isManager){
             const checkedIds = Array.from(document.querySelectorAll('.pool-cb:checked')).map(cb => cb.value);
             if(!checkedIds.length) return;
             
-            // 打開新的專屬純派發 Modal
             document.getElementById('pool-assign-ids').value = checkedIds.join(',');
             document.getElementById('pool-assign-select').value = '-1';
             document.getElementById('pool-assign-modal').style.display = 'block';
@@ -1484,8 +1611,9 @@ if(isManager){
         };
     }
 
-    document.getElementById('source-filter').onchange = renderList;
+    document.getElementById('source-filter').onchange = () => { currentPage = 1; renderList(); };
     document.getElementById('consultant-filter').onchange=function(){
+        currentPage = 1;
         renderList();
         if(this.value!=='-1')loadDetailsForConsultant(this.value);
     };
@@ -2390,7 +2518,6 @@ function dialerShowEntryChoice(baseDataArray) {
     modal.id = 'dialer-entry-modal';
     modal.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);width:380px;background:white;padding:24px;border-radius:10px;box-shadow:0 8px 32px rgba(0,0,0,0.3);z-index:1000002;font-family:sans-serif;';
     
-    // ★ 修改點 1：已經幫你把「撥打已聯繫」的按鈕清掉了，現在只剩兩個按鈕
     modal.innerHTML = `
         <h4 style="margin:0 0 6px 0;color:#2c3e50;font-size:16px;letter-spacing:0.5px;">選擇撥號名單來源</h4>
         <p style="margin:0 0 18px 0;color:#7f8c8d;font-size:12px;">請選擇您接下來要進行自動撥號的模式</p>
@@ -2460,8 +2587,6 @@ function dialerShowEntryChoice(baseDataArray) {
         if(list.length === 0) { alert('🎉 太棒了！目前畫面上沒有【未聯繫】的釋出名單。'); return; }
         dialerInit(list);
     };
-
-    // ★ 修改點 2：這裡原本綁定「撥打已聯繫」的 onclick 事件也一併安全移除了！
 
     document.getElementById('dialer-entry-manual').onclick = () => {
         modal.remove();
