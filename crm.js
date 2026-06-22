@@ -1682,6 +1682,23 @@ function dialerInit(queue) {
     dialerActive    = true;
     dialerPaused    = false;
 
+    // ★ 新增：注入 8 秒警告的呼吸燈動畫 CSS
+    if (!document.getElementById('dialer-pulse-style')) {
+        const style = document.createElement('style');
+        style.id = 'dialer-pulse-style';
+        style.innerHTML = `
+            @keyframes emergencyBreathing {
+                0% { box-shadow: 0 8px 32px rgba(0,0,0,0.45), 0 0 10px rgba(231, 76, 60, 0.1); border-color: #e67e22; }
+                50% { box-shadow: 0 8px 32px rgba(0,0,0,0.45), 0 0 35px rgba(255, 71, 87, 0.85); border-color: #ff4757; }
+                100% { box-shadow: 0 8px 32px rgba(0,0,0,0.45), 0 0 10px rgba(231, 76, 60, 0.1); border-color: #e67e22; }
+            }
+            .dialer-warning-pulse {
+                animation: emergencyBreathing 0.7s infinite alternate !important;
+            }
+        `;
+        document.head.appendChild(style);
+    }
+
     dialerPanel = document.createElement('div');
     dialerPanel.id = 'dialer-float-panel';
     dialerPanel.style.cssText = [
@@ -1697,7 +1714,8 @@ function dialerInit(queue) {
         'z-index:1000001',
         'overflow:hidden',
         'border:2px solid #f39c12',
-        'user-select:none'
+        'user-select:none',
+        'transition: border-color 0.3s'
     ].join(';');
 
     dialerPanel.innerHTML = `
@@ -1756,7 +1774,7 @@ function dialerInit(queue) {
                 <div id="dialer-countdown-bar" style="height:100%;background:#e74c3c;width:100%;transition:width 1s linear;border-radius:6px;"></div>
             </div>
             <div id="dialer-countdown-text" style="font-size:22px;font-weight:bold;color:#e74c3c;font-variant-numeric:tabular-nums;">35</div>
-            <div style="font-size:10px;color:#636e72;margin-top:2px;">秒後自動視為未接</div>
+            <div id="dialer-countdown-hint" style="font-size:10px;color:#636e72;margin-top:2px;height:14px;">秒後自動視為未接</div>
         </div>
 
         <div id="dialer-pre-call-actions" style="padding:8px 14px 14px;display:flex;gap:8px;">
@@ -2018,6 +2036,10 @@ function dialerStep() {
     if(statusEl)  statusEl.innerText = '📞 撥出中...';
 
     dialerPanel.style.border = '2px solid #f39c12';
+    dialerPanel.classList.remove('dialer-warning-pulse'); // ★ 確保開始下一通時沒有殘留閃爍
+    
+    const hintText = document.getElementById('dialer-countdown-hint');
+    if(hintText) hintText.innerHTML = '秒後自動視為未接'; // ★ 重置文字
 
     const SEC = 35;
     dialerCountdown = SEC;
@@ -2075,6 +2097,20 @@ function dialerUpdateCountdown(remaining, total) {
         miniCd.innerText = '00:' + String(Math.max(0, remaining)).padStart(2, '0');
         miniCd.style.color = remaining <= 5 ? '#c0392b' : remaining <= 10 ? '#e67e22' : '#e74c3c';
     }
+
+    // ★ 新增：8秒呼吸燈與強烈文字警告
+    const panel = document.getElementById('dialer-float-panel');
+    const hintText = document.getElementById('dialer-countdown-hint');
+
+    if (panel) {
+        if (remaining <= 8 && remaining > 0 && !dialerPaused) {
+            panel.classList.add('dialer-warning-pulse');
+            if (hintText) hintText.innerHTML = '<span style="color:#ff4757;font-weight:bold;font-size:12px;text-shadow:0 0 5px rgba(255,71,87,0.3);">⚠️ 請清空線路，準備掛斷！</span>';
+        } else {
+            panel.classList.remove('dialer-warning-pulse');
+            if (hintText && !dialerPaused) hintText.innerHTML = '秒後自動視為未接';
+        }
+    }
 }
 
 async function dialerCallApi(item) {
@@ -2100,6 +2136,8 @@ function dialerOnAnswer() {
     if(dialerTickInterval) clearInterval(dialerTickInterval);
 
     dialerPanel.style.border = '2px solid #2ecc71';
+    dialerPanel.classList.remove('dialer-warning-pulse'); // ★ 確保接通時關閉呼吸燈
+
     const statusEl = document.getElementById('dialer-status-label');
     if(statusEl) statusEl.innerText = '🟢 通話中';
     const cdText = document.getElementById('dialer-countdown-text');
@@ -2127,6 +2165,8 @@ function dialerOnAnswer() {
 function dialerOnMiss(isManual) {
     if(!dialerActive) return;
     if(dialerPaused) return; 
+
+    if(dialerPanel) dialerPanel.classList.remove('dialer-warning-pulse'); // ★ 關閉呼吸燈
 
     if(dialerTimer)        clearTimeout(dialerTimer);
     if(dialerTickInterval) clearInterval(dialerTickInterval);
