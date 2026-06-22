@@ -2057,7 +2057,7 @@ function dialerStep() {
             if (bSkip && !bSkip.disabled) {
                 bSkip.disabled = true;
                 bSkip.style.background = '#2f3640';
-                bSkip.style.border = '1px solid #4f5d73';
+                bSkip.style.border = 'none';
                 bSkip.style.color = '#718093';
                 bSkip.style.cursor = 'not-allowed';
                 bSkip.innerText = '跳過';
@@ -2065,7 +2065,7 @@ function dialerStep() {
             if (mSkip && !mSkip.disabled) {
                 mSkip.disabled = true;
                 mSkip.style.background = '#2f3640';
-                mSkip.style.border = '1px solid #4f5d73';
+                mSkip.style.border = 'none';
                 mSkip.style.color = '#718093';
                 mSkip.style.cursor = 'not-allowed';
             }
@@ -2370,7 +2370,7 @@ function dialerToggleMinimize() {
         if (mSkip) {
             mSkip.disabled = true;
             mSkip.style.background = '#2f3640';
-            mSkip.style.border = '1px solid #4f5d73';
+            mSkip.style.border = 'none';
             mSkip.style.color = '#718093';
             mSkip.style.cursor = 'not-allowed';
         }
