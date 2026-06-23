@@ -27,6 +27,7 @@ if(host==='admin.etalkingonline.com'){
 
 const urlParams=new URLSearchParams(window.location.search);
 const crmUid=urlParams.get('crm_uid')||'';
+const originalUid=urlParams.get('original_uid')||''; // ★ 新增：用於記錄真實身分
 if(!crmUid){alert('❌ 無法識別身份！\n\n請從 etalking 後台點擊書籤來啟動工具。');return;}
 
 /* ══ 設定 ══ */
@@ -62,6 +63,7 @@ const USER_DICT = {
 };
 
 const isManager=crmUid===MANAGER_UID;
+const isSpoofing=!!originalUid; // ★ 新增：判斷是否處於模擬模式
 const fetchUrl='https://server.etalkingonline.com/name_list/new_list/'+(isManager?'-1':crmUid);
 
 /* ══ LocalStorage 聯繫紀錄管理 ══ */
@@ -333,6 +335,14 @@ const panel=document.createElement('div');
 panel.id='custom-crm-panel';
 panel.style.cssText='position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);width:1100px;height:88vh;background:#fff;box-shadow:0 15px 50px rgba(0,0,0,0.2);border-radius:12px;z-index:999999;display:flex;flex-direction:column;overflow:hidden;font-family:sans-serif;';
 
+// ★ 新增：模擬模式的紅色警告橫幅
+if(isSpoofing) {
+    const banner = document.createElement('div');
+    banner.style.cssText = 'background:#c0392b;color:white;text-align:center;padding:6px;font-size:13px;font-weight:bold;letter-spacing:1px;flex-shrink:0;z-index:100;';
+    banner.innerText = `🕵️‍♂️ 【模擬模式】您目前正完全以「${USER_DICT[crmUid] || crmUid}」的身份進行操作！所有動作皆會以此身份執行。`;
+    panel.appendChild(banner);
+}
+
 const header=document.createElement('div');
 header.style.cssText='padding:12px 15px;background:#2c3e50;color:white;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;flex-shrink:0;position:relative;';
 
@@ -366,6 +376,14 @@ ${isManager ? `
         <span id="loading-status" style="font-size:11px;color:#f1c40f;font-weight:bold;"></span>
     </div>
     <div style="position:absolute;top:50%;right:15px;transform:translateY(-50%);display:flex;align-items:center;gap:8px;">
+        ${(isManager || isSpoofing) ? `
+        <button id="spoof-identity-btn" title="切換操作身分 (任意門)" 
+            onmouseover="this.style.transform='scale(1.2)'" 
+            onmouseout="this.style.transform='scale(1)'"
+            style="background:transparent;border:none;font-size:20px;cursor:pointer;padding:0;transition:transform 0.2s;">
+            🎭
+        </button>
+        ` : ''}
         <div style="position:relative;width:40px;height:40px;display:flex;align-items:center;justify-content:center;">
             <svg viewBox="0 0 100 100" style="position:absolute;width:100%;height:100%;pointer-events:none;">
                 <circle cx="50" cy="50" r="44" fill="none" stroke="#dfe6e9" stroke-width="5" stroke-linecap="round" stroke-dasharray="245 31" transform="rotate(-90 50 50)"/>
@@ -526,6 +544,30 @@ panel.appendChild(recordModal);
 panel.appendChild(releaseModal);
 panel.appendChild(poolAssignModal);
 document.body.appendChild(panel);
+
+/* ══ ★ 身分任意門切換邏輯 ══ */
+if(isManager || isSpoofing) {
+    const spoofBtn = document.getElementById('spoof-identity-btn');
+    if(spoofBtn) {
+        spoofBtn.onclick = () => {
+            const targetUid = prompt('🕵️‍♂️【主管任意門】\n請輸入您想模擬登入的「員工代號」(例如：445)\n\n※ 想要恢復原本的主管身分，請輸入 424。', '');
+            if(targetUid !== null && targetUid.trim() !== '') {
+                const cleanUid = targetUid.trim();
+                const confirmName = USER_DICT[cleanUid] || ('未知代號: ' + cleanUid);
+                if(confirm('確定要化身為【' + confirmName + '】嗎？\n\n切換後網頁將會「重新載入」，請在網頁跑完後，再次點擊書籤來開啟工具！')) {
+                    const newUrl = new URL(window.location.href);
+                    newUrl.searchParams.set('crm_uid', cleanUid);
+                    if (cleanUid === MANAGER_UID) {
+                        newUrl.searchParams.delete('original_uid'); // 恢復正常
+                    } else {
+                        newUrl.searchParams.set('original_uid', isSpoofing ? originalUid : crmUid);
+                    }
+                    window.location.href = newUrl.toString();
+                }
+            }
+        };
+    }
+}
 
 /* ══ 聯絡類型切換 ══ */
 document.getElementById('modal-status').onchange=function(){
@@ -1688,12 +1730,24 @@ function dialerInit(queue) {
         style.id = 'dialer-pulse-style';
         style.innerHTML = `
             @keyframes emergencyBreathing {
-                0% { box-shadow: 0 8px 32px rgba(0,0,0,0.45), 0 0 10px rgba(231, 76, 60, 0.1); border-color: #e67e22; }
-                50% { box-shadow: 0 8px 32px rgba(0,0,0,0.45), 0 0 35px rgba(255, 71, 87, 0.85); border-color: #ff4757; }
-                100% { box-shadow: 0 8px 32px rgba(0,0,0,0.45), 0 0 10px rgba(231, 76, 60, 0.1); border-color: #e67e22; }
+                0% { 
+                    box-shadow: 0 8px 32px rgba(0,0,0,0.45), 0 0 15px rgba(231, 76, 60, 0.3); 
+                    border-color: #e74c3c; 
+                    background-color: #1e272e;
+                }
+                50% { 
+                    box-shadow: 0 8px 32px rgba(0,0,0,0.45), 0 0 60px rgba(255, 71, 87, 1), inset 0 0 25px rgba(255, 71, 87, 0.4); 
+                    border-color: #ff4757; 
+                    background-color: #2c1e1e; 
+                }
+                100% { 
+                    box-shadow: 0 8px 32px rgba(0,0,0,0.45), 0 0 15px rgba(231, 76, 60, 0.3); 
+                    border-color: #e74c3c; 
+                    background-color: #1e272e;
+                }
             }
             .dialer-warning-pulse {
-                animation: emergencyBreathing 0.7s infinite alternate !important;
+                animation: emergencyBreathing 0.6s infinite alternate !important;
             }
         `;
         document.head.appendChild(style);
