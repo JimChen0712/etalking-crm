@@ -856,7 +856,7 @@ function renderList(){
     const pagedData = filteredData.slice(startIndex, startIndex + ITEMS_PER_PAGE);
 
     const typeStyles={'1':{label:'新單',bg:'#1a6fc4'},'2':{label:'常態',bg:'#27ae60'},'3':{label:'Demo',bg:'#8e44ad'},'4':{label:'釋出',bg:'#e67e22'}};
-    const sourceHeader=isManager?'<th style="padding:6px;width:7%;">來源</th>':'';
+    const sourceHeader=(isManager || isSpoofing)?'<th style="padding:6px;width:7%;">來源</th>':'';
     const batchHeader = isManager ? '<th style="padding:6px;width:30px;text-align:center;"><input type="checkbox" id="select-all-cb" style="cursor:pointer;"></th>' : '';
 
     let html='<div style="flex:1;overflow-y:auto;"><table style="width:100%;border-collapse:collapse;font-size:12px;">';
@@ -896,7 +896,7 @@ function renderList(){
         const isReInquire = (sd.status === '再次留單');
         const reInquireHtml = isReInquire ? '<span style="background:#c0392b;color:white;padding:1px 5px;border-radius:3px;font-size:10px;margin-left:5px;">再次留單</span>' : '';
         const btnBg=dropDays!==null&&dropDays<=0?'#e74c3c':ts.bg;
-        const sourceCell=isManager?'<td style="padding:6px;color:#8e44ad;font-size:11px;vertical-align:top;">S:'+(item.source||'-')+'</td>':'';
+        const sourceCell=(isManager || isSpoofing)?'<td style="padding:6px;color:#8e44ad;font-size:11px;vertical-align:top;">S:'+(item.source||'-')+'</td>':'';
         const displayUserName=(item.user_name&&item.user_name.trim())?item.user_name.trim():getWriterName();
 
         let gradeHtml = '';
