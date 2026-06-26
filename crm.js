@@ -345,7 +345,8 @@ if(isSpoofing) {
 
 const header=document.createElement('div');
 header.style.cssText='padding:12px 15px;background:#2c3e50;color:white;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;flex-shrink:0;position:relative;';
-
+header.id='crm-header';
+    
 header.innerHTML = `
     <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding-right:100px;">
         <h3 style="margin:0;font-size:15px;color:white;">名單管理面板</h3>
@@ -407,7 +408,8 @@ ${isManager ? `
 
 const content=document.createElement('div');
 content.style.cssText='flex:1;overflow-y:auto;padding:12px;background:#f8f9fa;display:flex;flex-direction:column;';
-
+content.id='crm-content';
+    
 /* ══ 共用業務選項清單 ══ */
 const salesOptionsHtmlStr = `
     <option value="130">Jeremy testjeremy [IT&CS]</option>
@@ -537,7 +539,47 @@ poolAssignModal.innerHTML = `
         <button id="pool-assign-submit" style="padding:6px 15px;background:#27ae60;color:white;border:none;cursor:pointer;border-radius:4px;font-weight:bold;">一鍵派發</button>
     </div>
 `;
-
+/* ══ 手機版響應式樣式（只蓋樣式，不動任何邏輯）══ */
+if(!document.getElementById('crm-mobile-style')){
+    const mobileStyle=document.createElement('style');
+    mobileStyle.id='crm-mobile-style';
+    mobileStyle.textContent=`
+@media (max-width: 768px){
+  #custom-crm-panel{
+    width:100vw !important;
+    height:100vh !important;
+    max-height:100dvh !important;
+    top:0 !important;
+    left:0 !important;
+    transform:none !important;
+    border-radius:0 !important;
+  }
+  #crm-header{
+    padding:8px 10px !important;
+  }
+  #crm-header h3{ font-size:13px !important; }
+  #crm-header select, #crm-header input[type="text"]{
+    max-width:100px !important;
+    font-size:12px !important;
+    padding:4px !important;
+  }
+  #crm-content{
+    padding:6px !important;
+    overflow-x:auto !important;
+    -webkit-overflow-scrolling:touch !important;
+  }
+  #crm-content table{
+    width:720px !important;
+    min-width:720px !important;
+  }
+  #record-modal, #release-modal, #pool-assign-modal{
+    width:92vw !important;
+    max-width:480px !important;
+    max-height:88vh !important;
+  }
+}`;
+    document.head.appendChild(mobileStyle);
+}
 panel.appendChild(header);
 panel.appendChild(content);
 panel.appendChild(recordModal);
