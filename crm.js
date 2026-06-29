@@ -1888,7 +1888,7 @@ function dialerInit(queue) {
                 padding:10px 8px;border:none;border-radius:8px;
                 background:#636e72;color:white;font-weight:bold;font-size:12px;
                 cursor:pointer;
-            ">跳過</button>
+            ">下一通</button>
             <button id="dialer-btn-pause" style="
                 padding:10px 8px;border:none;border-radius:8px;
                 background:#8e44ad;color:white;font-weight:bold;font-size:12px;
@@ -2037,7 +2037,7 @@ function dialerStep() {
         btnSkip.style.border = 'none';
         btnSkip.style.color = 'white';
         btnSkip.style.cursor = 'pointer';
-        btnSkip.innerText = '跳過';
+        btnSkip.innerText = '下一通';
     }
     const miniBtnSkip = document.getElementById('mini-btn-skip');
     if(miniBtnSkip) {
@@ -2074,7 +2074,7 @@ function dialerStep() {
             btnSkip.disabled = true;
             btnSkip.style.background = '#2f3640';
             btnSkip.style.color = '#718093';
-            btnSkip.innerText = '跳過';
+            btnSkip.innerText = '下一通';
         }
 
         if(pauseBtn) {
@@ -2132,10 +2132,10 @@ function dialerStep() {
     if(statusEl)  statusEl.innerText = '📞 撥出中...';
 
     dialerPanel.style.border = '2px solid #f39c12';
-    dialerPanel.classList.remove('dialer-warning-pulse'); // ★ 確保開始下一通時沒有殘留閃爍
+    dialerPanel.classList.remove('dialer-warning-pulse'); 
     
     const hintText = document.getElementById('dialer-countdown-hint');
-    if(hintText) hintText.innerHTML = '秒後自動視為未接'; // ★ 重置文字
+    if(hintText) hintText.innerHTML = '秒後自動視為未接'; 
 
     const SEC = 35;
     dialerCountdown = SEC;
@@ -2147,7 +2147,7 @@ function dialerStep() {
         dialerCountdown--;
         dialerUpdateCountdown(dialerCountdown, SEC);
 
-        if (dialerCountdown <= SEC - 3) {
+        if (dialerCountdown <= SEC - 20) {
             const bSkip = document.getElementById('dialer-btn-skip');
             const mSkip = document.getElementById('mini-btn-skip');
             if (bSkip && !bSkip.disabled) {
@@ -2156,7 +2156,7 @@ function dialerStep() {
                 bSkip.style.border = 'none';
                 bSkip.style.color = '#718093';
                 bSkip.style.cursor = 'not-allowed';
-                bSkip.innerText = '跳過';
+                bSkip.innerText = '下一通';
             }
             if (mSkip && !mSkip.disabled) {
                 mSkip.disabled = true;
@@ -2194,7 +2194,6 @@ function dialerUpdateCountdown(remaining, total) {
         miniCd.style.color = remaining <= 5 ? '#c0392b' : remaining <= 10 ? '#e67e22' : '#e74c3c';
     }
 
-    // ★ 新增：8秒呼吸燈與強烈文字警告
     const panel = document.getElementById('dialer-float-panel');
     const hintText = document.getElementById('dialer-countdown-hint');
 
@@ -2232,7 +2231,7 @@ function dialerOnAnswer() {
     if(dialerTickInterval) clearInterval(dialerTickInterval);
 
     dialerPanel.style.border = '2px solid #2ecc71';
-    dialerPanel.classList.remove('dialer-warning-pulse'); // ★ 確保接通時關閉呼吸燈
+    dialerPanel.classList.remove('dialer-warning-pulse'); 
 
     const statusEl = document.getElementById('dialer-status-label');
     if(statusEl) statusEl.innerText = '🟢 通話中';
@@ -2262,7 +2261,14 @@ function dialerOnMiss(isManual) {
     if(!dialerActive) return;
     if(dialerPaused) return; 
 
-    if(dialerPanel) dialerPanel.classList.remove('dialer-warning-pulse'); // ★ 關閉呼吸燈
+    // ★ 新增：手動操作時防呆確認
+    if (isManual) {
+        if (!confirm('⚠️ 準備結束此通電話並壓未接紀錄\n\n請確認：您的實體話機「是否已經掛斷」且線路已清空？')) {
+            return;
+        }
+    }
+
+    if(dialerPanel) dialerPanel.classList.remove('dialer-warning-pulse'); 
 
     if(dialerTimer)        clearTimeout(dialerTimer);
     if(dialerTickInterval) clearInterval(dialerTickInterval);
@@ -2286,6 +2292,12 @@ function dialerOnMiss(isManual) {
 
 function dialerOnSkip() {
     if(!dialerActive) return;
+
+    // ★ 新增：防呆確認
+    if (!confirm('⚠️ 準備跳過此筆名單\n\n請確認：您的實體話機「是否已經掛斷」且線路已清空？')) {
+        return;
+    }
+
     if(dialerTimer)        clearTimeout(dialerTimer);
     if(dialerTickInterval) clearInterval(dialerTickInterval);
     dialerIndex++;
@@ -2512,8 +2524,9 @@ async function dialerOpenHistory(item) {
         'position:fixed',
         'top: 50%',
         'transform: translateY(-50%)',
-        'left:' + Math.max(10, dialerRect.left - 660) + 'px',
-        'width:640px',
+        'left: 5%',
+        'width: 90vw',
+        'max-width: 640px',
         'height:80vh',
         'background:#1e272e',
         'color:#dcdde1',
@@ -2526,6 +2539,10 @@ async function dialerOpenHistory(item) {
         'display:flex',
         'flex-direction:column'
     ].join(';');
+
+    if (window.innerWidth > 768) {
+        hp.style.left = Math.max(10, dialerRect.left - 660) + 'px';
+    }
 
     hp.innerHTML = `
         <div style="
@@ -2635,7 +2652,8 @@ function dialerShowEntryChoice(baseDataArray) {
 
     const modal = document.createElement('div');
     modal.id = 'dialer-entry-modal';
-    modal.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);width:380px;background:white;padding:20px;border-radius:8px;box-shadow:0 4px 15px rgba(0,0,0,0.2);z-index:1000002;font-family:sans-serif;';
+    // ★ 修改點：視窗寬度響應式調整
+    modal.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);width:90vw;max-width:380px;background:white;padding:20px;border-radius:8px;box-shadow:0 4px 15px rgba(0,0,0,0.2);z-index:1000002;font-family:sans-serif;';
     
 modal.innerHTML = `
         <h4 style="margin:0 0 4px 0;color:#2c3e50;font-size:15px;">選擇撥號名單來源</h4>
@@ -2732,7 +2750,8 @@ function dialerShowManualInput(baseDataArray, sortByNextTime) {
 
     const modal = document.createElement('div');
     modal.id = 'dialer-manual-modal';
-    modal.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);width:420px;background:white;padding:24px;border-radius:10px;box-shadow:0 8px 32px rgba(0,0,0,0.3);z-index:1000002;font-family:sans-serif;';
+    // ★ 修改點：視窗寬度響應式調整
+    modal.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);width:90vw;max-width:420px;background:white;padding:24px;border-radius:10px;box-shadow:0 8px 32px rgba(0,0,0,0.3);z-index:1000002;font-family:sans-serif;';
     modal.innerHTML = `
         <h4 style="margin-top:0;color:#2c3e50;">指定電話號碼撥號</h4>
         <p style="font-size:12px;color:#888;margin-bottom:8px;">請貼上電話號碼，一行一個或用逗號分隔，工具會自動比對目前已載入的名單。</p>
