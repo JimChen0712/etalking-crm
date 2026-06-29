@@ -30,6 +30,17 @@ const crmUid=urlParams.get('crm_uid')||'';
 const originalUid=urlParams.get('original_uid')||''; // ★ 新增：用於記錄真實身分
 if(!crmUid){alert('❌ 無法識別身份！\n\n請從 etalking 後台點擊書籤來啟動工具。');return;}
 
+/* ══ ★ 新增：手機版 Viewport 優化 (確保手機正確縮放) ══ */
+let addedViewport = false;
+if (!document.querySelector('meta[name="viewport"]')) {
+    const meta = document.createElement('meta');
+    meta.id = 'custom-crm-viewport';
+    meta.name = 'viewport';
+    meta.content = 'width=device-width, initial-scale=1.0';
+    document.head.appendChild(meta);
+    addedViewport = true;
+}
+
 /* ══ 設定 ══ */
 const MANAGER_UID='424';
 const APPS_SCRIPT_URL='https://script.google.com/macros/s/AKfycbxSPDlyiL8Mvx77Jcj0nUuiqjmhWuC9GS4_ZLbpfwGwaMRjL2vfdVvlYFpVmww076elMw/exec';
@@ -63,7 +74,7 @@ const USER_DICT = {
 };
 
 const isManager=crmUid===MANAGER_UID;
-const isSpoofing=!!originalUid; // ★ 新增：判斷是否處於模擬模式
+const isSpoofing=!!originalUid; 
 const fetchUrl='https://server.etalkingonline.com/name_list/new_list/'+(isManager?'-1':crmUid);
 
 /* ══ LocalStorage 聯繫紀錄管理 ══ */
@@ -333,9 +344,8 @@ document.body.appendChild(curtain);
 
 const panel=document.createElement('div');
 panel.id='custom-crm-panel';
-panel.style.cssText='position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);width:1100px;height:88vh;background:#fff;box-shadow:0 15px 50px rgba(0,0,0,0.2);border-radius:12px;z-index:999999;display:flex;flex-direction:column;overflow:hidden;font-family:sans-serif;';
+panel.style.cssText='position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);width:96vw;max-width:1100px;height:88vh;background:#fff;box-shadow:0 15px 50px rgba(0,0,0,0.2);border-radius:12px;z-index:999999;display:flex;flex-direction:column;overflow:hidden;font-family:sans-serif;';
 
-// ★ 新增：模擬模式的紅色警告橫幅
 if(isSpoofing) {
     const banner = document.createElement('div');
     banner.style.cssText = 'background:#c0392b;color:white;text-align:center;padding:6px;font-size:13px;font-weight:bold;letter-spacing:1px;flex-shrink:0;z-index:100;';
@@ -348,15 +358,15 @@ header.style.cssText='padding:12px 15px;background:#2c3e50;color:white;display:f
 header.id='crm-header';
     
 header.innerHTML = `
-    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding-right:100px;">
-        <h3 style="margin:0;font-size:15px;color:white;">名單管理面板</h3>
+    <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding-right:85px;padding-bottom:5px;">
+        <h3 style="margin:0 8px 0 0;font-size:15px;color:white;">名單管理面板</h3>
 ${isManager ? `
     <button id="tab-crm" style="padding:4px 14px;cursor:pointer;border-radius:4px;border:2px solid #3498db;background:#3498db;color:white;font-weight:bold;">名單管理</button>
     <button id="tab-pool" style="padding:4px 14px;cursor:pointer;border-radius:4px;border:2px solid rgba(255,255,255,0.4);background:transparent;color:white;font-weight:bold;">釋出池</button>
 ` : ''}
         ${isManager ? `
-            <select id="consultant-filter" style="padding:4px;border-radius:4px;border:none;max-width:150px;"><option value="-1">所有業務</option></select>
-            <select id="source-filter" style="padding:4px;border-radius:4px;border:none;max-width:100px;"><option value="-1">所有來源</option></select>
+            <select id="consultant-filter" style="padding:4px;border-radius:4px;border:none;max-width:130px;"><option value="-1">所有業務</option></select>
+            <select id="source-filter" style="padding:4px;border-radius:4px;border:none;max-width:90px;"><option value="-1">所有來源</option></select>
             <button id="sync-all-new-btn" style="padding:4px 10px;cursor:pointer;border-radius:4px;border:none;background:#8e44ad;color:white;font-weight:bold;">同步名單細節</button>
             <button id="sync-demo-btn" style="padding:4px 10px;cursor:pointer;border-radius:4px;border:none;background:#e67e22;color:white;font-weight:bold;">同步Demo</button>
             <button id="batch-release-btn" style="padding:4px 10px;cursor:pointer;border-radius:4px;border:none;background:#c0392b;color:white;font-weight:bold;display:none;">批量處理 (0)</button>
@@ -450,13 +460,13 @@ const salesOptionsHtmlStr = `
 /* ══ 壓紀錄 Modal ══ */
 const recordModal=document.createElement('div');
 recordModal.id='record-modal';
-recordModal.style.cssText='display:none;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:480px;max-height:85vh;overflow-y:auto;background:white;padding:20px;border-radius:8px;box-shadow:0 4px 15px rgba(0,0,0,0.2);z-index:1000005;';
+recordModal.style.cssText='display:none;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:90vw;max-width:480px;max-height:85vh;overflow-y:auto;background:white;padding:20px;border-radius:8px;box-shadow:0 4px 15px rgba(0,0,0,0.2);z-index:1000005;';
 recordModal.innerHTML='<h4 style="margin-top:0;">新增聯絡紀錄</h4><input type="hidden" id="modal-member-id"><div id="modal-info-text" style="font-size:11px;color:#e67e22;margin-bottom:10px;font-weight:bold;"></div><div style="margin-bottom:10px;"><label>聯絡類型:</label><select id="modal-status" style="width:100%;padding:5px;margin-top:5px;"><option value="3">未接</option><option value="1">已接聽</option><option value="2">非本人</option><option value="4">關機</option></select></div><div style="margin-bottom:10px;"><label>聯絡內容:</label><textarea id="modal-content" style="width:100%;padding:5px;margin-top:5px;min-height:60px;font-family:sans-serif;font-size:13px;border:1px solid #ddd;border-radius:4px;resize:vertical;">未接 *1</textarea></div><div style="margin-bottom:10px;"><label>下次聯繫日期:</label><input type="date" id="modal-date" style="width:100%;padding:5px;margin-top:5px;"></div><div style="display:flex;justify-content:space-between;margin-top:15px;"><button id="modal-cancel" style="padding:5px 15px;cursor:pointer;">取消</button><button id="modal-submit" style="padding:5px 15px;background:#27ae60;color:white;border:none;cursor:pointer;border-radius:4px;">送出紀錄</button></div>';
 
 /* ══ 單筆/一般批次 釋出 Modal ══ */
 const releaseModal=document.createElement('div');
 releaseModal.id='release-modal';
-releaseModal.style.cssText='display:none;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:420px;background:white;padding:20px;border-radius:8px;box-shadow:0 4px 15px rgba(0,0,0,0.2);z-index:1000005;';
+releaseModal.style.cssText='display:none;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:90vw;max-width:420px;background:white;padding:20px;border-radius:8px;box-shadow:0 4px 15px rgba(0,0,0,0.2);z-index:1000005;';
 
 const reassignHtml = isManager ? `
     <div style="margin-top:15px; border-top:1px dashed #ccc; padding-top:15px;">
@@ -522,7 +532,7 @@ releaseModal.innerHTML=`
 /* ══ 釋出池專用：純派發 Modal ══ */
 const poolAssignModal = document.createElement('div');
 poolAssignModal.id = 'pool-assign-modal';
-poolAssignModal.style.cssText = 'display:none;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:400px;background:white;padding:20px;border-radius:8px;box-shadow:0 4px 15px rgba(0,0,0,0.2);z-index:1000005;';
+poolAssignModal.style.cssText = 'display:none;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:90vw;max-width:400px;background:white;padding:20px;border-radius:8px;box-shadow:0 4px 15px rgba(0,0,0,0.2);z-index:1000005;';
 poolAssignModal.innerHTML = `
     <h4 style="margin-top:0;color:#27ae60;">批次派發名單 (釋出池)</h4>
     <p style="font-size:12px;color:#666;margin-bottom:15px;">將選取的名單大量指派給特定業務。此操作沒有延遲，送出後即刻生效。</p>
@@ -859,7 +869,7 @@ function renderList(){
     const sourceHeader=(isManager || isSpoofing)?'<th style="padding:6px;width:7%;">來源</th>':'';
     const batchHeader = isManager ? '<th style="padding:6px;width:30px;text-align:center;"><input type="checkbox" id="select-all-cb" style="cursor:pointer;"></th>' : '';
 
-    let html='<div style="flex:1;overflow-y:auto;"><table style="width:100%;border-collapse:collapse;font-size:12px;">';
+    let html='<div class="table-wrapper" style="flex:1;overflow:auto;-webkit-overflow-scrolling:touch;"><table style="width:100%;min-width:850px;border-collapse:collapse;font-size:12px;">';
     html+='<tr style="background:#e9ecef;text-align:left;position:sticky;top:0;z-index:10;">' + batchHeader + '<th style="padding:6px;">姓名/狀態</th><th style="padding:6px;">電話</th><th style="padding:6px;width:10%;">等級</th><th style="padding:6px;width:22%;">備註</th><th style="padding:6px;width:16%;">下次聯繫 & 預警</th>'+sourceHeader+'<th style="padding:6px;">業務</th><th style="padding:6px;width:9%;">操作</th></tr>';
 
     pagedData.forEach(item=>{
@@ -1276,6 +1286,11 @@ document.getElementById('pool-assign-submit').onclick = async () => {
 
 document.getElementById('close-btn').onclick=()=>{
     dialerDestroy();
+    // ★ 修改點：關閉時若有注入手機版 viewport 則還原，避免影響原系統
+    if (addedViewport) {
+        const m = document.getElementById('custom-crm-viewport');
+        if(m) m.remove();
+    }
     panel.remove();curtain.remove();document.body.style.overflow='';
     setTimeout(()=>{window.location.href='https://admin.etalkingonline.com/etalking2.0/#/kpi';},300);
 };
@@ -1492,7 +1507,7 @@ if(isManager){
                 </button>
             </div>`;
 
-        let tableHtml = '<div style="flex:1;overflow-y:auto;"><table style="width:100%;border-collapse:collapse;font-size:12px;">';
+        let tableHtml = '<div class="table-wrapper" style="flex:1;overflow:auto;-webkit-overflow-scrolling:touch;"><table style="width:100%;min-width:750px;border-collapse:collapse;font-size:12px;">';
         tableHtml += `
             <tr style="background:#e9ecef;text-align:left;position:sticky;top:0;z-index:10;">
                 <th style="padding:6px;width:30px;text-align:center;">
@@ -1797,11 +1812,13 @@ function dialerInit(queue) {
 
     dialerPanel = document.createElement('div');
     dialerPanel.id = 'dialer-float-panel';
+    // ★ 修改點：將撥號面板寬度改為不超出螢幕 (max-width)
     dialerPanel.style.cssText = [
         'position:fixed',
         'bottom:20px',
         'right:20px',
-        'width:320px',
+        'width:90vw',
+        'max-width:320px',
         'background:#1e272e',
         'color:#dcdde1',
         'border-radius:14px',
@@ -1953,12 +1970,33 @@ function dialerInit(queue) {
         dialerPanel.style.right = 'auto';
         dialerPanel.style.bottom = 'auto';
     });
+    // ★ 修改點：增加觸控事件 (Touch)，讓手機也能拖曳撥號面板
+    dragHandle.addEventListener('touchstart', e => {
+        if(e.target.id === 'dialer-close-btn') return;
+        isDragging = true;
+        const touch = e.touches[0];
+        const rect = dialerPanel.getBoundingClientRect();
+        dragOffX = touch.clientX - rect.left;
+        dragOffY = touch.clientY - rect.top;
+        dialerPanel.style.right = 'auto';
+        dialerPanel.style.bottom = 'auto';
+    }, {passive: false});
+
     document.addEventListener('mousemove', e => {
         if(!isDragging) return;
         dialerPanel.style.left = (e.clientX - dragOffX) + 'px';
         dialerPanel.style.top  = (e.clientY - dragOffY) + 'px';
     });
+    document.addEventListener('touchmove', e => {
+        if(!isDragging) return;
+        const touch = e.touches[0];
+        dialerPanel.style.left = (touch.clientX - dragOffX) + 'px';
+        dialerPanel.style.top  = (touch.clientY - dragOffY) + 'px';
+        e.preventDefault(); // 防止拖曳時網頁跟著滑動
+    }, {passive: false});
+
     document.addEventListener('mouseup', () => isDragging = false);
+    document.addEventListener('touchend', () => isDragging = false);
 
     document.getElementById('dialer-close-btn').onclick = () => {
         if(dialerActive && !confirm('確定要關閉撥號系統嗎？目前進度將會遺失。')) return;
@@ -2520,6 +2558,7 @@ async function dialerOpenHistory(item) {
 
     const hp = document.createElement('div');
     hp.id = 'dialer-history-panel';
+    // ★ 修改點：歷史紀錄面板適應手機螢幕寬度
     hp.style.cssText = [
         'position:fixed',
         'top: 50%',
