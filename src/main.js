@@ -701,7 +701,7 @@ async function fetchMemberDetail(m) {
             const nextTimeVal = cells[2] ? cells[2].innerText.trim().split(' ')[0] : '';
             
             if (logType.includes('預約DEMO') || logType.includes('預約Demo')) {
-                hasScheduledDemo = true;
+                if (!reachedNormal) hasScheduledDemo = true;
             }
 
             if (logType.includes('名單移動')) {
@@ -714,7 +714,7 @@ async function fetchMemberDetail(m) {
             if (logType.includes('聯絡')) {
                 contactCount++;
                 const isUnanswered = unansweredPrefixes.some(prefix => logContent.startsWith(prefix));
-                if (!isUnanswered) {
+                if (!isUnanswered && !reachedNormal) {
                     hasBeenContacted = true;
                 }
                 
