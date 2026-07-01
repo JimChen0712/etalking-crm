@@ -907,9 +907,9 @@ function renderList(){
             
             if (item.type==2) {
                 if (d.hasScheduledDemo) {
-                    progressHtml += '<div style="font-size:11px;font-weight:bold;color:#8e44ad;margin-top:2px;">🎯 已約 Demo</div>';
+                    progressHtml += '<div style="font-size:11px;font-weight:bold;color:#8e44ad;margin-top:2px;">已約 Demo</div>';
                 } else if (d.hasBeenContacted) {
-                    progressHtml += '<div style="font-size:11px;font-weight:bold;color:#27ae60;margin-top:2px;">✅ 已聯絡</div>';
+                    progressHtml += '<div style="font-size:11px;font-weight:bold;color:#27ae60;margin-top:2px;">已聯絡</div>';
                 } else if (d.contactRate) {
                     const rateColor = d.contactPercent < 50 ? '#e74c3c' : '#27ae60';
                     progressHtml += '<div style="font-size:11px;font-weight:bold;color:'+rateColor+';margin-top:2px;">觸及率: '+d.contactRate+'</div>';
