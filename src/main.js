@@ -163,9 +163,14 @@ function debounceSaveMemo(memberId, grade, memo, item) {
     
     saveTimers[memberId] = setTimeout(async () => {
         setSaveStatus(memberId, 'saving');
-        try {
-            await globalSheetWriteLock;
 
+        let releaseLock;
+        const waitMyTurn = new Promise(r => releaseLock = r);
+        const previousLock = globalSheetWriteLock;
+        globalSheetWriteLock = waitMyTurn;
+        await previousLock;
+
+        try {
             const sd = sheetData[String(memberId)] || {status:'', grade:'', memo:''};
             
             if (item.type == 4 && sd.status !== '再次留單') {
@@ -192,6 +197,8 @@ function debounceSaveMemo(memberId, grade, memo, item) {
         } catch(e) {
             console.error(e);
             setSaveStatus(memberId, 'error');
+        } finally {
+            releaseLock();
         }
         delete saveTimers[memberId];
     }, 800); 
@@ -922,7 +929,14 @@ function renderList(){
         </div>
     `;
     
+    let currentScrollTop = 0;
+    const oldWrapper = content.querySelector('.table-wrapper');
+    if (oldWrapper) currentScrollTop = oldWrapper.scrollTop;
+
     content.innerHTML=html;
+
+    const newWrapper = content.querySelector('.table-wrapper');
+    if (newWrapper && currentScrollTop > 0) newWrapper.scrollTop = currentScrollTop;
     
     // ★ 綁定分頁按鈕事件
     const prevBtn = document.getElementById('page-prev-btn');
