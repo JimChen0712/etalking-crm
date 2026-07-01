@@ -688,15 +688,22 @@ async function fetchMemberDetail(m) {
         const html = await res.text();
         const doc = new DOMParser().parseFromString(html, 'text/html');
         const rows = doc.querySelectorAll('table tbody tr');
+        let hasScheduledDemo = false;
+        let hasBeenContacted = false;
+        const unansweredPrefixes = ['未接', '關機', '空號', '通話中', '語音', '響轉', '非本人'];
         
         rows.forEach(r => {
             const cells = r.querySelectorAll('td');
             if (cells.length < 4) return;
             const logType = cells[3].innerText.trim();
-            const logContent = cells[4] ? cells[4].innerText : '';
+            const logContent = cells[4] ? cells[4].innerText.trim() : '';
             const dateVal = cells[1].innerText.split(' ')[0];
             const nextTimeVal = cells[2] ? cells[2].innerText.trim().split(' ')[0] : '';
             
+            if (logType.includes('預約DEMO') || logType.includes('預約Demo')) {
+                hasScheduledDemo = true;
+            }
+
             if (logType.includes('名單移動')) {
                 if (logContent.includes('移動到新名單') && !assignDate) assignDate = dateVal;
                 if (logContent.includes('移動到常態名單') && !normalDate) {
@@ -706,6 +713,11 @@ async function fetchMemberDetail(m) {
             }
             if (logType.includes('聯絡')) {
                 contactCount++;
+                const isUnanswered = unansweredPrefixes.some(prefix => logContent.startsWith(prefix));
+                if (!isUnanswered) {
+                    hasBeenContacted = true;
+                }
+                
                 if (!reachedNormal && !lastLogNextTime && nextTimeVal && !nextTimeVal.includes('0000')) {
                     lastLogNextTime = nextTimeVal;
                 }
@@ -720,7 +732,7 @@ async function fetchMemberDetail(m) {
         let contactPercent = 0;
         let actualStart = assignDate || normalDate || (m.create_time ? m.create_time.split(' ')[0] : null);
         
-        if (actualStart && m.type == 2) {
+        if (actualStart && m.type == 2 && !hasScheduledDemo && !hasBeenContacted) {
             const msPerDay = 1000 * 60 * 60 * 24;
             const start = new Date(actualStart);
             const today = new Date();
