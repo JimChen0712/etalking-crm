@@ -718,14 +718,20 @@ async function fetchMemberDetail(m) {
         let contactPercent = 0;
         let actualStart = assignDate || normalDate || (m.create_time ? m.create_time.split(' ')[0] : null);
         
-        if (actualStart && m.type != 1) {
+        if (actualStart && (m.type == 1 || m.type == 2)) {
             const msPerDay = 1000 * 60 * 60 * 24;
             const start = new Date(actualStart);
             const today = new Date();
             let daysHeld = Math.floor((today - start) / msPerDay);
             if (daysHeld < 1) daysHeld = 1;
             
-            const target = Math.ceil(daysHeld * 1.5);
+            let target = 0;
+            if (daysHeld <= 3) {
+                target = daysHeld * 2;
+            } else {
+                target = 6 + Math.ceil((daysHeld - 3) * 1.5);
+            }
+            
             contactPercent = Math.round((contactCount / target) * 100);
             if (contactPercent > 100) contactPercent = 100;
             contactRate = contactPercent + '%';
@@ -881,12 +887,13 @@ function renderList(){
                 const count=d.contactCount||0;
                 const pct=Math.min(100,(count/6)*100);
                 progressHtml='<div style="font-size:10px;color:#1a6fc4;margin-top:3px;">進單:'+(d.assignDate||'-')+' 進度:'+count+'/6</div><div style="width:100%;height:3px;background:#ddd;border-radius:2px;margin-top:2px;"><div style="width:'+pct+'%;height:100%;background:'+(pct<100?'#3498db':'#27ae60')+';border-radius:2px;"></div></div>';
-            }else{
+            }else if (item.type==2) {
                 progressHtml='<div style="font-size:10px;color:#27ae60;margin-top:3px;">轉常態時間:'+(d.normalDate||'-')+'</div>';
-                if(d.contactRate){
-                    const rateColor = d.contactPercent < 50 ? '#e74c3c' : '#27ae60';
-                    progressHtml += '<div style="font-size:11px;font-weight:bold;color:'+rateColor+';margin-top:2px;">觸及率: '+d.contactRate+'</div>';
-                }
+            }
+            
+            if(d.contactRate && (item.type==1 || item.type==2)){
+                const rateColor = d.contactPercent < 50 ? '#e74c3c' : '#27ae60';
+                progressHtml += '<div style="font-size:11px;font-weight:bold;color:'+rateColor+';margin-top:2px;">觸及率: '+d.contactRate+'</div>';
             }
         }
 
