@@ -1,0 +1,26 @@
+{
+  "name": "etalking-crm",
+  "version": "1.0.0",
+  "description": "",
+  "main": "crm.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "vite build"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/JimChen0712/etalking-crm.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/JimChen0712/etalking-crm/issues"
+  },
+  "homepage": "https://github.com/JimChen0712/etalking-crm#readme",
+  "devDependencies": {
+    "terser": "^5.48.0",
+    "vite": "^8.1.2"
+  }
+}
