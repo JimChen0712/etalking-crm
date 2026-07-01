@@ -217,7 +217,7 @@ async function loadSheetData(){
                 if(idx===0)return;
                 const memberId=row[0];
                 if(memberId){
-                    sheetData[memberId]={status:row[8]||'',grade:row[9]||'',memo:row[10]||''};
+                    sheetData[memberId]={status:row[8]||'',grade:row[9]||'',memo:row[10]||'', contactRate:row[12]||''};
                     sheetRowMap[memberId]=idx+1;
                     if((idx+1) > maxKnownRow) maxKnownRow = idx+1;
                 }
@@ -243,13 +243,14 @@ async function updateSheetMemo(memberId, status, grade, memo, item){
     }
     const now = new Date();
     const timeStr = now.toLocaleString('zh-TW');
-    const contactRate = (detailData[id] && detailData[id].contactRate) ? detailData[id].contactRate : '';
+    const contactRate = (detailData[id] && detailData[id].contactRate) ? detailData[id].contactRate : (sheetData[id] ? sheetData[id].contactRate : '');
     await updateRow(rowNum, [status, grade, memo, timeStr, contactRate]);
 
-    if(!sheetData[id]) sheetData[id] = {status:'', grade:'', memo:''};
+    if(!sheetData[id]) sheetData[id] = {status:'', grade:'', memo:'', contactRate:''};
     sheetData[id].status = status;
     sheetData[id].grade  = grade;
     sheetData[id].memo   = memo;
+    sheetData[id].contactRate = contactRate;
 }
 
 async function sheetsDeleteRow(rowNum){ await deleteRow(rowNum); }
