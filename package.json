@@ -5,7 +5,7 @@
   "main": "crm.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "build": "vite build"
+    "build": "vite build && cp dist/crm.js crm.js"
   },
   "repository": {
     "type": "git",
