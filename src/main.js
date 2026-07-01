@@ -857,7 +857,9 @@ function renderList(){
         let progressHtml='';
         if(d){
             if(item.type==1){
-                progressHtml='<div style="font-size:10px;color:#1a6fc4;margin-top:3px;">進單:'+(d.assignDate||'-')+'</div>';
+                const count=d.contactCount||0;
+                const pct=Math.min(100,(count/6)*100);
+                progressHtml='<div style="font-size:10px;color:#1a6fc4;margin-top:3px;">進單:'+(d.assignDate||'-')+' 進度:'+count+'/6</div><div style="width:100%;height:3px;background:#ddd;border-radius:2px;margin-top:2px;"><div style="width:'+pct+'%;height:100%;background:'+(pct<100?'#3498db':'#27ae60')+';border-radius:2px;"></div></div>';
             }else{
                 progressHtml='<div style="font-size:10px;color:#27ae60;margin-top:3px;">轉常態時間:'+(d.normalDate||'-')+'</div>';
             }
