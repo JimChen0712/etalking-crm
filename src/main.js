@@ -338,6 +338,7 @@ ${isManager ? `
             <select id="source-filter" style="padding:4px;border-radius:4px;border:none;max-width:90px;"><option value="-1">所有來源</option></select>
             <button id="sync-all-new-btn" style="padding:4px 10px;cursor:pointer;border-radius:4px;border:none;background:#8e44ad;color:white;font-weight:bold;">同步名單細節</button>
             <button id="sync-demo-btn" style="padding:4px 10px;cursor:pointer;border-radius:4px;border:none;background:#e67e22;color:white;font-weight:bold;">同步Demo</button>
+            <button id="bulk-sync-rate-btn" style="padding:4px 10px;cursor:pointer;border-radius:4px;border:none;background:#16a085;color:white;font-weight:bold;">同步常態單觸及率</button>
             <button id="batch-release-btn" style="padding:4px 10px;cursor:pointer;border-radius:4px;border:none;background:#c0392b;color:white;font-weight:bold;display:none;">批量處理 (0)</button>
             <div id="pool-sync-block" style="display:none;align-items:center;gap:4px;background:rgba(255,255,255,0.1);padding:3px 8px;border-radius:6px;border:1px solid rgba(255,255,255,0.2);margin-left:4px;">
                 <input type="date" id="pool-start-date" style="padding:2px 4px;border-radius:4px;border:none;font-size:11px;width:115px;height:22px;line-height:22px;box-sizing:border-box;">
@@ -719,7 +720,7 @@ async function fetchMemberDetail(m) {
         let contactPercent = 0;
         let actualStart = assignDate || normalDate || (m.create_time ? m.create_time.split(' ')[0] : null);
         
-        if (actualStart && (m.type == 1 || m.type == 2)) {
+        if (actualStart && m.type == 2) {
             const msPerDay = 1000 * 60 * 60 * 24;
             const start = new Date(actualStart);
             const today = new Date();
@@ -892,7 +893,7 @@ function renderList(){
                 progressHtml='<div style="font-size:10px;color:#27ae60;margin-top:3px;">轉常態時間:'+(d.normalDate||'-')+'</div>';
             }
             
-            if(d.contactRate && (item.type==1 || item.type==2)){
+            if(d.contactRate && item.type==2){
                 const rateColor = d.contactPercent < 50 ? '#e74c3c' : '#27ae60';
                 progressHtml += '<div style="font-size:11px;font-weight:bold;color:'+rateColor+';margin-top:2px;">觸及率: '+d.contactRate+'</div>';
             }
@@ -1335,7 +1336,7 @@ if(isManager){
         if(tab === 'crm') {
             tabCrm.style.background = '#3498db';
             tabCrm.style.border = '2px solid #3498db';
-            ['consultant-filter','source-filter','sync-all-new-btn','sync-demo-btn','refresh-btn'].forEach(id => {
+            ['consultant-filter','source-filter','sync-all-new-btn','sync-demo-btn','bulk-sync-rate-btn','refresh-btn'].forEach(id => {
                 const el = document.getElementById(id);
                 if(el) el.style.display = '';
             });
@@ -1346,7 +1347,7 @@ if(isManager){
         } else {
             tabPool.style.background = '#2ecc71';
             tabPool.style.border = '2px solid #2ecc71';
-            ['consultant-filter','source-filter','sync-all-new-btn','sync-demo-btn','refresh-btn'].forEach(id => {
+            ['consultant-filter','source-filter','sync-all-new-btn','sync-demo-btn','bulk-sync-rate-btn','refresh-btn'].forEach(id => {
                 const el = document.getElementById(id);
                 if(el) el.style.display = 'none';
             });
@@ -1722,6 +1723,45 @@ if(isManager){
             await syncDemoRawData();
             syncDemoBtn.disabled=false;syncDemoBtn.style.background='#e67e22';syncDemoBtn.innerText='同步Demo';
             renderList();
+        };
+    }
+
+    const bulkSyncBtn=document.getElementById('bulk-sync-rate-btn');
+    if(bulkSyncBtn){
+        bulkSyncBtn.onclick=async()=>{
+            const targets = allData.filter(m => m.type == 2 && detailData[m.member_id || m.id]);
+            if(!targets.length) {
+                alert('目前沒有已載入的常態名單可以同步！請先點擊「同步名單細節」。');
+                return;
+            }
+            if(!confirm('即將同步 ' + targets.length + ' 筆常態單的觸及率到 Google Sheet，預計需要 ' + targets.length + ' 秒。期間請勿關閉網頁。確定嗎？')) return;
+            
+            bulkSyncBtn.disabled=true; bulkSyncBtn.style.background='#95a5a6';
+            
+            for(let i=0; i<targets.length; i++){
+                bulkSyncBtn.innerText = `同步中 (${i+1}/${targets.length})`;
+                const item = targets[i];
+                const id = item.member_id || item.id;
+                const sd = sheetData[id];
+                if (sd) {
+                    const now = new Date();
+                    const timeStr = now.toLocaleString('zh-TW');
+                    const contactRate = detailData[id].contactRate || '';
+                    const rowNum = sheetRowMap[id];
+                    if(rowNum) {
+                        try {
+                            await updateRow(rowNum, [sd.status, sd.grade, sd.memo, timeStr, contactRate]);
+                            sd.contactRate = contactRate;
+                        } catch(e) {
+                            console.error('Batch update row failed', id, e);
+                        }
+                    }
+                }
+                await new Promise(r => setTimeout(r, 1000));
+            }
+            
+            bulkSyncBtn.disabled=false; bulkSyncBtn.style.background='#16a085'; bulkSyncBtn.innerText='同步常態單觸及率';
+            alert('✅ 同步完成！');
         };
     }
 }
