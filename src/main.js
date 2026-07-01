@@ -751,7 +751,7 @@ async function fetchMemberDetail(m) {
             contactRate = contactPercent + '%';
         }
 
-        detailData[memberId] = { assignDate, normalDate, contactCount, lastLogNextTime, contactRate, contactPercent };
+        detailData[memberId] = { assignDate, normalDate, contactCount, lastLogNextTime, contactRate, contactPercent, hasScheduledDemo, hasBeenContacted };
         renderList(); 
 
     } catch(e) {
@@ -905,9 +905,15 @@ function renderList(){
                 progressHtml='<div style="font-size:10px;color:#27ae60;margin-top:3px;">轉常態時間:'+(d.normalDate||'-')+'</div>';
             }
             
-            if(d.contactRate && item.type==2){
-                const rateColor = d.contactPercent < 50 ? '#e74c3c' : '#27ae60';
-                progressHtml += '<div style="font-size:11px;font-weight:bold;color:'+rateColor+';margin-top:2px;">觸及率: '+d.contactRate+'</div>';
+            if (item.type==2) {
+                if (d.hasScheduledDemo) {
+                    progressHtml += '<div style="font-size:11px;font-weight:bold;color:#8e44ad;margin-top:2px;">🎯 已約 Demo (免計)</div>';
+                } else if (d.hasBeenContacted) {
+                    progressHtml += '<div style="font-size:11px;font-weight:bold;color:#27ae60;margin-top:2px;">✅ 已聯絡 (免計)</div>';
+                } else if (d.contactRate) {
+                    const rateColor = d.contactPercent < 50 ? '#e74c3c' : '#27ae60';
+                    progressHtml += '<div style="font-size:11px;font-weight:bold;color:'+rateColor+';margin-top:2px;">觸及率: '+d.contactRate+'</div>';
+                }
             }
         }
 
