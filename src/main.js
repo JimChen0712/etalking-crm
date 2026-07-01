@@ -124,10 +124,13 @@ async function ensureMemberInSheet(memberId, item, assignDate) {
         const ownerName = (item.user_name && item.user_name.trim())
             ? item.user_name.trim() : getWriterName();
 
+        const contactRate = (detailData[id] && detailData[id].contactRate) ? detailData[id].contactRate : '';
+
         const res = await appendRow([
             id, item.member_name || '', item.mobile || '',
             item.source || '無', ownerName, crmUid, dateStr, month,
-            item.type == 1 ? '新單' : '', '', '', now.toLocaleString('zh-TW')
+            item.type == 1 ? '新單' : '', '', '', now.toLocaleString('zh-TW'),
+            contactRate
         ]);
 
         if (res && typeof res.rowNum === 'number' && res.rowNum > 0) {
@@ -240,7 +243,8 @@ async function updateSheetMemo(memberId, status, grade, memo, item){
     }
     const now = new Date();
     const timeStr = now.toLocaleString('zh-TW');
-    await updateRow(rowNum, [status, grade, memo, timeStr]);
+    const contactRate = (detailData[id] && detailData[id].contactRate) ? detailData[id].contactRate : '';
+    await updateRow(rowNum, [status, grade, memo, timeStr, contactRate]);
 
     if(!sheetData[id]) sheetData[id] = {status:'', grade:'', memo:''};
     sheetData[id].status = status;
@@ -710,7 +714,24 @@ async function fetchMemberDetail(m) {
             assignDate = new Date().toISOString().split('T')[0];
         }
 
-        detailData[memberId] = { assignDate, normalDate, contactCount, lastLogNextTime };
+        let contactRate = '';
+        let contactPercent = 0;
+        let actualStart = assignDate || normalDate || (m.create_time ? m.create_time.split(' ')[0] : null);
+        
+        if (actualStart && m.type != 1) {
+            const msPerDay = 1000 * 60 * 60 * 24;
+            const start = new Date(actualStart);
+            const today = new Date();
+            let daysHeld = Math.floor((today - start) / msPerDay);
+            if (daysHeld < 1) daysHeld = 1;
+            
+            const target = Math.ceil(daysHeld * 1.5);
+            contactPercent = Math.round((contactCount / target) * 100);
+            if (contactPercent > 100) contactPercent = 100;
+            contactRate = contactPercent + '%';
+        }
+
+        detailData[memberId] = { assignDate, normalDate, contactCount, lastLogNextTime, contactRate, contactPercent };
         renderList(); 
 
     } catch(e) {
@@ -862,10 +883,10 @@ function renderList(){
                 progressHtml='<div style="font-size:10px;color:#1a6fc4;margin-top:3px;">進單:'+(d.assignDate||'-')+' 進度:'+count+'/6</div><div style="width:100%;height:3px;background:#ddd;border-radius:2px;margin-top:2px;"><div style="width:'+pct+'%;height:100%;background:'+(pct<100?'#3498db':'#27ae60')+';border-radius:2px;"></div></div>';
             }else{
                 progressHtml='<div style="font-size:10px;color:#27ae60;margin-top:3px;">轉常態時間:'+(d.normalDate||'-')+'</div>';
-            }
-            if(d.contactRate){
-                const rateColor = d.contactPercent < 50 ? '#e74c3c' : '#27ae60';
-                progressHtml += '<div style="font-size:11px;font-weight:bold;color:'+rateColor+';margin-top:2px;">觸及率: '+d.contactRate+'</div>';
+                if(d.contactRate){
+                    const rateColor = d.contactPercent < 50 ? '#e74c3c' : '#27ae60';
+                    progressHtml += '<div style="font-size:11px;font-weight:bold;color:'+rateColor+';margin-top:2px;">觸及率: '+d.contactRate+'</div>';
+                }
             }
         }
 
