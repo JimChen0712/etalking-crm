@@ -855,16 +855,16 @@ function renderList(){
         }
 
         let progressHtml='';
-        if(item.type==1){
-            const count=d?d.contactCount:0;
-            const pct=Math.min(100,(count/6)*100);
-            const assignStr=(d&&d.assignDate)?d.assignDate:'待載入';
-            progressHtml='<div style="font-size:10px;color:#1a6fc4;margin-top:3px;">進單:'+assignStr+' 進度:'+count+'/6</div><div style="width:100%;height:3px;background:#ddd;border-radius:2px;margin-top:2px;"><div style="width:'+pct+'%;height:100%;background:'+(pct<100?'#3498db':'#27ae60')+';border-radius:2px;"></div></div>';
-        }
-
-        if(item.type==2){
-            const normalStr=(d&&d.normalDate)?d.normalDate:'待載入';
-            progressHtml='<div style="font-size:10px;color:#27ae60;margin-top:3px;">轉常態時間:'+normalStr+'</div>';
+        if(d){
+            if(item.type==1){
+                progressHtml='<div style="font-size:10px;color:#1a6fc4;margin-top:3px;">進單:'+(d.assignDate||'-')+'</div>';
+            }else{
+                progressHtml='<div style="font-size:10px;color:#27ae60;margin-top:3px;">轉常態時間:'+(d.normalDate||'-')+'</div>';
+            }
+            if(d.contactRate){
+                const rateColor = d.contactPercent < 50 ? '#e74c3c' : '#27ae60';
+                progressHtml += '<div style="font-size:11px;font-weight:bold;color:'+rateColor+';margin-top:2px;">觸及率: '+d.contactRate+'</div>';
+            }
         }
 
         const isReInquire = (sd.status === '再次留單');
